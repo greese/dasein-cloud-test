@@ -30,6 +30,9 @@ import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Megabyte;
+import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -168,12 +171,19 @@ public class VirtualMachineTestCase extends BaseTestCase {
             assertNotNull("Received a null product list for " + architecture, products);
             for( VirtualMachineProduct product : products ) {
                 out("Product: " + product);
-                assertNotNull("Product ID cannot be null", product.getProductId());
+                assertNotNull("Product ID cannot be null", product.getProviderProductId());
                 assertTrue("CPU count must be at least 1", product.getCpuCount() > 0);
                 assertNotNull("Product name cannot be null", product.getName());
                 assertNotNull("Product description cannot be null", product.getDescription());
-                assertTrue("Disk size must be at least 1 GB", product.getDiskSizeInGb() > 0);
-                assertTrue("RAM size must be at least 256 MB", product.getRamInMb() >= 256);
+                Storage<Gigabyte> disk = product.getRootVolumeSize();
+                
+                assertNotNull("No disk size is specified");
+                assertTrue("Disk size must be non-negative", disk.getQuantity().intValue() > -1);
+                
+                Storage<Megabyte> ram = product.getRamSize();
+                
+                assertNotNull("No RAM size is specified");
+                assertTrue("RAM size must be non-negative", ram.getQuantity().intValue() > -1);
                 count++;
             }
         }
@@ -195,7 +205,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
         begin();
         cloud.getComputeServices().getVirtualMachineSupport().terminate(vmToTerminate);
         try { Thread.sleep(5000L); }
-        catch( InterruptedException e ) { }
+        catch( InterruptedException ignore ) { }
         VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToTerminate);
         
         assertTrue("VM is still running", vm == null || !vm.getCurrentState().equals(VmState.RUNNING));
@@ -218,7 +228,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
         assertNotNull("The VM data center cannot be null", vm.getProviderDataCenterId());
         assertNotNull("A VM must have an architecture", vm.getArchitecture());
         assertNotNull("A VM must have a platform", vm.getPlatform());
-        assertNotNull("A VM must have a product", vm.getProduct());
+        assertNotNull("A VM must have a product", vm.getProductId());
         try {
             out("VM ID:         " + vm.getProviderVirtualMachineId());
             out("Name:          " + vm.getName());
@@ -236,7 +246,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
             out("Architecture:  " + vm.getArchitecture());
             out("Platform:      " + vm.getPlatform());
             out("Assigned:      " + vm.getProviderAssignedIpAddressId());
-            out("Product:       " + vm.getProduct());
+            out("Product:       " + vm.getProductId());
             out("State:         " + vm.getCurrentState());
             out("Description:\n" + vm.getDescription());
         }
