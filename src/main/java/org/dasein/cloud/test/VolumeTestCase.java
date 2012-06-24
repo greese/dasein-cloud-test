@@ -52,8 +52,11 @@ public class VolumeTestCase extends BaseTestCase {
         cloud = getProvider();
         cloud.connect(getTestContext());
         if( name.equals("testVolumeContent") || name.equals("testGetVolume") ) {
+            testVolume = null;
             for( Volume volume : cloud.getComputeServices().getVolumeSupport().listVolumes() ) {
-                testVolume = volume.getProviderVolumeId();
+                if( volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                    testVolume = volume.getProviderVolumeId();
+                }
             }
             if( testVolume == null ) {
                 volumeToDelete = allocateVolume(cloud);
