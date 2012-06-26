@@ -25,6 +25,8 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.network.NICCreateOptions;
+import org.dasein.cloud.network.NetworkInterface;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.network.VLAN;
@@ -34,6 +36,8 @@ import org.junit.Test;
 
 public class VLANTestCase extends BaseTestCase {
     private CloudProvider cloud          = null;
+    private String        nicToRemove    = null;
+    private String        testNIC        = null;
     private String        subnetToRemove = null;
     private String        testSubnet     = null;
     private String        testVlan       = null;
@@ -49,19 +53,30 @@ public class VLANTestCase extends BaseTestCase {
             
             cloud = getProvider();
             cloud.connect(getTestContext());
+
+            VLANSupport support = cloud.getNetworkServices().getVlanSupport();
+            
             if( name.equals("testVlanContent") ) {
                 for( VLAN vlan : cloud.getNetworkServices().getVlanSupport().listVlans() ) {
                     testVlan = vlan.getProviderVlanId();
                     break;
                 }
-                if( testVlan == null && cloud.getNetworkServices().getVlanSupport().allowsNewVlanCreation() ) {
+                if( testVlan == null && support.allowsNewVlanCreation() ) {
                     vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
                     testVlan = vlanToRemove;
                 }
             }
-            else if( name.equals("testProvisionSubnet") && cloud.getNetworkServices().getVlanSupport().allowsNewSubnetCreation() ) {
+            else if( name.equals("testProvisionSubnet") && support.allowsNewSubnetCreation() ) {
                 vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
                 testVlan = vlanToRemove; 
+            }
+            else if( name.equals("testProvisionNIC") && support.allowsNewNetworkInterfaceCreation() ) {
+                vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
+                testVlan = vlanToRemove;
+                if( support.allowsNewSubnetCreation() ) {
+                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                    testSubnet = subnetToRemove;                    
+                }
             }
             else if( name.equals("testSubnetContent") || name.equals("testListSubnets") ) {
                 if( cloud.getNetworkServices().getVlanSupport().supportsVlansWithSubnets() ) {
@@ -101,6 +116,27 @@ public class VLANTestCase extends BaseTestCase {
                 subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
                 testSubnet = subnetToRemove;            
             }
+            else if( name.equals("testRemoveNIC") && support.isNetworkInterfaceSupportEnabled() ) {
+                NICCreateOptions options;
+                
+                if( support.allowsNewVlanCreation() ) {
+                    vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
+                    testVlan = vlanToRemove;
+                }
+                else {
+                    fail("Unable to create a vlan for testing nics");
+                }
+                if( support.allowsNewSubnetCreation() ) {
+                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                    testSubnet = subnetToRemove;
+                    options = NICCreateOptions.getInstanceForSubnet(testSubnet, "testRemoveNIC" + System.currentTimeMillis(), "testRemoveNIC");
+                }
+                else {
+                    options = NICCreateOptions.getInstanceForSubnet(testVlan, "testRemoveNIC" + System.currentTimeMillis(), "testRemoveNIC");                    
+                }
+                testNIC = support.createNetworkInterface(options).getProviderNetworkInterfaceId();
+                nicToRemove = testNIC;
+            }
             if( vlanToRemove != null ) {
                 out("Created VLAN " + vlanToRemove + " for test case " + name);            
             }
@@ -116,6 +152,14 @@ public class VLANTestCase extends BaseTestCase {
     @After
     public void tearDown() {
         out("TEAR DOWN");
+        try {
+            if( nicToRemove != null ) {
+                cloud.getNetworkServices().getVlanSupport().removeNetworkInterface(nicToRemove);
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore me
+        }
         try {
             if( subnetToRemove != null ) {
                 cloud.getNetworkServices().getVlanSupport().removeSubnet(subnetToRemove);
@@ -368,5 +412,93 @@ public class VLANTestCase extends BaseTestCase {
         ips = vlan.getNtpServers();
         out("NTP:         " + ((ips == null || ips.length < 1) ? "none" : ips.clone()[0]));
         end();        
+    }
+
+    @Test
+    public void testGetBogusNIC() throws CloudException, InternalException {
+        begin();
+        if( cloud.getNetworkServices().getVlanSupport().isNetworkInterfaceSupportEnabled() ) {
+            NetworkInterface nic = cloud.getNetworkServices().getVlanSupport().getNetworkInterface(UUID.randomUUID().toString());
+
+            out("Bogus NIC: " + nic);
+            assertNull("Found a matching NIC for test", nic);
+        }
+        else {
+            out("Cloud does not support network interfaces");
+        }
+        end();
+    }
+
+    @Test
+    public void testListNICs() throws CloudException, InternalException {
+        begin();
+        VLANSupport support = cloud.getNetworkServices().getVlanSupport();
+        
+        if( support.isNetworkInterfaceSupportEnabled() ) {
+            Iterable<NetworkInterface> nics = support.listNetworkInterfaces();
+
+            assertNotNull("NIC list cannot be null", nics);
+            try {
+                for( NetworkInterface nic : nics ) {
+                    out("NIC: " + nic);
+                }
+            }
+            catch( Throwable notPartOfTest ) {
+                // ignore this
+            }
+        }
+        else {
+            out("Cloud does not support network interfaces");
+        }
+        end();
+    }
+    
+    @Test
+    public void testProvisionNIC() throws CloudException, InternalException {
+        begin();
+        if( cloud.getNetworkServices().getVlanSupport().isNetworkInterfaceSupportEnabled() ) {
+            NICCreateOptions options;
+            
+            if( testSubnet != null ) {
+                options = NICCreateOptions.getInstanceForSubnet(testSubnet, "testProvisionNIC" + System.currentTimeMillis(), "testProvisionNIC " + System.currentTimeMillis());
+            }
+            else {
+                options = NICCreateOptions.getInstanceForSubnet(testVlan, "testProvisionNIC" + System.currentTimeMillis(), "testProvisionNIC " + System.currentTimeMillis());            
+            }
+            String id = getTestFirewallId();
+            
+            if( id != null ) {
+                options.behindFirewalls(id);
+            }
+            NetworkInterface nic = cloud.getNetworkServices().getVlanSupport().createNetworkInterface(options);
+            
+            out("Provisioned: " + nic);
+            assertNotNull("No NIC was created", nic);
+            nicToRemove = nic.getProviderNetworkInterfaceId();
+        }
+        else {
+            out("Cloud does not support network interfaces");
+        }
+        end();
+    }
+
+    @Test
+    public void testRemoveNIC() throws CloudException, InternalException {
+        begin();
+        if( cloud.getNetworkServices().getVlanSupport().isNetworkInterfaceSupportEnabled() ) {
+            if( nicToRemove != null ) {
+                cloud.getNetworkServices().getVlanSupport().removeNetworkInterface(nicToRemove);
+                try { Thread.sleep(5000L); }
+                catch( InterruptedException e ) { }
+                NetworkInterface nic = cloud.getNetworkServices().getVlanSupport().getNetworkInterface(nicToRemove);
+
+                assertNull("NIC was not removed", nic);
+                nicToRemove = null;
+            }
+        }
+        else {
+            out("Cloud does not support network interfaces");
+        }
+        end();
     }
 }
