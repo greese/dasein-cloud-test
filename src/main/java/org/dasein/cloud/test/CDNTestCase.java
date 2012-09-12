@@ -45,7 +45,7 @@ public class CDNTestCase extends BaseTestCase {
         provider = getProvider();
         provider.connect(getTestContext());
         if( name.equals("testCreateDistribution") ) {
-            testDirectory = provider.getStorageServices().getBlobStoreSupport().createDirectory("dsncdn" + System.currentTimeMillis(), true);
+            testDirectory = provider.getStorageServices().getBlobStoreSupport().createBucket("dsncdn" + System.currentTimeMillis(), true).getBucketName();
         }
         else if( name.equals("testGetDistribution") ) {
             for( Distribution d : provider.getPlatformServices().getCDNSupport().list() ) {
@@ -54,7 +54,7 @@ public class CDNTestCase extends BaseTestCase {
                 }
             }
             if( testDistributionId == null ) {
-                String dir = provider.getStorageServices().getBlobStoreSupport().createDirectory("dsnbk" + System.currentTimeMillis(), true);
+                String dir = provider.getStorageServices().getBlobStoreSupport().createBucket("dsnbk" + System.currentTimeMillis(), true).getBucketName();
                 
                 testDistributionId = provider.getPlatformServices().getCDNSupport().create(dir, "Get CDN Test", true, System.currentTimeMillis() + "a.dasein.org");
                 distributionToDelete = testDistributionId;
@@ -67,20 +67,20 @@ public class CDNTestCase extends BaseTestCase {
                 }
             }
             if( testDistributionId == null ) {
-                String dir = provider.getStorageServices().getBlobStoreSupport().createDirectory("dsnbk" + System.currentTimeMillis(), true);
+                String dir = provider.getStorageServices().getBlobStoreSupport().createBucket("dsnbk" + System.currentTimeMillis(), true).getBucketName();
                 
                 testDistributionId = provider.getPlatformServices().getCDNSupport().create(dir, "CDN Test Content", true, System.currentTimeMillis() + "b.dasein.org");
                 distributionToDelete = testDistributionId;
             }            
         }
         else if( name.equals("testUpdateDistribution") ) {
-            String dir = provider.getStorageServices().getBlobStoreSupport().createDirectory("dsnbk" + System.currentTimeMillis(), true);
+            String dir = provider.getStorageServices().getBlobStoreSupport().createBucket("dsnbk" + System.currentTimeMillis(), true).getBucketName();
             
             testDistributionId = provider.getPlatformServices().getCDNSupport().create(dir, "CDN Test Update", true, System.currentTimeMillis() + "c.dasein.org");
             distributionToDelete = testDistributionId;   
         }
         else if( name.equals("testDeleteDistribution") ) {
-            String dir = provider.getStorageServices().getBlobStoreSupport().createDirectory("dsnbk" + System.currentTimeMillis(), true);
+            String dir = provider.getStorageServices().getBlobStoreSupport().createBucket("dsnbk" + System.currentTimeMillis(), true).getBucketName();
             
             testDistributionId = provider.getPlatformServices().getCDNSupport().create(dir, "CDN Test Delete", true, System.currentTimeMillis() + "d.dasein.org");
             distributionToDelete = testDistributionId;   

@@ -18,6 +18,7 @@
 
 package org.dasein.cloud.test;
 
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -25,8 +26,10 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.network.NICCreateOptions;
 import org.dasein.cloud.network.NetworkInterface;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.network.VLAN;
@@ -79,7 +82,7 @@ public class VLANTestCase extends BaseTestCase {
                 }
             }
             else if( name.equals("testSubnetContent") || name.equals("testListSubnets") ) {
-                if( cloud.getNetworkServices().getVlanSupport().supportsVlansWithSubnets() ) {
+                if( !cloud.getNetworkServices().getVlanSupport().getSubnetSupport().equals(Requirement.NONE)  ) {
                     for( VLAN vlan : cloud.getNetworkServices().getVlanSupport().listVlans() ) {
                         for( Subnet subnet : cloud.getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
                             testSubnet = subnet.getProviderSubnetId();
@@ -190,7 +193,7 @@ public class VLANTestCase extends BaseTestCase {
     @Test
     public void testGetBogusSubnet() throws CloudException, InternalException {
         begin();
-        if( cloud.getNetworkServices().getVlanSupport().supportsVlansWithSubnets() ) {
+        if( !cloud.getNetworkServices().getVlanSupport().getSubnetSupport().equals(Requirement.NONE) ) {
             if( cloud.getNetworkServices().getVlanSupport().allowsNewSubnetCreation() ) {
                 Subnet subnet = cloud.getNetworkServices().getVlanSupport().getSubnet(UUID.randomUUID().toString());
                 
@@ -212,8 +215,8 @@ public class VLANTestCase extends BaseTestCase {
     @Test
     public void testListSubnets() throws CloudException, InternalException {
         begin();
-        if( cloud.getNetworkServices().getVlanSupport().supportsVlansWithSubnets() ) {
-            VLANSupport vlanSupport = cloud.getNetworkServices().getVlanSupport();
+        if( !getVlanSupport().getSubnetSupport().equals(Requirement.NONE)) {
+            VLANSupport vlanSupport = getVlanSupport();
             Iterable<Subnet> subnets = vlanSupport.listSubnets(testVlan);
             
             assertNotNull("Subnet list cannot be null", subnets);
@@ -246,20 +249,36 @@ public class VLANTestCase extends BaseTestCase {
         }
         end();
     }
+
+    private VLANSupport getVlanSupport() { 
+        NetworkServices services = cloud.getNetworkServices();
+        
+        return (services == null ? null : services.getVlanSupport());
+    }
     
     @Test
     public void testMetaData() throws CloudException, InternalException {
         begin();
-        VLANSupport support = cloud.getNetworkServices().getVlanSupport();
+        VLANSupport support = getVlanSupport();
         
-        out("Term for VLAN:           " + support.getProviderTermForVlan(Locale.getDefault()));
-        out("Term for Subnet:         " + support.getProviderTermForSubnet(Locale.getDefault()));
-        out("Allows VLAN Creation:    " + support.allowsNewVlanCreation());
-        out("Allows Subnet Creation:  " + support.allowsNewSubnetCreation());
-        out("Max VLAN Count:          " + support.getMaxVlanCount());
-        out("Vlan DC Constrained:     " + support.isVlanDataCenterConstrained());
-        out("Subnet DC Constrained:   " + support.isSubnetDataCenterConstrained());
-        out("Subnets in VLANs:        " + support.supportsVlansWithSubnets());
+        if( support == null ) {
+            out("No support for VLANs in this cloud");
+        }
+        else {
+            out("Term for VLAN:             " + support.getProviderTermForVlan(Locale.getDefault()));
+            out("Term for Subnet:           " + support.getProviderTermForSubnet(Locale.getDefault()));
+            out("Term for NIC:              " + support.getProviderTermForNetworkInterface(Locale.getDefault()));
+            out("Allows VLAN Creation:      " + support.allowsNewVlanCreation());
+            out("Allows Subnet Creation:    " + support.allowsNewSubnetCreation());
+            out("Max NIC Count:             " + support.getMaxNetworkInterfaceCount());
+            out("Max VLAN Count:            " + support.getMaxVlanCount());
+            out("Vlan DC Constrained:       " + support.isVlanDataCenterConstrained());
+            out("Subnet DC Constrained:     " + support.isSubnetDataCenterConstrained());
+            out("Subnets in VLANs:          " + support.getSubnetSupport());
+            out("NICs Enabled:              " + support.isNetworkInterfaceSupportEnabled());
+            out("Internet Gateway Creation: " + support.supportsInternetGatewayCreation());
+            out("Raw address routing:       " + support.supportsRawAddressRouting());
+        }
         end();
     }
     
@@ -350,7 +369,7 @@ public class VLANTestCase extends BaseTestCase {
     @Test
     public void testSubnetContent() throws CloudException, InternalException {
         begin();
-        if( cloud.getNetworkServices().getVlanSupport().supportsVlansWithSubnets() ) {
+        if( !cloud.getNetworkServices().getVlanSupport().getSubnetSupport().equals(Requirement.NONE) ) {
             Subnet subnet = cloud.getNetworkServices().getVlanSupport().getSubnet(testSubnet);
             
             assertNotNull("Subnet was not found", subnet);
@@ -399,19 +418,20 @@ public class VLANTestCase extends BaseTestCase {
         if( cloud.getNetworkServices().getVlanSupport().isVlanDataCenterConstrained() ) {
             assertNotNull("VLAN has no data center", vlan.getProviderDataCenterId());
         }
-        out("ID:          " + vlan.getProviderVlanId());
-        out("Name:        " + vlan.getName());
-        out("Owner:       " + vlan.getProviderOwnerId());
-        out("CIDR:        " + vlan.getCidr());
-        out("Region:      " + vlan.getProviderRegionId());
-        out("Data Center: " + vlan.getProviderDataCenterId());
-        out("Gateway:     " + vlan.getGateway());
-        out("Domain Name: " + vlan.getDomainName());
+        out("ID:            " + vlan.getProviderVlanId());
+        out("Name:          " + vlan.getName());
+        out("Owner:         " + vlan.getProviderOwnerId());
+        out("Current State: " + vlan.getCurrentState());
+        out("CIDR:          " + vlan.getCidr());
+        out("Region:        " + vlan.getProviderRegionId());
+        out("Data Center:   " + vlan.getProviderDataCenterId());
+        out("Domain Name:   " + vlan.getDomainName());
+        out("Traffic:       " + Arrays.toString(vlan.getSupportedTraffic()));
         String[] ips = vlan.getDnsServers();
-        out("DNS:         " + ((ips == null || ips.length < 1) ? "none" : ips.clone()[0]));
+        out("DNS:           " + ((ips == null || ips.length < 1) ? "none" : ips.clone()[0]));
         ips = vlan.getNtpServers();
-        out("NTP:         " + ((ips == null || ips.length < 1) ? "none" : ips.clone()[0]));
-        end();        
+        out("NTP:           " + ((ips == null || ips.length < 1) ? "none" : ips.clone()[0]));
+        end();
     }
 
     @Test

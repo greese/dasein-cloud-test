@@ -18,23 +18,33 @@
 
 package org.dasein.cloud.test;
 
+import java.util.Collection;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.Locale;
 import java.util.UUID;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.Requirement;
+import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.util.CalendarWrapper;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
+
+import javax.annotation.Nonnull;
 
 public class VolumeTestCase extends BaseTestCase {
     private CloudProvider cloud          = null;
@@ -133,24 +143,174 @@ public class VolumeTestCase extends BaseTestCase {
             // ignore
         }
     }
-    
+
+    private @Nonnull VolumeSupport getSupport() {
+        ComputeServices services = cloud.getComputeServices();
+
+        assertNotNull("No compute services are defined in this cloud", services);
+
+        VolumeSupport support = services.getVolumeSupport();
+
+        assertNotNull("No volume support is defined in this cloud", services);
+        return support;
+    }
+
+    @Test
+    public void testSubscription() throws CloudException, InternalException {
+        begin();
+        try {
+            out("Subscribed: " + getSupport().isSubscribed());
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testMetaData() throws InternalException, CloudException {
+        begin();
+        try {
+            VolumeSupport support = getSupport();
+
+            String term = support.getProviderTermForVolume(Locale.getDefault());
+
+            out("Term for Volume:         " + term);
+            assertNotNull("You must specify the provider term for volume", term);
+
+            out("Minimum volume size:     " + support.getMinimumVolumeSize());
+            out("Maximum volume size:     " + support.getMaximumVolumeSize());
+            out("Size defined by product: " + support.isVolumeSizeDeterminedByProduct());
+            out("Product required:        " + support.getVolumeProductRequirement());
+            out("Max allocated volumes:   " + (support.getMaximumVolumeCount() == -2 ? "unknown" : support.getMaximumVolumeCount()));
+
+            Iterable<String> devices = support.listPossibleDeviceIds(Platform.UNIX);
+
+            assertNotNull("You must specify device IDs to match " + Platform.UNIX, devices);
+            boolean hasOne = false;
+            out("Devices for " + Platform.UNIX + ":");
+            for( String id : devices ) {
+                out("\t" + id);
+                hasOne = true;
+            }
+            assertTrue("You must have at least one device ID for " + Platform.UNIX, hasOne);
+
+            devices = support.listPossibleDeviceIds(Platform.WINDOWS);
+
+            assertNotNull("You must specify device IDs to match " + Platform.WINDOWS, devices);
+            hasOne = false;
+            out("Devices for " + Platform.WINDOWS + ":");
+            for( String id : devices ) {
+                out("\t" + id);
+                hasOne = true;
+            }
+            assertTrue("You must have at least one device ID for " + Platform.WINDOWS, hasOne);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testListProducts() throws InternalException, CloudException {
+        begin();
+        try {
+            for( VolumeProduct product : getSupport().listVolumeProducts() ) {
+                out("Product: " + product.getName() + " [" + product.getProviderProductId() + "]");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testGetProduct() throws InternalException, CloudException {
+        begin();
+        try {
+            Iterator<VolumeProduct> products = getSupport().listVolumeProducts().iterator();
+
+            if( products.hasNext() ) {
+                VolumeProduct prd = products.next();
+
+                out("ID:              " + prd.getProviderProductId());
+                out("Name:            " + prd.getName());
+                out("Type:            " + prd.getType());
+                out("Size:            " + prd.getVolumeSize());
+                out("Min IOPS:        " + prd.getMinIops());
+                out("Max IOPS:        " + prd.getMaxIops());
+                out("Currency:        " + prd.getCurrency());
+                out("Storage Cost:    " + prd.getMonthlyGigabyteCost());
+                out("IOPS Cost:       " + prd.getIopsCost());
+                out("Description:     " + prd.getDescription());
+                assertNotNull("ID is null", prd.getProviderProductId());
+                assertNotNull("Name is null", prd.getName());
+                assertNotNull("Description is null", prd.getDescription());
+                assertNotNull("Type is null", prd.getType());
+                assertTrue("Min IOPS is negative", prd.getMinIops() > -1);
+                assertTrue("Max IOPS is negative", prd.getMaxIops() > -1);
+                assertTrue("Max IOPS is less than min", prd.getMaxIops() >= prd.getMinIops());
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testCreateVolume() throws InternalException, CloudException {
+        begin();
+        try {
+            Storage<Gigabyte> size = getSupport().getMinimumVolumeSize();
+            String name = "dsn" + System.currentTimeMillis();
+            VolumeCreateOptions options;
+            VolumeProduct prd = null;
+            int iops = 0;
+
+            for( VolumeProduct p : getSupport().listVolumeProducts() ) {
+                prd = p;
+            }
+            if( prd == null ) {
+                assertFalse("A product is required to create a volume, but no products are provided", getSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED));
+                options = VolumeCreateOptions.getInstance(size, name, name);
+            }
+            else {
+                iops = (prd.getMinIops() > 0 ? prd.getMinIops() : (prd.getMaxIops() > 0 ? 1 : 0));
+                if( getSupport().isVolumeSizeDeterminedByProduct() ) {
+                    Storage<Gigabyte> s = prd.getVolumeSize();
+
+                    if( s != null && s.getQuantity().intValue() > 0 ) {
+                        size = s;
+                    }
+                }
+                options = VolumeCreateOptions.getInstance(prd.getProviderProductId(), size, name, name, iops);
+            }
+            volumeToDelete = getSupport().createVolume(options);
+            out("Created: " + volumeToDelete);
+            assertNotNull("No volume created", volumeToDelete);
+            assertNotNull("Could not find volume after created", getSupport().getVolume(volumeToDelete));
+        }
+        finally {
+            end();
+        }
+    }
+
     @Test
     public void testAttachVolume() throws InternalException, CloudException {
         begin();
         if( cloud.getComputeServices().hasVirtualMachineSupport() ) {
             VirtualMachine server = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
             String device = null;
-            
+
             for( String id : cloud.getComputeServices().getVolumeSupport().listPossibleDeviceIds(server.getPlatform()) ) {
                 device = id;
                 break;
             }
             cloud.getComputeServices().getVolumeSupport().attach(testVolume, serverToKill, device);
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 10L);
-            
+
             while( timeout > System.currentTimeMillis() ) {
                 Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
-                
+
                 if( volume.getProviderVirtualMachineId() != null ) {
                     assertEquals("Volume attachment does not match target server", serverToKill, volume.getProviderVirtualMachineId());
                     end();
@@ -163,7 +323,8 @@ public class VolumeTestCase extends BaseTestCase {
         }
         end();
     }
-    
+
+
     @Test
     public void testAttachVolumeToNoServer() throws InternalException, CloudException {
         begin();
@@ -183,14 +344,6 @@ public class VolumeTestCase extends BaseTestCase {
             }
             fail("System did not error when attempting to attach to a fake server");
         }
-        end();
-    }
-    
-    @Test
-    public void testCreateVolume() throws InternalException, CloudException {
-        begin();
-        volumeToDelete = cloud.getComputeServices().getVolumeSupport().create(null, 5, getTestDataCenterId());
-        assertNotNull("No volume created", volumeToDelete);
         end();
     }
     
@@ -268,62 +421,9 @@ public class VolumeTestCase extends BaseTestCase {
     }
     
     @Test
-    public void testMetaData() throws InternalException, CloudException {
-        begin();
-        VolumeSupport support = cloud.getComputeServices().getVolumeSupport();
-        
-        String term = support.getProviderTermForVolume(Locale.getDefault());
-        
-        assertNotNull("You must specify the provider term for volume", term);        
-        out("Term for Volume: " + term);
-        
-        Iterable<String> devices = support.listPossibleDeviceIds(Platform.UNIX);
-        
-        assertNotNull("You must specify device IDs to match " + Platform.UNIX, devices);
-        boolean hasOne = false;
-        out("Devices for " + Platform.UNIX + ":");
-        for( String id : devices ) {
-            out("\t" + id);
-            hasOne = true;
-        }
-        assertTrue("You must have at least one device ID for " + Platform.UNIX, hasOne);
-        
-        devices = support.listPossibleDeviceIds(Platform.WINDOWS);
-        
-        assertNotNull("You must specify device IDs to match " + Platform.WINDOWS, devices);
-        hasOne = false;
-        out("Devices for " + Platform.WINDOWS + ":");
-        for( String id : devices ) {
-            out("\t" + id);
-            hasOne = true;
-        }
-        assertTrue("You must have at least one device ID for " + Platform.WINDOWS, hasOne);
-        end();
-    }
-    
-    @Test
-    public void testRemoveVolume() throws InternalException, CloudException {
-        begin();
-        cloud.getComputeServices().getVolumeSupport().remove(volumeToDelete);
-        try { Thread.sleep(5000L); }
-        catch( InterruptedException e ) { }
-        Volume v = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
-        
-        assertTrue("Volume is still active", v == null || !v.getCurrentState().equals(VolumeState.AVAILABLE));
-        end();
-    }
-    
-    @Test
-    public void testSubscription() throws CloudException, InternalException {
-        begin();
-        assertTrue("Cannot run tests when not susbcribed", cloud.getComputeServices().getVolumeSupport().isSubscribed());
-        end();
-    }
-    
-    @Test
     public void testVolumeContent() throws InternalException, CloudException {
         begin();
-        Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
+        Volume volume = getSupport().getVolume(testVolume);
         
         assertNotNull("Volume was not found", volume);
         assertEquals("Volume ID does not match searched ID", testVolume, volume.getProviderVolumeId());
@@ -333,13 +433,15 @@ public class VolumeTestCase extends BaseTestCase {
         assertNotNull("Volume must have a data center ID", volume.getProviderDataCenterId());
         assertTrue("Volume must have a size", volume.getSizeInGigabytes() > 0);
         try {
-            out("Volume ID:      " + volume.getProviderVolumeId());
+            out("ID:             " + volume.getProviderVolumeId());
             out("State:          " + volume.getCurrentState());
             out("Name:           " + volume.getName());
             out("Region ID:      " + volume.getProviderRegionId());
             out("Data Center ID: " + volume.getProviderDataCenterId());
+            out("Product ID:     " + volume.getProviderProductId());
             out("Created:        " + new Date(volume.getCreationTimestamp()));
             out("Size (in GB):   " + volume.getSizeInGigabytes());
+            out("IOPS:           " + volume.getIops());
             out("From Snapshot:  " + volume.getProviderSnapshotId());
             out("Device ID:      " + volume.getDeviceId());
             out("Attachment:     " + volume.getProviderVirtualMachineId());
@@ -347,6 +449,19 @@ public class VolumeTestCase extends BaseTestCase {
         catch( Throwable notPartOfTest ) {
             // ignore
         }
+        end();
+    }
+
+
+    @Test
+    public void testRemoveVolume() throws InternalException, CloudException {
+        begin();
+        cloud.getComputeServices().getVolumeSupport().remove(volumeToDelete);
+        try { Thread.sleep(5000L); }
+        catch( InterruptedException e ) { }
+        Volume v = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
+
+        assertTrue("Volume is still active", v == null || !v.getCurrentState().equals(VolumeState.AVAILABLE));
         end();
     }
 }

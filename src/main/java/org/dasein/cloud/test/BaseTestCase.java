@@ -173,7 +173,7 @@ public class BaseTestCase extends TestCase {
         while( System.currentTimeMillis() < timeout ) {
             try { Thread.sleep(1000L); }
             catch( InterruptedException e ) { }
-            if( provider.getStorageServices().getBlobStoreSupport().exists(directory, object, multipart) > -1L ) {
+            if( provider.getStorageServices().getBlobStoreSupport().getObjectSize(directory, object) != null ) {
                 return;
             }
         }
@@ -186,7 +186,7 @@ public class BaseTestCase extends TestCase {
         while( System.currentTimeMillis() < timeout ) {
             try { Thread.sleep(1000L); }
             catch( InterruptedException e ) { }
-            if( provider.getStorageServices().getBlobStoreSupport().exists(directory, object, multipart) < 0L ) {
+            if( provider.getStorageServices().getBlobStoreSupport().getObjectSize(directory, object) != null ) {
                 return;
             }
         }
@@ -291,7 +291,171 @@ public class BaseTestCase extends TestCase {
         }
         return null;
     }
-    
+
+    protected boolean pause(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        // make sure it is running before pausing
+        assertNotNull("Target virtual machine does not exist and cannot be paused: " + vmId, vm);
+        if( vm.getCurrentState().equals(VmState.STOPPED) ) {
+            support.start(vmId);
+        }
+        assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+        vm = support.getVirtualMachine(vmId);
+        assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+        if( support.supportsPauseUnpause(vm) ) {
+            support.pause(vmId);
+            assertTrue("Timed out waiting for VM to be paused.", waitForState(support, vmId, VmState.PAUSED, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    protected boolean resume(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        assertNotNull("Target virtual machine does not exist and cannot be resumed: " + vmId, vm);
+        if( !vm.getCurrentState().equals(VmState.SUSPENDED) ) {
+            // make sure it is suspended before resuming
+            if( vm.getCurrentState().equals(VmState.STOPPED) ) {
+                support.start(vmId);
+            }
+            assertTrue("Timed out waiting for VM to be suspendable.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            vm = support.getVirtualMachine(vmId);
+            assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+            if( support.supportsSuspendResume(vm) ) {
+                support.suspend(vmId);
+                assertTrue("Timed out waiting for VM to be resumable.", waitForState(support, vmId, VmState.SUSPENDED, timeout));
+            }
+        }
+        if( support.supportsSuspendResume(vm) ) {
+            support.resume(vmId);
+            assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    protected boolean start(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        assertNotNull("Target virtual machine does not exist and cannot be started: " + vmId, vm);
+        if( !vm.getCurrentState().equals(VmState.STOPPED) ) {
+            assertTrue("Timed out waiting for VM to be stoppable.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            vm = support.getVirtualMachine(vmId);
+            assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+            if( support.supportsStartStop(vm) ) {
+                support.stop(vmId);
+                assertTrue("Timed out waiting for VM to be startable.", waitForState(support, vmId, VmState.STOPPED, timeout));
+            }
+        }
+        if( support.supportsStartStop(vm) ) {
+            support.start(vmId);
+            assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    protected boolean stop(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        // make sure it is running before stopping
+        assertNotNull("Target virtual machine does not exist and cannot be stopped: " + vmId, vm);
+        if( vm.getCurrentState().equals(VmState.STOPPED) ) {
+            support.start(vmId);
+        }
+        assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+        vm = support.getVirtualMachine(vmId);
+        assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+        if( support.supportsStartStop(vm) ) {
+            support.stop(vmId);
+            assertTrue("Timed out waiting for VM to be stopped.", waitForState(support, vmId, VmState.STOPPED, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    protected boolean suspend(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        // make sure it is running before pausing
+        assertNotNull("Target virtual machine does not exist and cannot be suspended: " + vmId, vm);
+        if( vm.getCurrentState().equals(VmState.STOPPED) ) {
+            support.start(vmId);
+        }
+        assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+        vm = support.getVirtualMachine(vmId);
+        assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+        if( support.supportsSuspendResume(vm) ) {
+            support.suspend(vmId);
+            assertTrue("Timed out waiting for VM to be suspended.", waitForState(support, vmId, VmState.SUSPENDED, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
+    protected boolean waitForState(VirtualMachineSupport support, String vmId, VmState state, long timeout) throws InternalException, CloudException {
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        while( timeout > System.currentTimeMillis() ) {
+            vm = support.getVirtualMachine(vmId);
+            if( vm == null && state.equals(VmState.TERMINATED) ) {
+                return true;
+            }
+            assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+            if( vm.getCurrentState().equals(state) ) {
+                return true;
+            }
+            try { Thread.sleep(5000L); }
+            catch( InterruptedException ignore ) { }
+        }
+        return false;
+    }
+
+    protected boolean unpause(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
+        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+        VirtualMachine vm = support.getVirtualMachine(vmId);
+
+        assertNotNull("Target virtual machine does not exist and cannot be unpaused: " + vmId, vm);
+        if( !vm.getCurrentState().equals(VmState.PAUSED) ) {
+            // make sure it is paused before unpausing
+            if( vm.getCurrentState().equals(VmState.STOPPED) ) {
+                support.start(vmId);
+            }
+            assertTrue("Timed out waiting for VM to be pausable.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            vm = support.getVirtualMachine(vmId);
+            assertNotNull("Target virtual machine has ceased to exist: " + vmId, vm);
+            if( support.supportsPauseUnpause(vm) ) {
+                support.pause(vmId);
+                assertTrue("Timed out waiting for VM to be unpausable.", waitForState(support, vmId, VmState.PAUSED, timeout));
+            }
+        }
+        if( support.supportsPauseUnpause(vm) ) {
+            support.unpause(vmId);
+            assertTrue("Timed out waiting for VM to be running.", waitForState(support, vmId, VmState.RUNNING, timeout));
+            return true;
+        }
+        else {
+            return false;
+        }
+    }
+
     protected String lbIpToRelease      = null;
     protected String lbVmToKill         = null;
     

@@ -18,6 +18,7 @@
 
 package org.dasein.cloud.test;
 
+import java.awt.datatransfer.StringSelection;
 import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
@@ -25,11 +26,22 @@ import java.util.UUID;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.VolumeProduct;
+import org.dasein.cloud.identity.ShellKeySupport;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.SubnetState;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANState;
+import org.dasein.cloud.network.VLANSupport;
+import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Megabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -37,13 +49,21 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.annotation.Nonnull;
+
 public class VirtualMachineTestCase extends BaseTestCase {
-    private CloudProvider cloud         = null;
-    private String        testVm        = null;
-    private String        vmToTerminate = null;
+    private CloudProvider   cloud             = null;
+    private VMLaunchOptions testLaunchOptions = null;
+    private String          testVm            = null;
+    private String          vmToTerminate     = null;
     
     public VirtualMachineTestCase(String name) { super(name); }
-    
+
+    private @Nonnull VirtualMachineSupport getSupport() {
+        //noinspection ConstantConditions
+        return cloud.getComputeServices().getVirtualMachineSupport();
+    }
+
     @Before
     @Override
     public void setUp() throws InstantiationException, IllegalAccessException, CloudException, InternalException {
@@ -61,13 +81,80 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 testVm = vmToTerminate;
             }
         }
-        if( name.equals("testTerminate") ) {
+        if( name.equals("testTerminate") || name.equals("testStart") || name.equals("testStop") || name.equals("testPause") || name.equals("testUnpause") || name.equals("testSuspend") || name.equals("testResume") ) {
             vmToTerminate = launch(cloud);
-            testVm = vmToTerminate;            
+            testVm = vmToTerminate;
         }
         if( (name.equals("testEnableAnalytics") || name.equals("testDisableAnalytics")) && cloud.getComputeServices().getVirtualMachineSupport().supportsAnalytics() ) {
             vmToTerminate = launch(cloud);
             testVm = vmToTerminate;                        
+        }
+        if( name.startsWith("testLaunch") ) {
+            String hostName = "dsntestlaunch-" + (System.currentTimeMillis()%10000);
+
+            testLaunchOptions = VMLaunchOptions.getInstance(getTestProduct(), getTestMachineImageId(), hostName, hostName, "DSN Test Host - " + getName());
+            VirtualMachineSupport s = getSupport();
+
+            testLaunchOptions.inDataCenter(getTestDataCenterId());
+            if( s.identifyPasswordRequirement().equals(Requirement.REQUIRED) ) {
+                testLaunchOptions.withBootstrapUser("dasein", "x" + System.currentTimeMillis());
+            }
+            if( s.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
+                String productId = null;
+
+                for( VolumeProduct p :cloud.getComputeServices().getVolumeSupport().listVolumeProducts() ) {
+                    productId = p.getProviderProductId();
+                }
+                assertNotNull("Cannot identify a volume product for the root volume.", productId);
+                testLaunchOptions.withRootVolumeProduct(productId);
+            }
+            if( s.identifyShellKeyRequirement().equals(Requirement.REQUIRED) ) {
+                ShellKeySupport sks = cloud.getIdentityServices().getShellKeySupport();
+                String keyId = null;
+
+                if( sks.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
+                    fail("Import not yet supported in test cases.");
+                }
+                else {
+                    keyId = sks.createKeypair(hostName).getProviderKeypairId();
+                }
+                //noinspection ConstantConditions
+                testLaunchOptions.withBoostrapKey(keyId);
+            }
+            if( s.identifyVlanRequirement().equals(Requirement.REQUIRED) ) {
+                VLANSupport vs = cloud.getNetworkServices().getVlanSupport();
+
+                assertNotNull("No VLAN support but a vlan is required.", vs);
+                String vlanId = null;
+
+                VLAN testVlan = null;
+
+                for( VLAN vlan : vs.listVlans() ) {
+                    if( vlan.getCurrentState().equals(VLANState.AVAILABLE) && (!vs.isVlanDataCenterConstrained() || vlan.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                        testVlan = vlan;
+                    }
+                }
+                assertNotNull("Test VLAN could not be found.", testVlan);
+                if( vs.getSubnetSupport().equals(Requirement.NONE) ) {
+                    vlanId = testVlan.getProviderVlanId();
+                }
+                else {
+                    for( Subnet subnet : vs.listSubnets(testVlan.getProviderVlanId()) ) {
+                        if( subnet.getCurrentState().equals(SubnetState.AVAILABLE) && (!vs.isSubnetDataCenterConstrained() || subnet.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                            vlanId = subnet.getProviderSubnetId();
+                        }
+                    }
+                }
+                assertNotNull("No test VLAN/subnet was identified.", vlanId);
+                testLaunchOptions.inVlan(null, getTestDataCenterId(), testVlan.getProviderVlanId());
+            }
+            if( cloud.getNetworkServices().hasFirewallSupport() ) {
+                String id = getTestFirewallId();
+
+                if( id != null ) {
+                    testLaunchOptions.behindFirewalls(id);
+                }
+            }
         }
     }
     
@@ -119,8 +206,9 @@ public class VirtualMachineTestCase extends BaseTestCase {
     public void testLaunchVirtualMachine() throws InternalException, CloudException {
         begin();
         VirtualMachineSupport vmSupport = cloud.getComputeServices().getVirtualMachineSupport();
-        VirtualMachine vm = vmSupport.launch(getTestMachineImageId(), vmSupport.getProduct(getTestProduct()), getTestDataCenterId(), getTestHostname(), "dsnvm test", null, null, false, false, new String[0]);
-        
+
+        VirtualMachine vm = vmSupport.launch(testLaunchOptions);
+
         assertNotNull("Failed to return a launched virtual machine", vm);
         assertNotNull("VM has no ID", vm.getProviderOwnerId());
         vmToTerminate = vm.getProviderVirtualMachineId();
@@ -151,11 +239,21 @@ public class VirtualMachineTestCase extends BaseTestCase {
     @Test
     public void testMetaData() throws CloudException, InternalException {
         begin();
-        VirtualMachineSupport vmSupport = cloud.getComputeServices().getVirtualMachineSupport();
+        VirtualMachineSupport vmSupport = getSupport();
         
         assertNotNull("You must specify a provider term for virtual machine", vmSupport.getProviderTermForServer(Locale.getDefault()));
-        out("Term:       " + vmSupport.getProviderTermForServer(Locale.getDefault()));
-        out("Analytics:  " + vmSupport.supportsAnalytics());
+        out("Term:                       " + vmSupport.getProviderTermForServer(Locale.getDefault()));
+        out("Subscribed:                 " + vmSupport.isSubscribed());
+        out("Max VMs:                    " + vmSupport.getMaximumVirtualMachineCount());
+        out("API termination prevention: " + vmSupport.isAPITerminationPreventable());
+        out("Analytics:                  " + vmSupport.supportsAnalytics());
+        out("Basic analytics:            " + vmSupport.isBasicAnalyticsSupported());
+        out("Extended analytics:         " + vmSupport.isExtendedAnalyticsSupported());
+        out("User data:                  " + vmSupport.isUserDataSupported());
+        out("Shell keys:                 " + vmSupport.identifyShellKeyRequirement());
+        out("Root volume:                " + vmSupport.identifyRootVolumeRequirement());
+        out("Password:                   " + vmSupport.identifyPasswordRequirement());
+        out("VLAN:                       " + vmSupport.identifyVlanRequirement());
         end();
     }
     
@@ -248,11 +346,158 @@ public class VirtualMachineTestCase extends BaseTestCase {
             out("Assigned:      " + vm.getProviderAssignedIpAddressId());
             out("Product:       " + vm.getProductId());
             out("State:         " + vm.getCurrentState());
+            out("Pause/unpause: " + getSupport().supportsPauseUnpause(vm));
+            out("Start/stop:    " + getSupport().supportsStartStop(vm));
+            out("Suspnd/resume: " + getSupport().supportsSuspendResume(vm));
             out("Description:\n" + vm.getDescription());
         }
         catch( Throwable notPartOfTest ) {
             // ignore
         }
         end();
+    }
+
+    @Test
+    public void testStart() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsStartStop(vm) ) {
+                assertTrue("Expected successful start.", start(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not running.", VmState.RUNNING, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during start but got no error.", start(getSupport(), testVm));
+                out("Start/stop not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testStop() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsStartStop(vm) ) {
+                assertTrue("Expected successful stop.", stop(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not stopped.", VmState.STOPPED, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during stop but got no error.", stop(getSupport(), testVm));
+                out("Start/stop not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testResume() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsSuspendResume(vm) ) {
+                assertTrue("Expected successful resume.", resume(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not running.", VmState.RUNNING, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during resume but got no error.", start(getSupport(), testVm));
+                out("Suspend/resume not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testSuspend() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsSuspendResume(vm) ) {
+                assertTrue("Expected successful suspend.", suspend(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not suspended.", VmState.SUSPENDED, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during suspend but got no error.", suspend(getSupport(), testVm));
+                out("Suspend/resume not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testUnpause() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsPauseUnpause(vm) ) {
+                assertTrue("Expected successful unpause.", unpause(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not running.", VmState.RUNNING, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during unpause but got no error.", start(getSupport(), testVm));
+                out("Pause/unpause not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testPause() throws InternalException, CloudException {
+        begin();
+        try {
+            VirtualMachine vm = getSupport().getVirtualMachine(testVm);
+
+            assertNotNull("Test virtual machine does not exist.", vm);
+            if( getSupport().supportsPauseUnpause(vm) ) {
+                assertTrue("Expected successful pause.", pause(getSupport(), testVm));
+                vm = getSupport().getVirtualMachine(testVm);
+                assertNotNull("VM " + testVm + " has ceased to exist.", vm);
+                out("VM state: " + vm.getCurrentState());
+                assertEquals("VM is not paused.", VmState.PAUSED, vm.getCurrentState());
+            }
+            else {
+                assertFalse("Expected error during pause but got no error.", pause(getSupport(), testVm));
+                out("Pause/unpause not supported (OK)");
+            }
+        }
+        finally {
+            end();
+        }
     }
 }

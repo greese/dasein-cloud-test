@@ -19,96 +19,34 @@
 package org.dasein.cloud.test;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.security.GeneralSecurityException;
+import java.util.Date;
+import java.util.Locale;
+import java.util.UUID;
 
-import javax.crypto.Cipher;
-import javax.crypto.CipherInputStream;
-import javax.crypto.CipherOutputStream;
-import javax.crypto.spec.SecretKeySpec;
+import javax.annotation.Nonnull;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.encryption.Encryption;
-import org.dasein.cloud.encryption.EncryptionException;
-import org.dasein.cloud.storage.CloudStoreObject;
+import org.dasein.cloud.storage.Blob;
+import org.dasein.cloud.storage.BlobStoreSupport;
 import org.dasein.cloud.storage.FileTransfer;
+import org.dasein.cloud.storage.StorageServices;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class BlobStoreTestCase extends BaseTestCase {
-    static public class StorageEncryption implements Encryption {
-        byte[] encryptionKey;
-        
-        public StorageEncryption() {
-            encryptionKey = "12345678901234567890123456789012".getBytes();
-        }
-        
-        public void clear() {
-            for( int i=0; i<encryptionKey.length; i++ ) {
-                encryptionKey[i] = '\0';
-            }
-        }
-
-        public void decrypt(InputStream input, OutputStream output) throws EncryptionException {
-            try {
-                SecretKeySpec spec = new SecretKeySpec(encryptionKey, "AES");
-                Cipher cipher = Cipher.getInstance("AES");
-                byte[] buf = new byte[1024];
-                int count = 0;
-                
-                cipher.init(Cipher.DECRYPT_MODE, spec);
-                input = new CipherInputStream(input, cipher);
-                while( (count = input.read(buf)) >= 0) {
-                    output.write(buf, 0, count);
-                }
-                output.close();
-            }
-            catch( GeneralSecurityException e ) {
-                throw new EncryptionException(e);
-            }
-            catch( IOException e ) {
-                throw new EncryptionException(e);
-            }                
-        }
-
-        public void encrypt(InputStream input, OutputStream output) throws EncryptionException {
-            try {
-                SecretKeySpec spec = new SecretKeySpec(encryptionKey, "AES");
-                Cipher cipher = Cipher.getInstance("AES");
-                byte[] buf = new byte[1024];
-                int count;
-                
-                cipher.init(Cipher.ENCRYPT_MODE, spec);
-                output = new CipherOutputStream(output, cipher);
-                while( (count = input.read(buf)) >= 0 ) {
-                    output.write(buf, 0, count);
-                }
-                output.close();                
-            }
-            catch( GeneralSecurityException e ) {
-                throw new EncryptionException(e);
-            }
-            catch( IOException e ) {
-                throw new EncryptionException(e);
-            }
-        }
-    };
-    
     private CloudProvider cloud             = null;
-    private String        directoryToRemove = null;
-    private String        testDirectory     = null;
-    private String        testFileName      = null;
+    private String        bucketToRemove    = null;
+    private String        testBucketName    = null;
+    private String        testObjectName    = null;
     private File          testLocalFile     = null;
     
     public BlobStoreTestCase(String name) { super(name); }
 
-    private void download(String directory, String object, boolean multipart, Encryption encryption) throws Exception {
+    private void download(String directory, String object) throws Exception {
         File targetFile = new File("dsn" + System.currentTimeMillis() + ".txt");
             
         if( targetFile.exists() ) {
@@ -117,19 +55,7 @@ public class BlobStoreTestCase extends BaseTestCase {
         try {
             FileTransfer task;
 
-            if( !multipart ) {
-                CloudStoreObject cloudObject = new org.dasein.cloud.storage.CloudStoreObject();
-                    
-                cloudObject.setContainer(false);
-                cloudObject.setDirectory(directory);
-                cloudObject.setName(object);
-                assertObjectExists("No file for downloading: " + cloudObject, cloud, cloudObject.getDirectory(), cloudObject.getName(), false);
-                task = cloud.getStorageServices().getBlobStoreSupport().download(cloudObject, targetFile);
-            }
-            else {
-                assertObjectExists("No file for downloading: " + directory + "/" + object, cloud, directory, object, true);
-                task = cloud.getStorageServices().getBlobStoreSupport().download(directory, object, targetFile, encryption);
-            }
+            task = getSupport().download(directory, object, targetFile);
             while( !task.isComplete() ) {
                 try { Thread.sleep(1000L); }
                 catch( InterruptedException e ) { }
@@ -155,15 +81,10 @@ public class BlobStoreTestCase extends BaseTestCase {
         long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 2L);
         
         while( System.currentTimeMillis() < timeout ) {
-            for( CloudStoreObject item : cloud.getStorageServices().getBlobStoreSupport().listFiles(directory) ) {
-                if( item.getDirectory() == null ) {
-                    out("  " + item.getName());
-                }
-                else {
-                    out("  /" + item.getDirectory() + "/" + item.getName());
-                }
+            for( Blob item : getSupport().list(directory) ) {
+                out(" " + item.toString());
                 for( String name : expected ) {
-                    if( name.equals(item.getName()) ) {
+                    if( (item.isContainer() && name.equals(item.getBucketName())) || (!item.isContainer() &&name.equals(item.getObjectName())) ) {
                         expectedFound++;
                         break;
                     }
@@ -180,43 +101,19 @@ public class BlobStoreTestCase extends BaseTestCase {
     @Override
     public void setUp() throws InstantiationException, IllegalAccessException, CloudException, InternalException {
         String name = getName();
-        
+
         cloud = getProvider();
         cloud.connect(getTestContext());
-        if( name.equals("testCreateChildDirectory") || name.equals("testUploadFileToRoot") || name.equals("testUploadFileToChild") || name.equals("testUploadEncryptedFile") || name.equals("testUploadMultipartFile") || name.equals("testDownloadRootFile") || name.equals("testDownloadChildFile") || name.equals("testDownloadEncryptedFile") || name.equals("testDownloadMultipartFile") || name.equals("testListRoot") || name.equals("testListChild") || name.equals("testListThirdGen") || name.equals("testRemoveDirectory") || name.equals("testRemoveFile") || name.equals("testRemoveMultipart") || name.equals("testClearChild") || name.equals("testClearRoot") ) {
-            directoryToRemove = cloud.getStorageServices().getBlobStoreSupport().createDirectory("dsnccd" + System.currentTimeMillis(), true);
-            testDirectory = directoryToRemove;
+        if( name.equals("testClearBucket") || name.equals("testDownloadObject") ||  name.equals("testListBuckets") || name.equals("testListBucket") || name.equals("testRemoveBucket") || name.equals("testRemoveObject") || name.equals("testUploadObject") || name.equals("testGetBucket") || name.equals("testGetObject") || name.equals("testGetBogusObject") ) {
+            bucketToRemove = getSupport().createBucket("dsnccd" + System.currentTimeMillis(), true).getBucketName();
+            testBucketName = bucketToRemove;
         }
-        if( name.equals("testUploadFileToRoot") || name.equals("testUploadFileToChild") || name.equals("testUploadEncryptedFile") || name.equals("testUploadMultipartFile") ) {
+        if( name.equals("testDownloadObject") || name.equals("testUploadObject") || name.equals("testListBucket") || name.equals("testRemoveObject") || name.equals("testGetObject") ) {
+            testObjectName = "dsnroot" + System.currentTimeMillis() + ".txt";
             testLocalFile = createTestFile();
         }
-        if( name.equals("testDownloadRootFile") || name.equals("testDownloadChildFile") || name.equals("testDownloadEncryptedFile") || name.equals("testDownloadMultipartFile") || name.equals("testListChild") || name.equals("testListThirdGen") || name.equals("testRemoveFile") || name.equals("testRemoveMultipart") ) {
-            testFileName = "dsnroot" + System.currentTimeMillis() + ".txt";
-        }
-        if( name.equals("testUploadFileToChild") || name.equals("testUploadEncryptedFile") || name.equals("testUploadMultipartFile") || name.equals("testDownloadChildFile") || name.equals("testDownloadEncryptedFile") || name.equals("testDownloadMultipartFile") || name.equals("testListThirdGen") ) {
-            testDirectory = cloud.getStorageServices().getBlobStoreSupport().createDirectory(testDirectory + ".dsnufc" + System.currentTimeMillis(), true);
-        }
-        if( name.equals("testDownloadRootFile") || name.equals("testDownloadChildFile") || name.equals("testListChild") || name.equals("testListThirdGen") || name.equals("testRemoveFile") ) {
-            testLocalFile = createTestFile();
-            cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, testFileName, false, null);
-        }
-        if( name.equals("testClearChild") ) {
-            testFileName = cloud.getStorageServices().getBlobStoreSupport().createDirectory(testDirectory + ".childdir", true);
-            testFileName = testFileName.substring(testFileName.lastIndexOf('.') + 1);
-            testLocalFile = createTestFile();
-            cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory + "." + testFileName, "testfile.txt", false, null);
-        }
-        if( name.equals("testClearRoot") ) {
-            testLocalFile = createTestFile();
-            cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, "testfile.txt", false, null);            
-        }
-        if( name.equals("testDownloadEncryptedFile") ) {
-            testLocalFile = createTestFile();
-            cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, testFileName, true, new StorageEncryption());
-        }
-        if( name.equals("testDownloadMultipartFile") || name.equals("testRemoveMultipart") ) {
-            testLocalFile = createTestFile();
-            cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, testFileName, true, null);
+        if( name.equals("testDownloadObject") || name.equals("testListBucket") || name.equals("testRemoveObject") || name.equals("testGetObject") ) {
+            getSupport().upload(testLocalFile, testBucketName, testObjectName);
         }
     }
     
@@ -224,8 +121,8 @@ public class BlobStoreTestCase extends BaseTestCase {
     @Override
     public void tearDown() {
         try {
-            if( directoryToRemove != null ) {
-                cloud.getStorageServices().getBlobStoreSupport().clear(directoryToRemove);
+            if( bucketToRemove != null ) {
+                getSupport().clearBucket(bucketToRemove);
             }
         }
         catch( Throwable ignore ) {
@@ -248,168 +145,249 @@ public class BlobStoreTestCase extends BaseTestCase {
             // ignore
         }
     }
-    
-    @Test
-    public void testClearChild() throws CloudException, InternalException {
-        cloud.getStorageServices().getBlobStoreSupport().clear(testDirectory + "." + testFileName);
-        assertTrue("Did not clear directory", !cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory + "." + testFileName));
-        assertTrue("Parent directort is not there!", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory));
-    }
-    
-    @Test
-    public void testClearRoot() throws CloudException, InternalException {
-        cloud.getStorageServices().getBlobStoreSupport().clear(testDirectory);
-        assertTrue("Did not clear directory", !cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory));
-        directoryToRemove = null;
-        testDirectory = null;
-    }
-    
-    @Test
-    public void testCreateChildDirectory() throws InternalException, CloudException {
-        begin();
-        String dir = "dsncrd" + System.currentTimeMillis();
-        
-        list(testDirectory);
-        dir = cloud.getStorageServices().getBlobStoreSupport().createDirectory(testDirectory + "." + dir, true);
-        list(testDirectory);
-        assertNotNull("No directory was created", dir);
-        assertDirectoryExists("Directory " + dir + " was not created in " + testDirectory + ".", cloud, dir);
-        end();
-    }
- 
-    @Test
-    public void testCreateRootDirectory() throws InternalException, CloudException {
-        begin();
-        String dir = "dsncrd" + System.currentTimeMillis();
-        
-        directoryToRemove = cloud.getStorageServices().getBlobStoreSupport().createDirectory(dir, true);
-        assertNotNull("No directory was created", directoryToRemove);
-        assertDirectoryExists("Directory " + directoryToRemove + " does not exist", cloud, directoryToRemove);
-        end();
-    }
-    
-    @Test
-    public void testDownloadChildFile() throws Exception {
-        begin();
-        download(testDirectory, testFileName, false, null);
-        end();
-    }
-    
-    @Test
-    public void testDownloadEncryptedFile() throws Exception {
-        begin();
-        download(testDirectory, testFileName, true, new StorageEncryption());
-        end();
-    }
-    
-    @Test
-    public void testDownloadMultipartFile() throws Exception {
-        begin();
-        download(testDirectory, testFileName, true, null);
-        end();
-    }
-    
-    @Test
-    public void testDownloadRootFile() throws Exception {
-        begin();
-        download(testDirectory, testFileName, false, null);
-        end();
-    }
-    
-    @Test
-    public void testListChild() throws CloudException, InternalException {
-        begin();
-        list(testDirectory, testFileName);
-        end();
+
+    private @Nonnull BlobStoreSupport getSupport() throws InternalException {
+        StorageServices services = cloud.getStorageServices();
+
+        if( services == null ) {
+            throw new InternalException("Cloud has no storage services");
+        }
+        BlobStoreSupport support = services.getBlobStoreSupport();
+
+        if( support == null ) {
+            throw new InternalException("Cloud has no blob store support");
+        }
+        return support;
     }
 
-    @Test
-    public void testListRoot() throws CloudException, InternalException {
-        begin();
-        list(null, testDirectory);
-        end();
-    }
-    
-    @Test
-    public void testListThirdGen() throws CloudException, InternalException {
-        begin();
-        list(testDirectory, testFileName);
-        end();
-    }
-    
-    @Test
-    public void testRemoveDirectory() throws CloudException, InternalException {
-        begin();
-        cloud.getStorageServices().getBlobStoreSupport().removeDirectory(testDirectory);
-        assertTrue("Directory " + testDirectory + " still exists", !cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory));
-        directoryToRemove = null;
-        testDirectory = null;
-        end();
-    }
-    
-    @Test
-    public void testRemoveFile() throws CloudException, InternalException {
-        begin();
-        cloud.getStorageServices().getBlobStoreSupport().removeFile(testDirectory, testFileName, false);
-        assertTrue("File " + testDirectory + "." + testFileName + " still exists", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory, testFileName, false) < 0);
-        testFileName = null;
-        end();
-    }
-    
-    @Test
-    public void testRemoveMultipart() throws CloudException, InternalException {
-        begin();
-        cloud.getStorageServices().getBlobStoreSupport().removeFile(testDirectory, testFileName, true);
-        assertTrue("File " + testDirectory + "." + testFileName + " still exists", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory, testFileName, true) < 0);
-        testFileName = null;
-        end();
-    }
-    
+
     @Test
     public void testSubscription() throws CloudException, InternalException {
         begin();
-        assertTrue("Account is not subscribed, tests will be invalid", cloud.getStorageServices().getBlobStoreSupport().isSubscribed());
-        end();
+        try {
+            out("Subscribed: " + getSupport().isSubscribed());
+        }
+        finally {
+            end();
+        }
     }
-    
-    @Test
-    public void testUploadEncryptedFile() throws InternalException, CloudException {
-        begin();
-        Encryption encryption = new StorageEncryption();
-        String fileName = "encrypted-test.txt";
 
-        cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, fileName, true, encryption);
-        assertObjectExists("File does not exist in cloud", cloud, testDirectory, fileName, true);
-        end();
-    }
-    
     @Test
-    public void testUploadFileToChild() throws InternalException, CloudException {
+    public void testMetaData() throws CloudException, InternalException {
         begin();
-        String fileName = "child-test.txt";
-        
-        cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, fileName, false, null);
-        assertTrue("File does not exist in cloud", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory, fileName, false) > 0);
-        end();
+        try {
+            BlobStoreSupport support = getSupport();
+
+            out("Max object size:       " + support.getMaxObjectSize());
+            assertNotNull("File size cannot be null", support.getMaxObjectSize());
+            assertTrue("Max file size must be positive", support.getMaxObjectSize().getQuantity().intValue() > 0);
+            out("Max buckets:           " + support.getMaxBuckets());
+            out("Max objects/bucket:    " + support.getMaxObjectsPerBucket());
+            out("Bucket term:           " + support.getProviderTermForBucket(Locale.getDefault()));
+            assertNotNull("Bucket term may not be null", support.getProviderTermForBucket(Locale.getDefault()));
+            out("Object term:           " + support.getProviderTermForObject(Locale.getDefault()));
+            assertNotNull("Object term may not be null", support.getProviderTermForObject(Locale.getDefault()));
+            out("Nested buckets:        " + support.allowsNestedBuckets());
+            out("Root objects:          " + support.allowsRootObjects());
+            out("Allows public sharing: " + support.allowsPublicSharing());
+            out("Name rules:            " + support.getBucketNameRules());
+            assertNotNull("Name rule may not be null", support.getBucketNameRules());
+        }
+        finally {
+            end();
+        }
     }
-    
+
     @Test
-    public void testUploadFileToRoot() throws InternalException, CloudException {
+    public void testClearBucket() throws CloudException, InternalException {
         begin();
-        String fileName = "root-test.txt";
-        
-        cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, fileName, false, null);
-        assertTrue("File does not exist in cloud", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory, fileName, false) > 0);
-        end();
+        try {
+            out("Exists before: " + getSupport().exists(testBucketName));
+            getSupport().clearBucket(testBucketName);
+            out("Exists after:  " + getSupport().exists(testBucketName));
+            assertTrue("Did not clear directory", !getSupport().exists(testBucketName));
+        }
+        finally {
+            end();
+        }
     }
-    
+
     @Test
-    public void testUploadMultipartFile() throws InternalException, CloudException {
+    public void testListBuckets() throws CloudException, InternalException {
         begin();
-        String fileName = "multi-test.txt";
-        
-        cloud.getStorageServices().getBlobStoreSupport().upload(testLocalFile, testDirectory, fileName, true, null);
-        assertTrue("File does not exist in cloud", cloud.getStorageServices().getBlobStoreSupport().exists(testDirectory, fileName + ".properties", false) > 0);
-        end();
+        try {
+            list(null, testBucketName);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testCreateBucket() throws InternalException, CloudException {
+        begin();
+        try {
+            testBucketName = "dsncrd" + System.currentTimeMillis();
+
+            while( getSupport().exists(testBucketName) ) {
+                testBucketName = "dsncrd" + System.currentTimeMillis();
+                try { Thread.sleep(500L); }
+                catch( InterruptedException ignore ) { }
+            }
+            Blob bucket = getSupport().createBucket(testBucketName, false);
+
+            out("Created: " + bucket);
+            assertNotNull("No directory was created", bucket);
+            testBucketName = bucket.getBucketName();
+            bucketToRemove = testBucketName;
+            assertNotNull("Bucket has no name", bucket.getBucketName());
+            assertNull("Bucket has an object", bucket.getObjectName());
+            assertDirectoryExists("Bucket " + testBucketName + " was not created", cloud, testBucketName);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testUploadObject() throws InternalException, CloudException {
+        begin();
+        try {
+            String fileName = "child-test.txt";
+
+            getSupport().upload(testLocalFile, testBucketName, fileName);
+            assertNotNull("Object does not exist in cloud", getSupport().getObjectSize(testBucketName, fileName));
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testDownloadObject() throws Exception {
+        begin();
+        try {
+            download(testBucketName, testObjectName);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testGetBogusBucket() throws CloudException, InternalException {
+        begin();
+        try {
+            Blob bucket = getSupport().getBucket(UUID.randomUUID().toString());
+
+            out("Found: " + bucket);
+            assertNull("Found a bogus bucket: " + bucket, bucket);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testGetBucket() throws CloudException, InternalException {
+        begin();
+        try {
+            Blob bucket = getSupport().getBucket(testBucketName);
+
+            out("Bucket:     " + bucket);
+            assertNotNull("Bucket was not found", bucket);
+            out("Name:           " + bucket.getBucketName());
+            out("Region:         " + bucket.getProviderRegionId());
+            out("Object:         " + bucket.getObjectName());
+            out("Size:           " + bucket.getSize());
+            out("Created:        " + (new Date(bucket.getCreationTimestamp())));
+            out("Location:       " + bucket.getLocation());
+            out("Container:      " + bucket.isContainer());
+            assertNotNull("Bucket name is null", bucket.getBucketName());
+            assertNull("Object name should be null", bucket.getObjectName());
+            assertNotNull("Region ID was null", bucket.getProviderRegionId());
+            assertNotNull("Location was null", bucket.getLocation());
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testRemoveBucket() throws CloudException, InternalException {
+        begin();
+        try {
+            getSupport().removeBucket(testBucketName);
+            assertTrue("Bucket " + testBucketName + " still exists", !getSupport().exists(testBucketName));
+            testBucketName = null;
+            bucketToRemove = null;
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testGetBogusObject() throws CloudException, InternalException {
+        begin();
+        try {
+            Blob object = getSupport().getObject(testBucketName, UUID.randomUUID().toString());
+
+            out("Found: " + object);
+            assertNull("Found a bogus object: " + object, object);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testListBucket() throws CloudException, InternalException {
+        begin();
+        try {
+            list(testBucketName, testObjectName);
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testGetObject() throws CloudException, InternalException {
+        begin();
+        try {
+            Blob object = getSupport().getObject(testBucketName, testObjectName);
+
+            out("Object:         " + object);
+            assertNotNull("Object was not found", object);
+            out("Name:           " + object.getObjectName());
+            out("Bucket:         " + object.getBucketName());
+            out("Region:         " + object.getProviderRegionId());
+            out("Size:           " + object.getSize());
+            out("Created:        " + (new Date(object.getCreationTimestamp())));
+            out("Location:       " + object.getLocation());
+            out("Container:      " + object.isContainer());
+            assertNotNull("Object name should not be null", object.getObjectName());
+            assertNotNull("Region ID was null", object.getProviderRegionId());
+            assertNotNull("Location was null", object.getLocation());
+            assertNotNull("Object size should be non-null", object.getSize());
+            assertEquals("Object names do not match", testObjectName, object.getObjectName());
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testRemoveObject() throws CloudException, InternalException {
+        begin();
+        try {
+            getSupport().removeObject(testBucketName, testObjectName);
+            assertNull("Object /" + testBucketName + "/" + testObjectName + " still exists", getSupport().getObjectSize(testBucketName, testObjectName));
+            testObjectName = null;
+        }
+        finally {
+            end();
+        }
     }
 }
