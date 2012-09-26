@@ -420,7 +420,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 assertEquals("VM is not running.", VmState.RUNNING, vm.getCurrentState());
             }
             else {
-                assertFalse("Expected error during resume but got no error.", start(getSupport(), testVm));
+                assertFalse("Expected error during resume but got no error.", resume(getSupport(), testVm));
                 out("Suspend/resume not supported (OK)");
             }
         }
@@ -468,7 +468,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 assertEquals("VM is not running.", VmState.RUNNING, vm.getCurrentState());
             }
             else {
-                assertFalse("Expected error during unpause but got no error.", start(getSupport(), testVm));
+                assertFalse("Expected error during unpause but got no error.", unpause(getSupport(), testVm));
                 out("Pause/unpause not supported (OK)");
             }
         }

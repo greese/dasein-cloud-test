@@ -65,7 +65,6 @@ public class BaseTestCase extends TestCase {
         if( publicKey != null && privateKey != null ) {
             ctx.setAccessKeys(publicKey.getBytes(), privateKey.getBytes());
         }
-        
         ctx.setAccountNumber(props.getProperty("accountNumber"));
         ctx.setCloudName(props.getProperty("cloudName"));
         ctx.setEndpoint(props.getProperty("endpoint"));
@@ -73,7 +72,13 @@ public class BaseTestCase extends TestCase {
         ctx.setRegionId(props.getProperty("regionId"));
         
         publicKey = props.getProperty("x509Cert");
-        privateKey = props.getProperty("x509Key");    
+        privateKey = props.getProperty("x509Key");
+        if( publicKey != null && publicKey.length() < 1 ) {
+            publicKey = null;
+        }
+        if( privateKey != null && privateKey.length() < 1 ) {
+            privateKey = null;
+        }
         if( publicKey != null && privateKey != null ) {
             try {
                 BufferedInputStream input = new BufferedInputStream(new FileInputStream(publicKey));

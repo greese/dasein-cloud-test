@@ -176,7 +176,6 @@ public class RelationalDatabaseTestCase extends BaseTestCase {
         Iterable<Database> list = provider.getPlatformServices().getRelationalDatabaseSupport().listDatabases();
 
         assertNotNull("Databases may not be null", list);
-        assertTrue("There must be at least one supported database in order to execute tests.", list.iterator().hasNext());
         for( Database db : list ) {
             out(db.getName() + " [#" + db.getProviderDatabaseId() + "]");
         }
@@ -213,7 +212,6 @@ public class RelationalDatabaseTestCase extends BaseTestCase {
         assertNotNull("Name is null", db.getName());
         assertNotNull("Product is null", db.getProductSize());
         assertNotNull("Region is null", db.getProviderRegionId());
-        assertNotNull("Data center is null", db.getProviderDataCenterId());
         assertNotNull("Host name is null", db.getHostName());
         assertTrue("Port must be a positive number", db.getHostPort() > 0);
         assertNotNull("Engine is null", db.getEngine());

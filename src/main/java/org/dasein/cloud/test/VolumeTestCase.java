@@ -115,6 +115,13 @@ public class VolumeTestCase extends BaseTestCase {
         try {
             if( volumeToDelete != null ) {
                 if( serverToKill != null ) {
+                    Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
+
+                    while( volume != null && !volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                        try { Thread.sleep(5000L); }
+                        catch( InterruptedException e ) { }
+                        volume = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
+                    }
                     try { cloud.getComputeServices().getVolumeSupport().detach(volumeToDelete); }
                     catch( Throwable ignore ) { }
                 }
@@ -351,12 +358,19 @@ public class VolumeTestCase extends BaseTestCase {
     public void testDetachVolume() throws InternalException, CloudException {
         begin();
         if( cloud.getComputeServices().hasVirtualMachineSupport() ) {
+            Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
+
+            while( volume != null && !volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                try { Thread.sleep(5000L); }
+                catch( InterruptedException e ) { }
+                volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
+            }
+            assertNotNull("Volume to be detached was null", volume);
             cloud.getComputeServices().getVolumeSupport().detach(testVolume);
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 10L);
             
             while( timeout > System.currentTimeMillis() ) {
-                Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
-                
+                volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
                 if( volume.getProviderVirtualMachineId() == null ) {
                     end();
                     return;

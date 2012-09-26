@@ -100,6 +100,11 @@ public class BlobStoreTestCase extends BaseTestCase {
     @Before
     @Override
     public void setUp() throws InstantiationException, IllegalAccessException, CloudException, InternalException {
+        File dir = new File("target/tmp");
+
+        if( !dir.exists() ) {
+            dir.mkdirs();
+        }
         String name = getName();
 
         cloud = getProvider();
