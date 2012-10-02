@@ -59,7 +59,15 @@ public class BaseTestCase extends TestCase {
         ProviderContext ctx = new ProviderContext();
         Properties props = System.getProperties();
         String publicKey, privateKey;
-        
+        String apiVersion;
+
+        apiVersion = props.getProperty("apiVersion");
+        if( apiVersion != null ) {
+            Properties p = new Properties();
+
+            p.setProperty("apiVersion", apiVersion);
+            ctx.setCustomProperties(p);
+        }
         publicKey = props.getProperty("apiSharedKey");
         privateKey = props.getProperty("apiSecretKey");  
         if( publicKey != null && privateKey != null ) {
@@ -70,7 +78,7 @@ public class BaseTestCase extends TestCase {
         ctx.setEndpoint(props.getProperty("endpoint"));
         ctx.setProviderName(props.getProperty("providerName"));
         ctx.setRegionId(props.getProperty("regionId"));
-        
+
         publicKey = props.getProperty("x509Cert");
         privateKey = props.getProperty("x509Key");
         if( publicKey != null && publicKey.length() < 1 ) {

@@ -84,10 +84,10 @@ public class MachineImageTestCase extends BaseTestCase {
                 if( !vm.isImagable() ) {
                     long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
                     
-                    cloud.getComputeServices().getVirtualMachineSupport().pause(vm.getProviderVirtualMachineId());
+                    cloud.getComputeServices().getVirtualMachineSupport().stop(vm.getProviderVirtualMachineId());
                     while( !vm.isImagable() ) {
                         if(  System.currentTimeMillis() >= timeout ) {
-                            throw new CloudException("Server never paused for imaging.");
+                            throw new CloudException("Server never stopped for imaging.");
                         }
                         try { Thread.sleep(15000L); }
                         catch( InterruptedException e ) { }
