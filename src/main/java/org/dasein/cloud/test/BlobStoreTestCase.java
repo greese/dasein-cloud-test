@@ -184,18 +184,18 @@ public class BlobStoreTestCase extends BaseTestCase {
             BlobStoreSupport support = getSupport();
 
             out("Max object size:       " + support.getMaxObjectSize());
-            assertNotNull("File size cannot be null", support.getMaxObjectSize());
-            assertTrue("Max file size must be positive", support.getMaxObjectSize().getQuantity().intValue() > 0);
             out("Max buckets:           " + support.getMaxBuckets());
             out("Max objects/bucket:    " + support.getMaxObjectsPerBucket());
             out("Bucket term:           " + support.getProviderTermForBucket(Locale.getDefault()));
-            assertNotNull("Bucket term may not be null", support.getProviderTermForBucket(Locale.getDefault()));
             out("Object term:           " + support.getProviderTermForObject(Locale.getDefault()));
-            assertNotNull("Object term may not be null", support.getProviderTermForObject(Locale.getDefault()));
             out("Nested buckets:        " + support.allowsNestedBuckets());
             out("Root objects:          " + support.allowsRootObjects());
             out("Allows public sharing: " + support.allowsPublicSharing());
             out("Name rules:            " + support.getBucketNameRules());
+            assertNotNull("Bucket term may not be null", support.getProviderTermForBucket(Locale.getDefault()));
+            assertNotNull("Object term may not be null", support.getProviderTermForObject(Locale.getDefault()));
+            assertNotNull("File size cannot be null", support.getMaxObjectSize());
+            assertTrue("Max file size must be positive", support.getMaxObjectSize().getQuantity().longValue() > 0);
             assertNotNull("Name rule may not be null", support.getBucketNameRules());
         }
         finally {
