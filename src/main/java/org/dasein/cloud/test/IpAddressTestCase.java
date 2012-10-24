@@ -259,6 +259,14 @@ public class IpAddressTestCase extends BaseTestCase {
         }
         try {
             if( addressToRelease != null ) {
+                provider.getNetworkServices().getIpAddressSupport().releaseFromServer(addressToRelease);
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+        try {
+            if( addressToRelease != null ) {
                 provider.getNetworkServices().getIpAddressSupport().releaseFromPool(addressToRelease);
                 addressToRelease = null;
             }

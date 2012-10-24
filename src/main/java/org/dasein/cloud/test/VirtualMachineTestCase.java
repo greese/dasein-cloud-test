@@ -148,7 +148,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 assertNotNull("No test VLAN/subnet was identified.", vlanId);
                 testLaunchOptions.inVlan(null, getTestDataCenterId(), testVlan.getProviderVlanId());
             }
-            if( cloud.getNetworkServices().hasFirewallSupport() ) {
+            if( cloud.hasNetworkServices() && cloud.getNetworkServices().hasFirewallSupport() ) {
                 String id = getTestFirewallId();
 
                 if( id != null ) {

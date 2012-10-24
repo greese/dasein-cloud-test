@@ -116,8 +116,12 @@ public class VolumeTestCase extends BaseTestCase {
             if( volumeToDelete != null ) {
                 if( serverToKill != null ) {
                     Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
+                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10);
 
-                    while( volume != null && !volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                    while( timeout > System.currentTimeMillis() ) {
+                        if( volume == null || volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                            break;
+                        }
                         try { Thread.sleep(5000L); }
                         catch( InterruptedException e ) { }
                         volume = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
