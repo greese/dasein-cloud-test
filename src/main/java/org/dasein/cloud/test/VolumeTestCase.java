@@ -82,11 +82,18 @@ public class VolumeTestCase extends BaseTestCase {
             try { Thread.sleep(15000L); }
             catch( InterruptedException e ) { }
             VirtualMachine server = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-            
-            while( !server.getCurrentState().equals(VmState.RUNNING) ) {
+            long timeout = System.currentTimeMillis() + getLaunchWindow();
+
+            while( timeout > System.currentTimeMillis() ) {
+                if( server.getCurrentState().equals(VmState.RUNNING) ) {
+                    break;
+                }
                 try { Thread.sleep(15000L); }
                 catch( InterruptedException e ) { }
                 server = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
+                if( server == null ) {
+                    throw new CloudException("Server has disappeared while waiting for it to be running");
+                }
             }
             if( name.equals("testDetachVolume") ) {
                 String device = null;
@@ -96,11 +103,15 @@ public class VolumeTestCase extends BaseTestCase {
                     break;
                 }
                 cloud.getComputeServices().getVolumeSupport().attach(testVolume, serverToKill, device);
-                while( true ) {
+                timeout = System.currentTimeMillis() + getStateChangeWindow();
+                while( timeout > System.currentTimeMillis() ) {
                     try { Thread.sleep(5000L); }
                     catch( InterruptedException e ) { }
                     Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
-                    
+
+                    if( volume == null ) {
+                        throw new CloudException("Volume went away while waiting for it to become available");
+                    }
                     if( !volume.getCurrentState().equals(VolumeState.PENDING) ) {
                         break;
                     }
@@ -116,7 +127,7 @@ public class VolumeTestCase extends BaseTestCase {
             if( volumeToDelete != null ) {
                 if( serverToKill != null ) {
                     Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(volumeToDelete);
-                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10);
+                    long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
                     while( timeout > System.currentTimeMillis() ) {
                         if( volume == null || volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
@@ -317,7 +328,7 @@ public class VolumeTestCase extends BaseTestCase {
                 break;
             }
             cloud.getComputeServices().getVolumeSupport().attach(testVolume, serverToKill, device);
-            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 10L);
+            long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
             while( timeout > System.currentTimeMillis() ) {
                 Volume volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);
@@ -371,7 +382,7 @@ public class VolumeTestCase extends BaseTestCase {
             }
             assertNotNull("Volume to be detached was null", volume);
             cloud.getComputeServices().getVolumeSupport().detach(testVolume);
-            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 10L);
+            long timeout = System.currentTimeMillis() + getStateChangeWindow();
             
             while( timeout > System.currentTimeMillis() ) {
                 volume = cloud.getComputeServices().getVolumeSupport().getVolume(testVolume);

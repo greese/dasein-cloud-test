@@ -275,7 +275,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 assertNotNull("Product description cannot be null", product.getDescription());
                 Storage<Gigabyte> disk = product.getRootVolumeSize();
                 
-                assertNotNull("No disk size is specified");
+                assertNotNull("No disk size is specified", disk);
                 assertTrue("Disk size must be non-negative", disk.getQuantity().intValue() > -1);
                 
                 Storage<Megabyte> ram = product.getRamSize();

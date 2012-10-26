@@ -131,13 +131,37 @@ public class BaseTestCase extends TestCase {
     
     private boolean verbose = true;
     private Logger  logger;
-    
+
+    private long launchWindow;
+    private long stateChangeWindow;
+
     public BaseTestCase(String name) { 
         super(name);
         verbose = System.getProperty("test.verbose", "true").equalsIgnoreCase("true");
         logger = Logger.getLogger(getClass());
+
+        try {
+            launchWindow = (CalendarWrapper.MINUTE * Long.parseLong(System.getProperty("vm.maxLaunchPeriod", "15")));
+        }
+        catch( NumberFormatException e ) {
+            launchWindow = CalendarWrapper.MINUTE * 15L;
+        }
+        try {
+            stateChangeWindow = (CalendarWrapper.MINUTE * Long.parseLong(System.getProperty("vm.maxChangePeriod", "15")));
+        }
+        catch( NumberFormatException e ) {
+            stateChangeWindow = CalendarWrapper.MINUTE * 10L;
+        }
     }
-    
+
+    protected long getLaunchWindow() {
+        return launchWindow;
+    }
+
+    protected long getStateChangeWindow() {
+        return stateChangeWindow;
+    }
+
     protected String allocateVolume(CloudProvider cloud) throws InternalException, CloudException {
         String id = cloud.getComputeServices().getVolumeSupport().create(null, 5, getTestDataCenterId());
         long timeout = (System.currentTimeMillis() + CalendarWrapper.MINUTE*5L);
@@ -306,7 +330,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean pause(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + stateChangeWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         // make sure it is running before pausing
@@ -328,7 +352,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean resume(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + stateChangeWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         assertNotNull("Target virtual machine does not exist and cannot be resumed: " + vmId, vm);
@@ -356,7 +380,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean start(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + launchWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         assertNotNull("Target virtual machine does not exist and cannot be started: " + vmId, vm);
@@ -380,7 +404,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean stop(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + stateChangeWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         // make sure it is running before stopping
@@ -402,7 +426,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean suspend(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + stateChangeWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         // make sure it is running before pausing
@@ -442,7 +466,7 @@ public class BaseTestCase extends TestCase {
     }
 
     protected boolean unpause(VirtualMachineSupport support, String vmId) throws InternalException, CloudException {
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 15L);
+        long timeout = System.currentTimeMillis() + stateChangeWindow;
         VirtualMachine vm = support.getVirtualMachine(vmId);
 
         assertNotNull("Target virtual machine does not exist and cannot be unpaused: " + vmId, vm);
