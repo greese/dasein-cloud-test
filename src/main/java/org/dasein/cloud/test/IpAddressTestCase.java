@@ -440,10 +440,15 @@ public class IpAddressTestCase extends BaseTestCase {
     public void testMetaData() throws CloudException, InternalException {
         IpAddressSupport support = getSupport();
         Iterable<IPVersion> versions = support.listSupportedIPVersions();
+        boolean subscribed = support.isSubscribed();
 
-        out("Subscribed: " + support.isSubscribed());
         out("IP address term: " + support.getProviderTermForIpAddress(Locale.getDefault()));
+        out("Subscribed: " + subscribed);
         out("IP versions: " + versions);
+
+        if( !subscribed ) {
+            out("WARNING: Cannot execute IP address tests in " + provider.getCloudName() + " because this account is not subscribed for IP address support");
+        }
         Assert.assertNotNull("IP address term may not be null", support.getProviderTermForIpAddress(Locale.getDefault()));
         Assert.assertNotNull("IP address versions may not be null", versions);
         Assert.assertTrue("At least one IP address version should be supported", versions.iterator().hasNext());
