@@ -112,7 +112,7 @@ public class VolumeTestCase extends BaseTestCase {
                     if( volume == null ) {
                         throw new CloudException("Volume went away while waiting for it to become available");
                     }
-                    if( !volume.getCurrentState().equals(VolumeState.PENDING) ) {
+                    if( !volume.getCurrentState().equals(VolumeState.PENDING) && serverToKill.equals(volume.getProviderVirtualMachineId()) ) {
                         break;
                     }
                 }
