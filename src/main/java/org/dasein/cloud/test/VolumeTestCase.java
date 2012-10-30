@@ -463,6 +463,23 @@ public class VolumeTestCase extends BaseTestCase {
     }
 
     @Test
+    public void testGetVolume() throws InternalException, CloudException {
+        Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
+
+        out("Volume: " + volume);
+        Assert.assertNotNull("Test volume was not found", volume);
+    }
+
+    @Test
+    public void testGetBogusVolume() throws InternalException, CloudException {
+        String id = UUID.randomUUID().toString();
+        Volume volume = getSupport().getVolume(id);
+
+        out("Bogus volume [" + id + "]: " + volume);
+        Assert.assertNull("A volume was found for the bogus ID " + id, volume);
+    }
+
+    @Test
     public void testVolumeContent() throws InternalException, CloudException {
         Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
 
@@ -496,23 +513,6 @@ public class VolumeTestCase extends BaseTestCase {
         if( volume.getCreationTimestamp() < 1L ) {
             out("Warning: Useless creation timestamp for test volume");
         }
-    }
-
-    @Test
-    public void testGetVolume() throws InternalException, CloudException {
-        Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
-
-        out("Volume: " + volume);
-        Assert.assertNotNull("Test volume was not found", volume);
-    }
-
-    @Test
-    public void testGetBogusVolume() throws InternalException, CloudException {
-        String id = UUID.randomUUID().toString();
-        Volume volume = getSupport().getVolume(id);
-
-        out("Bogus volume [" + id + "]: " + volume);
-        Assert.assertNull("A volume was found for the bogus ID " + id, volume);
     }
 
     @Test
@@ -665,7 +665,7 @@ public class VolumeTestCase extends BaseTestCase {
                 long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
                 while( timeout > System.currentTimeMillis() ) {
-                    if( volume != null && !volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                    if( volume != null && volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
                         break;
                     }
                     try { Thread.sleep(25000L); }
