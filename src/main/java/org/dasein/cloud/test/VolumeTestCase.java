@@ -30,6 +30,9 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.Snapshot;
+import org.dasein.cloud.compute.SnapshotState;
+import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
@@ -52,6 +55,7 @@ import javax.annotation.Nullable;
 public class VolumeTestCase extends BaseTestCase {
     static public final String T_ATTACH_VOLUME      = "testAttachVolume";
     static public final String T_ATTACH_NO_SERVER   = "testAttachVolumeToNoServer";
+    static public final String T_CREATE_FROM_SNAP   = "testCreateVolumeFromSnapshot";
     static public final String T_DETACH_VOLUME      = "testDetachVolume";
     static public final String T_DETACH_UNATTACHED  = "testDetachUnattachedVolume";
     static public final String T_GET_VOLUME         = "testGetVolume";
@@ -64,6 +68,7 @@ public class VolumeTestCase extends BaseTestCase {
     static public final String[] NEEDS_VMS = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED };
 
     private CloudProvider provider       = null;
+    private Snapshot testSnapshot   = null;
     private Volume        testVolume     = null;
     private String        volumeToDelete = null;
 
@@ -252,6 +257,54 @@ public class VolumeTestCase extends BaseTestCase {
                 attach();
             }
         }
+        else if( getName().equals(T_CREATE_FROM_SNAP) ) {
+            ComputeServices services = provider.getComputeServices();
+            SnapshotSupport support = null;
+
+            if( services != null ) {
+                support = services.getSnapshotSupport();
+            }
+            if( support != null && support.isSubscribed() ) {
+                testVolume = createTestVolume();
+                Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
+                try {
+                    String id = support.create(testVolume.getProviderVolumeId(), "Test creation from snapshot");
+
+                    testSnapshot = support.getSnapshot(id);
+                    Assert.assertNotNull("The test snapshot does not exist", testSnapshot);
+
+                    long timeout = System.currentTimeMillis() + getStateChangeWindow();
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        try {
+                            Snapshot s = support.getSnapshot(id);
+
+                            if( s == null || !SnapshotState.PENDING.equals(s.getCurrentState()) ) {
+                                break;
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                        try { Thread.sleep(15000L); }
+                        catch( InterruptedException e ) { }
+                    }
+                }
+                catch( Throwable t ) {
+                    Assert.fail("Unable to create a test snapshot for creating a volume: " + t.getMessage());
+                }
+                finally {
+                    try {
+                        getSupport().remove(testVolume.getProviderVolumeId());
+                        testVolume = null;
+                        volumeToDelete = null;
+                    }
+                    catch( Throwable t ) {
+                        out("Warning: Unable to clean up test volume for temporary snapshot");
+                    }
+                }
+            }
+        }
     }
 
     @After
@@ -301,6 +354,23 @@ public class VolumeTestCase extends BaseTestCase {
                 }
                 finally {
                     volumeToDelete = null;
+                }
+            }
+            if( testSnapshot != null ) {
+                try {
+                    ComputeServices services = provider.getComputeServices();
+
+                    if( services != null ) {
+                        SnapshotSupport support = services.getSnapshotSupport();
+
+                        if( support != null ) {
+                            support.remove(testSnapshot.getProviderSnapshotId());
+                        }
+                    }
+                }
+                catch( Throwable e ) {
+                    out("WARNING: Error cleaning up test snapshot " + testSnapshot + ": " + e.getMessage());
+                    testSnapshot = null;
                 }
             }
             if( vmUse >= NEEDS_VMS.length && testVm != null ) {
@@ -547,6 +617,68 @@ public class VolumeTestCase extends BaseTestCase {
         assertNotNull("Could not find volume after created", getSupport().getVolume(volumeToDelete));
     }
 
+    @Test
+    public void testCreateVolumeFromSnapshot() throws InternalException, CloudException {
+        ComputeServices services = provider.getComputeServices();
+        SnapshotSupport support = null;
+
+        if( services != null ) {
+            support = services.getSnapshotSupport();
+        }
+        if( support != null ) {
+            if( support.isSubscribed() ) {
+                Storage<Gigabyte> size = new Storage<Gigabyte>(testSnapshot.getSizeInGb(), Storage.GIGABYTE);
+                String name = "dsnvol-" + getName() + "-" + (System.currentTimeMillis()%10000);
+                VolumeCreateOptions options;
+                VolumeProduct prd = null;
+                int iops;
+
+                for( VolumeProduct p : getSupport().listVolumeProducts() ) {
+                    prd = p;
+                }
+                if( prd == null ) {
+                    if( size.longValue() < getSupport().getMinimumVolumeSize().longValue() ) {
+                        size = getSupport().getMinimumVolumeSize();
+                    }
+                    assertFalse("A product is required to create a volume, but no products are provided", getSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED));
+                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshot.getProviderSnapshotId(), size, name, name);
+                }
+                else {
+                    iops = (prd.getMinIops() > 0 ? prd.getMinIops() : (prd.getMaxIops() > 0 ? 1 : 0));
+                    if( size.longValue() < getSupport().getMinimumVolumeSize().longValue() ) {
+                        if( getSupport().isVolumeSizeDeterminedByProduct() ) {
+                            Storage<Gigabyte> s = prd.getVolumeSize();
+
+                            if( s != null && s.getQuantity().intValue() > 0 ) {
+                                size = s;
+                            }
+                        }
+                    }
+                    options = VolumeCreateOptions.getInstanceForSnapshot(prd.getProviderProductId(), testSnapshot.getProviderSnapshotId(), size, name, name, iops);
+                }
+                volumeToDelete = getSupport().createVolume(options);
+                out("Created: " + volumeToDelete);
+                assertNotNull("No volume created", volumeToDelete);
+
+                Volume v = getSupport().getVolume(volumeToDelete);
+                assertNotNull("Could not find volume after created", v);
+
+                out("From snapshot: " + v.getProviderSnapshotId());
+                if( v.getProviderSnapshotId() == null ) {
+                    out("WARNING: Null snapshot ID from newly created volume. Should reflect snapshot from which it was created, but not a deal breaker");
+                }
+                else {
+                    Assert.assertEquals("Snapshot ID does not match actual snapshot", testSnapshot.getProviderSnapshotId(), v.getProviderSnapshotId());
+                }
+            }
+            else {
+                out("WARNING: TEST SKIPPED: Not subscribed to snapshot services in a cloud with snapshot support, cannot test creating volumes from snapshots");
+            }
+        }
+        else {
+            out("TEST SKIPPED: No support for snapshots in this cloud");
+        }
+    }
 
     @Test
     public void testAttachVolume() throws InternalException, CloudException {
