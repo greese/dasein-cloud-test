@@ -58,8 +58,8 @@ public class VolumeTestCase extends BaseTestCase {
     static public final String T_REMOVE_VOLUME      = "testRemoveVolume";
     static public final String T_VOLUME_CONTENT     = "testVolumeContent";
 
-    static private VirtualMachine testVm = null;
-    static private int            vmUse  = 0;
+    static private VirtualMachine testVm     = null;
+    static private int            vmUse      = 0;
 
     static public final String[] NEEDS_VMS = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED };
 
@@ -166,7 +166,6 @@ public class VolumeTestCase extends BaseTestCase {
         return volume;
     }
 
-
     private VolumeSupport getSupport() {
         if( provider == null ) {
             Assert.fail("No provider configuration set up");
@@ -182,22 +181,24 @@ public class VolumeTestCase extends BaseTestCase {
     }
 
     private void attach() throws CloudException, InternalException {
-        Iterator<String> ids = getSupport().listPossibleDeviceIds(testVm.getPlatform()).iterator();
-        String device;
-
-        if( ids.hasNext() ) {
-            device = ids.next();
-        }
-        else {
-            device = "0";
-        }
         Volume volume = testVolume;
         VirtualMachine vm = testVm;
+        boolean attached = false;
 
         Assert.assertNotNull("Could not attach test VM to test volume because the volume disappeared", volume);
         Assert.assertNotNull("Could not attach test VM to test volume because the VM disappeared", vm);
 
-        getSupport().attach(volume.getProviderVolumeId(), vm.getProviderVirtualMachineId(), device);
+        for( String device : getSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+            try {
+                getSupport().attach(volume.getProviderVolumeId(), vm.getProviderVirtualMachineId(), device);
+                attached = true;
+                break;
+            }
+            catch( CloudException e ) {
+                out("WARNING: Failed to mount using " + device + ", will hopefully try again");
+            }
+        }
+        Assert.assertTrue("Unable to attach using any available device", attached);
 
         long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
@@ -245,9 +246,7 @@ public class VolumeTestCase extends BaseTestCase {
             Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
         }
         else if( getName().equals(T_ATTACH_VOLUME) || getName().equals(T_DETACH_VOLUME) || getName().equals(T_DETACH_UNATTACHED) || getName().equals(T_REMOVE_VOLUME) || getName().equals(T_ATTACH_NO_SERVER) ) {
-            if( testVolume == null ) {
-                testVolume = createTestVolume();
-            }
+            testVolume = createTestVolume();
             Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
             if( getName().equals(T_DETACH_VOLUME) ) {
                 attach();
@@ -261,10 +260,44 @@ public class VolumeTestCase extends BaseTestCase {
         try {
             if( volumeToDelete != null ) {
                 try {
-                    getSupport().remove(volumeToDelete);
-                }
-                catch( Throwable e ) {
-                    out("WARNING: Error cleaning up test volume: " + e.getMessage());
+                    String id = null;
+
+                    try {
+                        Volume volume = getSupport().getVolume(volumeToDelete);
+
+                        if( volume != null ) {
+                            id = volume.getProviderVolumeId();
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        id = volumeToDelete;
+                    }
+                    if( id != null ) {
+                        try { getSupport().detach(id); }
+                        catch( Throwable ignore ) { }
+                        long timeout = System.currentTimeMillis() + getStateChangeWindow();
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            try {
+                                Volume v = getSupport().getVolume(id);
+
+                                if( v == null || !VolumeState.PENDING.equals(v.getCurrentState()) ) {
+                                    break;
+                                }
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                            try { Thread.sleep(15000L); }
+                            catch( InterruptedException e ) { }
+                        }
+                        try {
+                            getSupport().remove(id);
+                        }
+                        catch( Throwable e ) {
+                            out("WARNING: Error cleaning up test volume: " + e.getMessage());
+                        }
+                    }
                 }
                 finally {
                     volumeToDelete = null;
@@ -518,22 +551,27 @@ public class VolumeTestCase extends BaseTestCase {
     @Test
     public void testAttachVolume() throws InternalException, CloudException {
         if( testVm != null ) {
-            Iterator<String> ids = getSupport().listPossibleDeviceIds(testVm.getPlatform()).iterator();
-            String device;
+            boolean attached = false;
 
-            if( ids.hasNext() ) {
-                device = ids.next();
+            for( String device : getSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+                try {
+                    getSupport().attach(testVolume.getProviderVolumeId(), testVm.getProviderVirtualMachineId(), device);
+                    attached = true;
+                    break;
+                }
+                catch( CloudException e ) {
+                    out("WARNING: Failed to mount using " + device + ", will hopefully try again");
+                }
             }
-            else {
-                device = "0";
-            }
-            getSupport().attach(testVolume.getProviderVolumeId(), testVm.getProviderVirtualMachineId(), device);
+            Assert.assertTrue("Unable to attach using any available device", attached);
+
             long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
             while( timeout > System.currentTimeMillis() ) {
                 Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
 
                 Assert.assertNotNull("Volume disappeared during attachment", volume);
+                out("Attachment: " + volume.getProviderVirtualMachineId());
                 if( volume.getProviderVirtualMachineId() != null ) {
                     assertEquals("Volume attachment does not match target server", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
                     return;
@@ -555,7 +593,7 @@ public class VolumeTestCase extends BaseTestCase {
             long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
             while( timeout > System.currentTimeMillis() ) {
-                if( volume != null && !volume.getCurrentState().equals(VolumeState.AVAILABLE) ) {
+                if( volume != null && volume.getCurrentState().equals(VolumeState.AVAILABLE) && volume.getProviderVirtualMachineId() != null ) {
                     break;
                 }
                 try { Thread.sleep(25000L); }
@@ -574,6 +612,7 @@ public class VolumeTestCase extends BaseTestCase {
                 if( volume == null ) {
                     Assert.fail("Volume disappeared during detachment");
                 }
+                out("Attachment: " + volume.getProviderVirtualMachineId());
                 if( volume.getProviderVirtualMachineId() == null ) {
                     return;
                 }
@@ -651,6 +690,8 @@ public class VolumeTestCase extends BaseTestCase {
     public void testRemoveVolume() throws InternalException, CloudException {
         getSupport().remove(testVolume.getProviderVolumeId());
         out("Removed: " + testVolume.getProviderVolumeId());
-        Assert.assertNull("Test volume still exists", getSupport().getVolume(testVolume.getProviderVolumeId()));
+        Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
+
+        Assert.assertTrue("Test volume still exists", volume == null || VolumeState.DELETED.equals(volume.getCurrentState()));
     }
 }
