@@ -27,8 +27,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.AddressType;
-import org.dasein.cloud.network.IpAddress;
+import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.LbAlgorithm;
 import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LbProtocol;
@@ -108,18 +107,16 @@ public class LoadBalancerTestCase extends BaseTestCase {
         }
         if( name.equals("testCreateLoadBalancer") ) {
             if( !support.isAddressAssignedByProvider() ) {
-                for( IpAddress ip : cloud.getNetworkServices().getIpAddressSupport().listPublicIpPool(true) ) {
-                    testAddress = ip.getProviderIpAddressId();
-                    break;
+                for( IPVersion version : support.listSupportedIPVersions() ) {
+                    try {
+                        testAddress = identifyTestIPAddress(cloud, version);
+                    }
+                    catch( CloudException ignore ) {
+                        // try again, maybe?
+                    }
                 }
                 if( testAddress == null ) {
-                    if( cloud.getNetworkServices().getIpAddressSupport().isRequestable(AddressType.PUBLIC) ) {
-                        lbIpToRelease = cloud.getNetworkServices().getIpAddressSupport().request(AddressType.PUBLIC);
-                        testAddress = lbIpToRelease;
-                    }
-                    else {
-                        throw new CloudException("No addresses available for load balancer");
-                    }
+                    throw new CloudException("Unable to provision an IP address to test load balancers");
                 }
             }
             if( support.isDataCenterLimited() ) {
@@ -188,9 +185,9 @@ public class LoadBalancerTestCase extends BaseTestCase {
             // ignore
         }
         try {
-            if( lbIpToRelease != null ) {
-                cloud.getNetworkServices().getIpAddressSupport().releaseFromPool(lbIpToRelease);
-                lbIpToRelease = null;
+            if( ipToRelease != null ) {
+                cloud.getNetworkServices().getIpAddressSupport().releaseFromPool(ipToRelease);
+                ipToRelease = null;
             }
         }
         catch( Throwable ignore ) {

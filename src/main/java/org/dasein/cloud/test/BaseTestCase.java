@@ -30,6 +30,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.Properties;
 
 import junit.framework.TestCase;
@@ -46,12 +47,17 @@ import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.network.AddressType;
+import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
+import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.LbAlgorithm;
 import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LbProtocol;
 import org.dasein.cloud.network.LoadBalancerSupport;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.util.CalendarWrapper;
+
+import javax.annotation.Nonnull;
 
 public class BaseTestCase extends TestCase {
     
@@ -493,27 +499,55 @@ public class BaseTestCase extends TestCase {
         }
     }
 
-    protected String lbIpToRelease      = null;
+    protected String ipToRelease      = null;
+
     protected String lbVmToKill         = null;
-    
+
+    protected @Nonnull String identifyTestIPAddress(@Nonnull CloudProvider provider, @Nonnull IPVersion version) throws CloudException, InternalException {
+        NetworkServices services = provider.getNetworkServices();
+
+        if( services == null ) {
+            throw new CloudException("IP addresses are not supported in " + provider.getCloudName());
+        }
+        IpAddressSupport support = services.getIpAddressSupport();
+
+        if( support == null ) {
+            throw new CloudException("IP addresses are not supported in " + provider.getCloudName());
+        }
+        Iterator<IpAddress> it = support.listIpPool(version, true).iterator();
+        String address = null;
+
+        if( it.hasNext() ) {
+            address = it.next().getProviderIpAddressId();
+        }
+        else {
+            if( support.isRequestable(version) ) {
+                ipToRelease = support.request(version);
+                address = ipToRelease;
+            }
+        }
+        if( address == null ) {
+            throw new CloudException("No addresses available for this test");
+        }
+        return address;
+    }
+
     protected String makeTestLoadBalancer(CloudProvider provider) throws CloudException, InternalException {
         LoadBalancerSupport support = provider.getNetworkServices().getLoadBalancerSupport();
         String[] dcIds = new String[0];
         String address = null;
         
         if( !support.isAddressAssignedByProvider() ) {
-            for( IpAddress ip : provider.getNetworkServices().getIpAddressSupport().listPublicIpPool(true) ) {
-                address = ip.getProviderIpAddressId();
-                break;
+            for( IPVersion version : support.listSupportedIPVersions() ) {
+                try {
+                    address = identifyTestIPAddress(provider, version);
+                }
+                catch( CloudException ignore ) {
+                    // try again, maybe?
+                }
             }
             if( address == null ) {
-                if( provider.getNetworkServices().getIpAddressSupport().isRequestable(AddressType.PUBLIC) ) {
-                    lbIpToRelease = provider.getNetworkServices().getIpAddressSupport().request(AddressType.PUBLIC);
-                    address = lbIpToRelease;
-                }
-                else {
-                    throw new CloudException("No addresses available for load balancer");
-                }
+                throw new CloudException("Unable to provision an IP address to test load balancers");
             }
         }
         if( support.isDataCenterLimited() ) {

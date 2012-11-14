@@ -18,7 +18,6 @@
 
 package org.dasein.cloud.test;
 
-import java.awt.datatransfer.StringSelection;
 import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
@@ -26,7 +25,6 @@ import java.util.UUID;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.Architecture;
 import org.dasein.cloud.compute.VMLaunchOptions;
@@ -36,12 +34,14 @@ import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.identity.ShellKeySupport;
+import org.dasein.cloud.network.IPVersion;
+import org.dasein.cloud.network.IpAddressSupport;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.SubnetState;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.network.VLANSupport;
-import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Megabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -98,6 +98,29 @@ public class VirtualMachineTestCase extends BaseTestCase {
             testLaunchOptions.inDataCenter(getTestDataCenterId());
             if( s.identifyPasswordRequirement().equals(Requirement.REQUIRED) ) {
                 testLaunchOptions.withBootstrapUser("dasein", "x" + System.currentTimeMillis());
+            }
+            if( s.identifyStaticIPRequirement().equals(Requirement.REQUIRED) ) {
+                NetworkServices services = cloud.getNetworkServices();
+
+                if( services == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no network services exist.");
+                }
+                IpAddressSupport support = services.getIpAddressSupport();
+
+                if( support == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no IP address support exists.");
+                }
+                for( IPVersion version : support.listSupportedIPVersions() ) {
+                    try {
+                        testLaunchOptions.withStaticIps(identifyTestIPAddress(cloud, version));
+                    }
+                    catch( CloudException ignore ) {
+                        // try again, maybe
+                    }
+                }
+                if( testLaunchOptions.getStaticIpIds().length < 1 ) {
+                    throw new CloudException("Unable to provision the required IP address for this test");
+                }
             }
             if( s.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
                 String productId = null;
