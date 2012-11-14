@@ -253,6 +253,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
         out("Shell keys:                 " + vmSupport.identifyShellKeyRequirement());
         out("Root volume:                " + vmSupport.identifyRootVolumeRequirement());
         out("Password:                   " + vmSupport.identifyPasswordRequirement());
+        out("Static IPs:                 " + vmSupport.identifyStaticIPRequirement());
         out("VLAN:                       " + vmSupport.identifyVlanRequirement());
         end();
     }
