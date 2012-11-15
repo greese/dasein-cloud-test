@@ -319,7 +319,20 @@ public class BaseTestCase extends TestCase {
     protected CloudProvider getProvider() throws InstantiationException, IllegalAccessException {
         return ComprehensiveTestSuite.providerClass.newInstance();
     }
-    
+
+    protected void killTestAddress() {
+        try {
+            if( ipToRelease != null ) {
+                //noinspection ConstantConditions
+                getProvider().getNetworkServices().getIpAddressSupport().releaseFromPool(ipToRelease);
+                ipToRelease = null;
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+    }
+
     protected String launch(CloudProvider provider) throws InternalException, CloudException {
         return launch(provider, false);
     }

@@ -456,7 +456,6 @@ public class IpAddressTestCase extends BaseTestCase {
             out("Is requestable [" + version + "]:           " + support.isRequestable(version));
             out("Is assigned [" + version + "]:              " + support.isAssigned(version));
             out("Is forwarding [" + version + "]:            " + support.isForwarding(version));
-            out("Supports runtime binding [" + version + "]: " + support.supportsRuntimeBinding(version));
             out("Supports VLAN addresses [" + version + "]:  " + support.supportsVLANAddresses(version));
         }
     }

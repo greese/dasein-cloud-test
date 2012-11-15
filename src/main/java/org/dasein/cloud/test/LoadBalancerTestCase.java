@@ -184,15 +184,7 @@ public class LoadBalancerTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
-        try {
-            if( ipToRelease != null ) {
-                cloud.getNetworkServices().getIpAddressSupport().releaseFromPool(ipToRelease);
-                ipToRelease = null;
-            }
-        }
-        catch( Throwable ignore ) {
-            // ignore
-        }                
+        killTestAddress();
         try {
             if( cloud != null ) {
                 cloud.close();
