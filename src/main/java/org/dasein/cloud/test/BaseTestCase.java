@@ -33,6 +33,7 @@ import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.Properties;
 
+import junit.framework.Assert;
 import junit.framework.TestCase;
 
 import org.apache.log4j.Logger;
@@ -41,12 +42,20 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
+import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.ImageClass;
+import org.dasein.cloud.compute.ImageCreateOptions;
+import org.dasein.cloud.compute.MachineImage;
+import org.dasein.cloud.compute.MachineImageState;
+import org.dasein.cloud.compute.MachineImageSupport;
+import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeState;
-import org.dasein.cloud.network.AddressType;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
@@ -58,9 +67,22 @@ import org.dasein.cloud.network.NetworkServices;
 import org.dasein.util.CalendarWrapper;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 public class BaseTestCase extends TestCase {
-    
+    static private int actualImageReuses   = 0;
+    static private int actualVmReuses      = 0;
+    static private int expectedImageReuses = 0;
+    static private int expectedVmReuses    = 0;
+
+    static public void addExpectedImageReuses(int count) {
+        expectedImageReuses += count;
+    }
+
+    static public void addExpectedVmReuses(int count) {
+        expectedVmReuses += count;
+    }
+
     static public ProviderContext getTestContext(Class<? extends CloudProvider> providerClass) {
         ProviderContext ctx = new ProviderContext();
         Properties props = System.getProperties();
@@ -158,14 +180,6 @@ public class BaseTestCase extends TestCase {
         catch( NumberFormatException e ) {
             stateChangeWindow = CalendarWrapper.MINUTE * 10L;
         }
-    }
-
-    protected long getLaunchWindow() {
-        return launchWindow;
-    }
-
-    protected long getStateChangeWindow() {
-        return stateChangeWindow;
     }
 
     protected String allocateVolume(CloudProvider cloud) throws InternalException, CloudException {
@@ -266,7 +280,48 @@ public class BaseTestCase extends TestCase {
             reader.close();
         }
     }
-    
+
+
+    static private String         imageToDelete    = null;
+    static private String         ipToRelease      = null;
+    static private String         vmToKill         = null;
+
+    protected void cleanImage(@Nonnull MachineImageSupport support, @Nonnull String imageId) {
+        try {
+            long timeout = System.currentTimeMillis() + getStateChangeWindow();
+            MachineImage img = null;
+
+            while( timeout > System.currentTimeMillis() ) {
+                try {
+                    img = support.getImage(imageId);
+                    if( img == null || MachineImageState.DELETED.equals(img.getCurrentState()) ) {
+                        return;
+                    }
+                    if( !MachineImageState.PENDING.equals(img.getCurrentState()) ) {
+                        break;
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+            }
+            if( img != null && !MachineImageState.DELETED.equals(img.getCurrentState()) ) {
+                support.remove(imageId);
+            }
+        }
+        catch( Throwable t ) {
+            out("WARNING: Failed to clean up after test, the image " + imageToDelete + " was not removed cleanly");
+        }
+    }
+
+    protected void cleanUp() {
+        killTestVm();
+        killTestAddress();
+        killTestImage();
+    }
+
     protected File createTestFile() {
         String fileName = "dsnupltest" + System.currentTimeMillis() + ".txt";
         
@@ -287,11 +342,146 @@ public class BaseTestCase extends TestCase {
     protected void end() {
         out("END (" + (System.currentTimeMillis() - start) + " millis)");
     }
-    
+
+    protected @Nonnull MachineImage findTestImage(@Nonnull MachineImageSupport support, boolean useConfigured, boolean findFree, boolean createNew) throws CloudException, InternalException {
+        MachineImage image = null;
+
+        if( createNew ) {
+            actualImageReuses++;
+        }
+        if( imageToDelete != null ) {
+            image = support.getImage(imageToDelete);
+        }
+        if( image == null && useConfigured ) {
+            String id = getTestMachineImageId();
+
+            if( id != null ) {
+                image = support.getImage(id);
+            }
+        }
+        if( image == null && findFree ) {
+            Iterator<MachineImage> images = support.listImages(ImageClass.MACHINE).iterator();
+
+            if( images.hasNext() ) {
+                image = images.next();
+            }
+            else {
+                for( Platform platform : new Platform[] { Platform.UBUNTU, Platform.WINDOWS, Platform.RHEL, Platform.CENT_OS, Platform.SOLARIS } ) {
+                    images = support.searchPublicImages(null, platform, null).iterator();
+                    if( images.hasNext() ) {
+                        image = images.next();
+                        break;
+                    }
+                }
+            }
+        }
+        if( image == null && createNew ) {
+            try {
+                VirtualMachine vm = findTestVirtualMachine(getProvider().getComputeServices().getVirtualMachineSupport(), false, true);
+                String name = getClass().getName().substring(0, 3).toLowerCase() + "img-" + getName() + (System.currentTimeMillis()%10000);
+                ImageCreateOptions options = ImageCreateOptions.getInstance(vm, name, getName() + " test case execution");
+
+                image = support.captureImage(options);
+                imageToDelete = image.getProviderMachineImageId();
+            }
+            catch( IllegalAccessException e ) {
+                throw new InternalException(e);
+            }
+            catch( InstantiationException e ) {
+                throw new InternalException(e);
+            }
+        }
+        if( image == null ) {
+            Assert.fail("No test image could be found or created to support this test case");
+        }
+        return image;
+    }
+
+    protected String findTestProduct(@Nonnull VirtualMachineSupport support, @Nullable Architecture architecture, boolean findFree) throws CloudException, InternalException {
+        String productId = getTestProduct();
+
+        if( productId == null && findFree ) {
+            VirtualMachineProduct cheapo = null;
+
+            for( VirtualMachineProduct p : support.listProducts(architecture) ) {
+                if( cheapo == null || (p.getRamSize() != null && (cheapo.getRamSize() == null || p.getRamSize().intValue() < cheapo.getRamSize().intValue())) ) {
+                    cheapo = p;
+                }
+            }
+            if( cheapo != null ) {
+                productId = cheapo.getProviderProductId();
+            }
+        }
+        if( productId == null ) {
+            Assert.fail("No test virtual machine product could be found for this test case");
+        }
+        return productId;
+    }
+
+    protected VirtualMachine findTestVirtualMachine(@Nonnull VirtualMachineSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
+        VirtualMachine vm = null;
+
+        if( createNew ) {
+            actualVmReuses++;
+        }
+        if( vmToKill != null ) {
+            vm = support.getVirtualMachine(vmToKill);
+            if( vm != null && VmState.TERMINATED.equals(vm.getCurrentState()) ) {
+                vm = null;
+            }
+        }
+        if( vm != null && findFree ) {
+            Iterable<VirtualMachine> servers = support.listVirtualMachines();
+
+            for( VirtualMachine server : servers ) {
+                if( !VmState.TERMINATED.equals(server.getCurrentState()) ) {
+                    vm = server;
+                    break;
+                }
+            }
+        }
+        if( vm == null && createNew ) {
+            try {
+                MachineImage img = findTestImage(getProvider().getComputeServices().getImageSupport(), true, true, false);
+                String name = getClass().getName().substring(0, 3).toLowerCase() + "vm-" + getName() + (System.currentTimeMillis()%10000);
+                String productId = findTestProduct(support, img.getArchitecture(), true);
+
+                VMLaunchOptions options = VMLaunchOptions.getInstance(productId, img.getProviderMachineImageId(), name, getName() + " test case execution");
+
+                vm = support.launch(options);
+                vmToKill = vm.getProviderVirtualMachineId();
+                waitForState(support, vm.getProviderVirtualMachineId(), VmState.RUNNING, getLaunchWindow());
+                vm = support.getVirtualMachine(vm.getProviderVirtualMachineId());
+            }
+            catch( IllegalAccessException e ) {
+                throw new InternalException(e);
+            }
+            catch( InstantiationException e ) {
+                throw new InternalException(e);
+            }
+        }
+        if( vm == null ) {
+            Assert.fail("No test virtual machine could be found or created to support this test case");
+        }
+        return vm;
+    }
+
+    public int getImageReuseCount() {
+        return 0;
+    }
+
+    protected long getLaunchWindow() {
+        return launchWindow;
+    }
+
     protected Properties getProperties() {
         return System.getProperties();
     }
-    
+
+    protected long getStateChangeWindow() {
+        return stateChangeWindow;
+    }
+
     protected ProviderContext getTestContext() {
         return getTestContext(ComprehensiveTestSuite.providerClass);
     }
@@ -315,9 +505,17 @@ public class BaseTestCase extends TestCase {
     protected String getTestHostname() {
         return "dsn" + (System.currentTimeMillis()%10000);
     }
-    
+
+    protected String getTestShareAccount() {
+        return System.getProperty("test.shareAccount");
+    }
+
     protected CloudProvider getProvider() throws InstantiationException, IllegalAccessException {
         return ComprehensiveTestSuite.providerClass.newInstance();
+    }
+
+    public int getVmReuseCount() {
+        return 0;
     }
 
     protected void killTestAddress() {
@@ -330,6 +528,67 @@ public class BaseTestCase extends TestCase {
         }
         catch( Throwable ignore ) {
             // ignore
+        }
+    }
+
+    protected void killTestImage() {
+        if( imageToDelete != null && actualImageReuses >= expectedImageReuses ) {
+            try {
+                cleanImage(getProvider().getComputeServices().getImageSupport(), imageToDelete);
+                imageToDelete = null;
+            }
+            catch( Throwable t ) {
+                out("WARNING: Failed to kill test image " + imageToDelete + " during clean up: " + t.getMessage());
+            }
+        }
+    }
+
+    protected void killTestVm() {
+        if( vmToKill != null && actualVmReuses >= expectedVmReuses ) {
+            try {
+                long timeout = System.currentTimeMillis() + getLaunchWindow();
+                VirtualMachine vm = getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
+                boolean stopped = false;
+
+                if( vm == null ) {
+                    return;
+                }
+                if( !VmState.STOPPED.equals(vm.getCurrentState()) && getProvider().getComputeServices().getVirtualMachineSupport().supportsStartStop(vm) ) {
+                    try {
+                        getProvider().getComputeServices().getVirtualMachineSupport().stop(vmToKill);
+                        stopped = true;
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+                while( timeout > System.currentTimeMillis() ) {
+                    try {
+                        vm = getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
+                        if( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) ) {
+                            return;
+                        }
+                        if( VmState.STOPPED.equals(vm.getCurrentState()) ) {
+                            break;
+                        }
+                        if( !stopped && !VmState.STOPPING.equals(vm.getCurrentState()) && !VmState.PENDING.equals(vm.getCurrentState()) ) {
+                            break;
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException ignore ) { }
+                }
+                if( vm != null ) {
+                    //noinspection ConstantConditions
+                    getProvider().getComputeServices().getVirtualMachineSupport().terminate(vmToKill);
+                }
+            }
+            catch( Throwable t ) {
+                out("WARNING: Failed to clean up after test, the VM " + vmToKill + " was not cleanly removed");
+            }
         }
     }
 
@@ -511,8 +770,6 @@ public class BaseTestCase extends TestCase {
             return false;
         }
     }
-
-    protected String ipToRelease      = null;
 
     protected String lbVmToKill         = null;
 

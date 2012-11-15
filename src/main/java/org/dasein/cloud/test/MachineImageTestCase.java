@@ -23,15 +23,25 @@ import java.util.Iterator;
 import java.util.Locale;
 import java.util.UUID;
 
+import org.dasein.cloud.AsynchronousTask;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.ImageClass;
+import org.dasein.cloud.compute.ImageCreateOptions;
 import org.dasein.cloud.compute.MachineImage;
+import org.dasein.cloud.compute.MachineImageFormat;
+import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.MachineImageSupport;
 import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.storage.BlobStoreSupport;
+import org.dasein.cloud.storage.StorageServices;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -41,19 +51,49 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 
+@SuppressWarnings("JUnit4AnnotatedMethodInJUnit3TestCase")
 public class MachineImageTestCase extends BaseTestCase {
-    static public final String T_GET_IMAGE     = "testGetImage";
-    static public final String T_IMAGE_CONTENT = "testImageContent";
-    static public final String T_LIST_SHARES   = "testListShares";
+    static public final String T_ADD_PRIVATE_SHARE   = "testAddPrivateShare";
+    static public final String T_ADD_PUBLIC_SHARE    = "testAddPublicShare";
+    static public final String T_BUNDLE_VM           = "testBundleVirtualMachine";
+    static public final String T_BUNDLE_VM_ASYNC     = "testBundleVirtualMachineAsync";
+    static public final String T_CAPTURE_IMAGE       = "testCaptureImage";
+    static public final String T_CAPTURE_IMAGE_ASYNC = "testCaptureImageAsync";
+    static public final String T_GET_IMAGE           = "testGetImage";
+    static public final String T_IMAGE_CONTENT       = "testImageContent";
+    static public final String T_LIST_SHARES         = "testListShares";
+    static public final String T_REGISTER            = "testRegisterBundle";
+    static public final String T_RM_ALL_SHARES       = "testRemoveAllShares";
+    static public final String T_RM_PRIVATE_SHARE    = "testRemovePrivateShare";
+    static public final String T_RM_PUBLIC_SHARE     = "testRemovePublicShare";
+
+    static public final int IMAGE_REUSE_COUNT = 6;
+    static public final int VM_REUSE_COUNT    = 11;
 
     @Rule
     public TestName testName         = new TestName();
 
-    private String        imageToDelete;
-    private CloudProvider provider;
-    private MachineImage  testImage;
+    private boolean            canTestBundling;
+    private MachineImageFormat bundlingFormat;
+    private String             killImageId;
+    private CloudProvider      provider;
+    private String             testBucket;
+    private String             testObject;
+    private MachineImage       testImage;
+    private String             testLocation;
+    private VirtualMachine     testVm;
 
     public MachineImageTestCase(String name) { super(name); }
+
+    @Override
+    public int getImageReuseCount() {
+        return IMAGE_REUSE_COUNT;
+    }
+
+    @Override
+    public int getVmReuseCount() {
+        return VM_REUSE_COUNT;
+    }
 
     public @Nonnull MachineImageSupport getSupport() {
         if( provider == null ) {
@@ -68,6 +108,23 @@ public class MachineImageTestCase extends BaseTestCase {
 
         if( support == null ) {
             Assert.fail("No machine image support in this cloud");
+        }
+        return support;
+    }
+
+    public @Nonnull VirtualMachineSupport getVMSupport() {
+        if( provider == null ) {
+            Assert.fail("No provider configuration set up");
+        }
+        ComputeServices services = provider.getComputeServices();
+
+        if( services == null ) {
+            Assert.fail("Cloud does not have compute services");
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support == null ) {
+            Assert.fail("No VM support in this cloud");
         }
         return support;
     }
@@ -100,9 +157,82 @@ public class MachineImageTestCase extends BaseTestCase {
                 }
             }
         }
-        else if( getName().equals(T_LIST_SHARES) ) {
-            // TODO: create an image
-            // TODO: share it
+        else if( getName().equals(T_LIST_SHARES) || getName().equals(T_RM_PRIVATE_SHARE) || getName().equals(T_RM_ALL_SHARES) ) {
+            testImage = findTestImage(support, false, false, true);
+            if( support.supportsImageSharing() ) {
+                String shareAccount = getTestShareAccount();
+
+                Assert.assertNotNull("Cannot test image sharing unless the test.shareAccount property is set to a second account", shareAccount);
+                support.addImageShare(testImage.getProviderMachineImageId(), shareAccount);
+                Assert.assertTrue("Test account was not found among the active shares", support.listShares(testImage.getProviderMachineImageId()).iterator().hasNext());
+            }
+        }
+        else if( getName().equals(T_CAPTURE_IMAGE) || getName().equals(T_CAPTURE_IMAGE_ASYNC) ) {
+            VirtualMachineSupport vmSupport = getVMSupport();
+
+            testVm = findTestVirtualMachine(vmSupport, false, true);
+        }
+        else if( getName().equals(T_ADD_PRIVATE_SHARE) || getName().equals(T_ADD_PUBLIC_SHARE) || getName().equals(T_RM_PUBLIC_SHARE) ) {
+            testImage = findTestImage(support, false, false, true);
+            if( getName().equals(T_RM_PUBLIC_SHARE) && support.supportsImageSharingWithPublic() ) {
+                support.addPublicShare(testImage.getProviderMachineImageId());
+                Assert.assertTrue("Image was not properly publicly shared", support.isImageSharedWithPublic(testImage.getProviderMachineImageId()));
+            }
+        }
+        else if( getName().equals(T_BUNDLE_VM) || getName().equals(T_BUNDLE_VM_ASYNC) || getName().equals(T_REGISTER) ) {
+            VirtualMachineSupport vmSupport = getVMSupport();
+
+            testVm = findTestVirtualMachine(vmSupport, false, true);
+            if( Requirement.REQUIRED.equals(support.identifyLocalBundlingRequirement()) ) {
+                canTestBundling = false;
+                out("WARNING: Cannot test any bundling because bundling must occur locally - NOT TESTED");
+            }
+            else {
+                Iterable<MachineImageFormat> formats = support.listSupportedFormatsForBundling();
+
+                if( !formats.iterator().hasNext() ) {
+                    out("Image bundling is not supported; will expect an error during this test");
+                }
+                else {
+                    String id = testVm.getProviderMachineImageId();
+
+                    if( id != null ) {
+                        MachineImage img = support.getImage(id);
+
+                        if( img != null ) {
+                            for( MachineImageFormat format : formats ) {
+                                if( format.equals(img.getStorageFormat()) ) {
+                                    bundlingFormat = format;
+                                    canTestBundling = true;
+                                    break;
+                                }
+                            }
+
+                        }
+                    }
+                    if( !canTestBundling ) {
+                        out("WARNING: The image format of the test VM cannot be bundled - NOT TESTED");
+                    }
+                }
+                if( canTestBundling ) {
+                    StorageServices services = provider.getStorageServices();
+
+                    if( services == null ) {
+                        Assert.fail("Cannot bundle without storage services");
+                    }
+                    BlobStoreSupport blobSupport = services.getBlobStoreSupport();
+
+                    if( blobSupport == null ) {
+                        Assert.fail("Cannot bundle without an object store");
+                    }
+                    testBucket = blobSupport.createBucket("dsnimg" + (System.currentTimeMillis()%10000), true).getBucketName();
+                    Assert.assertNotNull("Test bucket is null", testBucket);
+                    testObject = getName();
+                    if( getName().equals(T_REGISTER) ) {
+                        testLocation = getSupport().bundleVirtualMachine(testVm.getProviderVirtualMachineId(), bundlingFormat, testBucket, testObject);
+                    }
+                }
+            }
         }
     }
 
@@ -110,17 +240,36 @@ public class MachineImageTestCase extends BaseTestCase {
     @Override
     public void tearDown() {
         try {
-            MachineImageSupport support = getSupport();
-
-            if( imageToDelete != null ) {
+            if( testBucket != null ) {
                 try {
-                    support.remove(imageToDelete);
+                    provider.getStorageServices().getBlobStoreSupport().clearBucket(testBucket);
                 }
                 catch( Throwable t ) {
-                    out("WARNING: Error removing temporarily created machine image during tear down: " + t.getMessage());
+                    out("WARNING: Unable to clear test bucket " + testBucket + ": " + t.getMessage());
                 }
             }
-            testImage = null;
+            if( testImage != null && (getName().equals(T_ADD_PRIVATE_SHARE) || getName().equals(T_LIST_SHARES)) ) {
+                try {
+                    if( getSupport().supportsImageSharing() ) {
+                        getSupport().removeAllImageShares(testImage.getProviderMachineImageId());
+                    }
+                }
+                catch( Throwable t ) {
+                    out("WARNING: Unable to clean up shares for " + testImage.getProviderMachineImageId() + ": " + t.getMessage());
+                }
+            }
+            if( testImage != null && getName().equals(T_ADD_PUBLIC_SHARE) ) {
+                try {
+                    if( getSupport().supportsImageSharingWithPublic() ) {
+                        getSupport().removePublicShare(testImage.getProviderMachineImageId());
+                    }
+                }
+                catch( Throwable t ) {
+                    out("WARNING: Unable to clean up public sharing for " + testImage.getProviderMachineImageId() + ": " + t.getMessage());
+                }
+            }
+            cleanUp();
+            cleanImage(getSupport(), killImageId);
         }
         finally {
             end();
@@ -270,243 +419,278 @@ public class MachineImageTestCase extends BaseTestCase {
 
     @Test
     public void testCaptureImage() throws CloudException, InternalException {
-        // TODO: test capturing an image
+        boolean supported = false;
+        String id = testVm.getProviderMachineImageId();
+        MachineImage tmp = null;
+
+        if( id != null ) {
+            tmp = getSupport().getImage(id);
+        }
+        if( tmp == null ) {
+            for( MachineImageType t : getSupport().listSupportedImageTypes() ) {
+                if( getSupport().supportsImageCapture(t) ) {
+                    supported = true;
+                    break;
+                }
+            }
+        }
+        else {
+            supported = getSupport().supportsImageCapture(tmp.getType());
+        }
+        try {
+            String name = getClass().getName().substring(0, 3).toLowerCase() + "img-" + getName() + (System.currentTimeMillis()%10000);
+            ImageCreateOptions options = ImageCreateOptions.getInstance(testVm, name, getName() + " test case execution");
+            MachineImage image = getSupport().captureImage(options);
+
+            Assert.assertTrue("Image capture is not supported, yet the capture attempt succeeded without error", supported);
+            out("Captured: " + image);
+            Assert.assertNotNull("Created a null machine image", image);
+            killImageId = image.getProviderMachineImageId();
+            Assert.assertFalse("Machine image is not in a proper state", MachineImageState.DELETED.equals(image.getCurrentState()));
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Capture not supported " + (supported ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("Notified that capture is not supported, but it is supposed to be according to meta-data", supported);
+        }
     }
 
     @Test
     public void testCaptureImageAsync() throws CloudException, InternalException {
-        // TODO: test async capture
+        boolean supported = false;
+        String id = testVm.getProviderMachineImageId();
+        MachineImage tmp = null;
+
+        if( id != null ) {
+            tmp = getSupport().getImage(id);
+        }
+        if( tmp == null ) {
+            for( MachineImageType t : getSupport().listSupportedImageTypes() ) {
+                if( getSupport().supportsImageCapture(t) ) {
+                    supported = true;
+                    break;
+                }
+            }
+        }
+        else {
+            supported = getSupport().supportsImageCapture(tmp.getType());
+        }
+        String name = getClass().getName().substring(0, 3).toLowerCase() + "img-" + getName() + (System.currentTimeMillis()%10000);
+        ImageCreateOptions options = ImageCreateOptions.getInstance(testVm, name, getName() + " test case execution");
+        AsynchronousTask<MachineImage> task = new AsynchronousTask<MachineImage>();
+
+        try {
+            getSupport().captureImageAsync(options, task);
+            Assert.assertTrue("Image capture is not supported, yet the capture attempt succeeded without error", supported);
+            while( !task.isComplete() ) {
+                out("Status: " + task.getPercentComplete() + "%");
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+            }
+            MachineImage image = task.getResult();
+
+            out("Captured: " + image);
+            //noinspection ThrowableResultOfMethodCallIgnored
+            Assert.assertNull("The process produced an error: " + task.getTaskError(), task.getTaskError());
+            Assert.assertNotNull("The process failed to product a meaningful result", image);
+            Assert.assertFalse("Machine image is not in a proper state", MachineImageState.DELETED.equals(image.getCurrentState()));
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Capture not supported " + (supported ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("Notified that capture is not supported, but it is supposed to be according to meta-data", supported);
+        }
     }
 
     @Test
     public void testBundleVirtualMachine() throws CloudException, InternalException {
-        // TODO: bundle virtual machine
+        if( canTestBundling ) {
+            String location = getSupport().bundleVirtualMachine(testVm.getProviderVirtualMachineId(), bundlingFormat, testBucket, testObject);
+
+            out("Bundle location: " + location);
+            Assert.assertNotNull("Bundle location cannot be null on success", location);
+        }
+        else {
+            if( !getSupport().listSupportedFormatsForBundling().iterator().hasNext() ) {
+                try {
+                    getSupport().bundleVirtualMachine(testVm.getProviderVirtualMachineId(), MachineImageFormat.OVF, "testBucket", "testObject");
+                    Assert.fail("Bundling supposedly succeeded even though bundling formats are supported");
+                }
+                catch( OperationNotSupportedException e ) {
+                    out("Operation not supported (OK)");
+                }
+            }
+        }
     }
 
     @Test
     public void testBundleVirtualMachineAsync() throws CloudException, InternalException {
-        // TODO: bundle virtual machine
+        if( canTestBundling ) {
+            AsynchronousTask<String> task = new AsynchronousTask<String>();
+
+            getSupport().bundleVirtualMachineAsync(testVm.getProviderVirtualMachineId(), bundlingFormat, testBucket, testObject, task);
+
+            out("Bundle task: " + task);
+            Assert.assertNotNull("Bundle task cannot be null on success", task);
+            while( !task.isComplete() ) {
+                out("Status: " + task.getPercentComplete() + "%");
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+            }
+            String location = task.getResult();
+
+            out("Bundle location: " + location);
+            Assert.assertNotNull("Bundle location cannot be null on success", location);
+        }
+        else {
+            if( !getSupport().listSupportedFormatsForBundling().iterator().hasNext() ) {
+                try {
+                    getSupport().bundleVirtualMachineAsync(testVm.getProviderVirtualMachineId(), MachineImageFormat.OVF, "testBucket", "testObject", new AsynchronousTask<String>());
+                    Assert.fail("Bundling supposedly succeeded even though bundling formats are supported");
+                }
+                catch( OperationNotSupportedException e ) {
+                    out("Operation not supported (OK)");
+                }
+            }
+        }
     }
 
     @Test
     public void testRegisterBundle() throws CloudException, InternalException {
-        // TODO: test register bundle
+        if( canTestBundling ) {
+            String name = getName() + "-" + (System.currentTimeMillis() % 10000);
+            ImageCreateOptions options = ImageCreateOptions.getInstance(bundlingFormat, testLocation, testVm.getPlatform(), name, name);
+            MachineImage image = getSupport().registerImageBundle(options);
+
+            out("Registered: " + image);
+            Assert.assertNotNull("Registering an image must return a valid image", image);
+            killImageId = image.getProviderMachineImageId();
+        }
     }
 
     @Test
     public void testAddPrivateShare() throws CloudException, InternalException {
-        // TODO: test add share
+        MachineImageSupport support = getSupport();
+        String shareAccount = getTestShareAccount();
+
+        if( getSupport().supportsImageSharing() ) {
+            Assert.assertNotNull("Cannot test image sharing unless the test.shareAccount property is set to a second account", shareAccount);
+        }
+        else if( shareAccount == null ) {
+            shareAccount = UUID.randomUUID().toString();
+        }
+        try {
+            Iterable<String> shares = support.listShares(testImage.getProviderMachineImageId());
+
+            out("Before: " + shares);
+            support.addImageShare(testImage.getProviderMachineImageId(), shareAccount);
+            Assert.assertTrue("An attempt to share an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharing());
+            boolean found = false;
+
+            shares = support.listShares(testImage.getProviderMachineImageId());
+            out("After: " + shares);
+            for( String share : shares ) {
+                if( share.equals(shareAccount) ) {
+                    found = true;
+                    break;
+                }
+            }
+            Assert.assertTrue("Did not find the new share among the listed shares", found);
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("An attempt to share failed even though sharing is supposedly supported", support.supportsImageSharing());
+        }
     }
 
     @Test
     public void testRemovePrivateShare() throws CloudException, InternalException {
-        // TODO: remove private share
+        MachineImageSupport support = getSupport();
+        String shareAccount = getTestShareAccount();
+
+        if( getSupport().supportsImageSharing() ) {
+            Assert.assertNotNull("Cannot test image sharing unless the test.shareAccount property is set to a second account", shareAccount);
+        }
+        else if( shareAccount == null ) {
+            shareAccount = UUID.randomUUID().toString();
+        }
+        try {
+            Iterable<String> shares = support.listShares(testImage.getProviderMachineImageId());
+
+            out("Before: " + shares);
+            support.removeImageShare(testImage.getProviderMachineImageId(), shareAccount);
+            Assert.assertTrue("An attempt to unshare an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharing());
+            boolean found = false;
+
+            shares = support.listShares(testImage.getProviderMachineImageId());
+            out("After: " + shares);
+            for( String share : shares ) {
+                if( share.equals(shareAccount) ) {
+                    found = true;
+                    break;
+                }
+            }
+            Assert.assertFalse("Found the old share among the listed shares", found);
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("An attempt to unshare failed even though sharing is supposedly supported", support.supportsImageSharing());
+        }
     }
 
     @Test
     public void testAddPublicShare() throws CloudException, InternalException {
-        // TODO: add public share
+        MachineImageSupport support = getSupport();
+
+        try {
+            out("Before: " + support.isImageSharedWithPublic(testImage.getProviderMachineImageId()));
+            support.addPublicShare(testImage.getProviderMachineImageId());
+            Assert.assertTrue("An attempt to share an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharingWithPublic());
+            boolean p = support.isImageSharedWithPublic(testImage.getProviderMachineImageId());
+
+            out("After: " + p);
+            Assert.assertTrue("The test image is not shown as publicly shared", p);
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("An attempt to share failed even though sharing is supposedly supported", support.supportsImageSharingWithPublic());
+        }
     }
 
     @Test
     public void testRemovePublicShare() throws CloudException, InternalException {
-        // TODO: remove public share
+        MachineImageSupport support = getSupport();
+
+        try {
+            out("Before: " + support.isImageSharedWithPublic(testImage.getProviderMachineImageId()));
+            support.removePublicShare(testImage.getProviderMachineImageId());
+            Assert.assertTrue("An attempt to unshare an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharingWithPublic());
+            boolean p = support.isImageSharedWithPublic(testImage.getProviderMachineImageId());
+
+            out("After: " + p);
+            Assert.assertFalse("The test image is still shown as publicly shared", p);
+        }
+        catch( OperationNotSupportedException e ) {
+            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("An attempt to unshare failed even though sharing is supposedly supported", support.supportsImageSharingWithPublic());
+        }
     }
 
     @Test
     public void testRemoveAllShares() throws CloudException, InternalException {
-        // TODO: test remove all shares
-    }
+        MachineImageSupport support = getSupport();
 
-    /*
-    private String        serverToKill    = null;
-
-    public MachineImageTestCase(String name) { super(name); }
-
-    @Before
-    @Override
-    public void setUp() throws InstantiationException, IllegalAccessException, CloudException, InternalException {
-        String name = getName();
-        
-        cloud = getProvider();
-        cloud.connect(getTestContext());
-        if( name.equals("testGetImage") || name.equals("testImageContent") ) {
-            for( MachineImage image : cloud.getComputeServices().getImageSupport().listMachineImages() ) {
-                if( image.getCurrentState().equals(MachineImageState.ACTIVE) ) {
-                    testImage = image.getProviderMachineImageId();
-                }
-                break;
-            }
-            if( testImage == null ) {
-                for( MachineImage image : cloud.getComputeServices().getImageSupport().listMachineImagesOwnedBy(null) ) {
-                    testImage = image.getProviderMachineImageId();
-                    break;
-                }
-            }
-            if( testImage == null ) {
-                throw new InternalException("There are no images in the cloud to test against.");
-            }
-        }
-        if( cloud.getComputeServices().getImageSupport().supportsCustomImages() ) {
-            if( name.equals("testCreateImageStandard") || name.equals("testDeleteImage") ) {
-                serverToKill = launch(cloud, true);
-                VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                
-                while( !vm.getCurrentState().equals(VmState.RUNNING) ) {
-                    try { Thread.sleep(15000L); }
-                    catch( InterruptedException e ) { }
-                    vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                    if( vm == null || vm.getCurrentState().equals(VmState.TERMINATED) ) {
-                        throw new CloudException("Virtual machine disappeared.");
-                    }
-                }
-                if( !vm.isImagable() ) {
-                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L);
-
-                    System.out.println("Stopping server for imaging...");
-                    cloud.getComputeServices().getVirtualMachineSupport().stop(vm.getProviderVirtualMachineId());
-                    while( !vm.isImagable() ) {
-                        if(  System.currentTimeMillis() >= timeout ) {
-                            throw new CloudException("Server never stopped for imaging.");
-                        }
-                        try { Thread.sleep(15000L); }
-                        catch( InterruptedException e ) { }
-                        vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                        if( vm == null || vm.getCurrentState().equals(VmState.TERMINATED) ) {
-                            throw new CloudException("Virtual machine disappeared.");
-                        }
-                    }
-                }
-            }
-            if( name.equals("testDeleteImage") ) {
-                AsynchronousTask<String> task = cloud.getComputeServices().getImageSupport().imageVirtualMachine(serverToKill, "dsn" + System.currentTimeMillis(), "Dasein Delete Test Image");
-                
-                while( !task.isComplete() ) {
-                    try { Thread.sleep(15000L); }
-                    catch( InterruptedException e ) { }
-                }
-                if( task.getTaskError() != null ) {
-                    throw new CloudException(task.getTaskError());
-                }
-                imageToDelete = task.getResult();
-                testImage = imageToDelete;
-                MachineImage image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-                
-                while( image.getCurrentState().equals(MachineImageState.PENDING) ) {
-                    try { Thread.sleep(15000L); }
-                    catch( InterruptedException e ) { }
-                    image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-                }            
-                // need to make sure the servers are killed before running the delete test (likely not really needed, but safe)
-                VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*15L);
-                
-                if( vm != null && !vm.getCurrentState().equals(VmState.TERMINATED) ) {
-                    cloud.getComputeServices().getVirtualMachineSupport().terminate(serverToKill);
-                }
-                while( vm != null && !vm.getCurrentState().equals(VmState.TERMINATED) ) {
-                    if( System.currentTimeMillis() >= timeout ) {
-                        break;
-                    }
-                    vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                }    
-                serverToKill = null;
-            }
-        }
-    }
-
-    @After
-    @Override
-    public void tearDown() {
         try {
-            if( serverToKill != null ) {
-                cloud.getComputeServices().getVirtualMachineSupport().terminate(serverToKill);                
-                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*15L);
-                VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                
-                // need to make sure the servers are killed before zapping any image created from them
-                while( vm != null && !vm.getCurrentState().equals(VmState.TERMINATED) ) {
-                    if( System.currentTimeMillis() >= timeout ) {
-                        break;
-                    }
-                    vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverToKill);
-                }
-                serverToKill = null;                
-            }
+            Iterable<String> shares = support.listShares(testImage.getProviderMachineImageId());
+
+            out("Before: " + shares);
+            support.removeAllImageShares(testImage.getProviderMachineImageId());
+            Assert.assertTrue("An attempt to unshare an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharing());
+
+            shares = support.listShares(testImage.getProviderMachineImageId());
+            Assert.assertFalse("A share still remains with the image", shares.iterator().hasNext());
         }
-        catch( Throwable ignore ) {
-            // ignroe
-        }
-        try {
-            if( imageToDelete != null ) {
-                cloud.getComputeServices().getImageSupport().remove(imageToDelete);
-                imageToDelete = null;
-                testImage = null;
-            }
-        }
-        catch( Throwable ignore ) {
-            // ignroe
-        }
-        try {
-            if( cloud != null ) {
-                cloud.close();
-            }
-        }
-        catch( Throwable ignore ) {
-            // ignore
+        catch( OperationNotSupportedException e ) {
+            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
+            Assert.assertFalse("An attempt to unshare failed even though sharing is supposedly supported", support.supportsImageSharing());
         }
     }
-    
-    @Test
-    public void testCreateImageStandard() throws Throwable {
-        begin();
-        if( cloud.getComputeServices().getImageSupport().supportsCustomImages() ) {
-            AsynchronousTask<String> task = cloud.getComputeServices().getImageSupport().imageVirtualMachine(serverToKill, "dsn" + System.currentTimeMillis(), "Dasein Test Image");
-            
-            out(task);
-            if( task.getTaskError() != null ) {
-                throw task.getTaskError();
-            }
-            imageToDelete = task.getResult();
-            MachineImage image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-            
-            assertNotNull("No image was created", image);
-            try {
-                out("New Image: " + imageToDelete);
-                while( image.getCurrentState().equals(MachineImageState.PENDING) ) {
-                    try { Thread.sleep(15000L); }
-                    catch( InterruptedException e ) { }
-                    image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-                }
-            }
-            catch( Throwable notPartOfTest ) {
-                // ignore
-            }
-            assertTrue("Image never enterered the available state", image.getCurrentState().equals(MachineImageState.ACTIVE));
-        }
-        end();
-    }
-    
-    @Test
-    public void testDeleteImage() throws CloudException, InternalException {
-        begin();
-        if( cloud.getComputeServices().getImageSupport().supportsCustomImages() ) {
-            cloud.getComputeServices().getImageSupport().remove(imageToDelete);
-            try { Thread.sleep(15000L); }
-            catch( InterruptedException e ) { }
-            MachineImage image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-            long timeout = System.currentTimeMillis() + CalendarWrapper.HOUR;
-            
-            while( image != null && !image.getCurrentState().equals(MachineImageState.DELETED) ) {
-                if( System.currentTimeMillis() >= timeout ) {
-                    throw new CloudException("Timeout waiting for delete");
-                }
-                try { Thread.sleep(15000L); }
-                catch( InterruptedException e ) { }
-                image = cloud.getComputeServices().getImageSupport().getMachineImage(imageToDelete);
-            } 
-        }
-        end();
-    }
-    */
 }

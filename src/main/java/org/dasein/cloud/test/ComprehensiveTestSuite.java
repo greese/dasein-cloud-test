@@ -171,7 +171,11 @@ public class ComprehensiveTestSuite extends TestSuite {
         for( Method method : testClass.getDeclaredMethods() ) {
             for( Annotation annotation : method.getAnnotations() ) {
                 if( annotation.annotationType().equals(Test.class) ) {
-                    addTest(c.newInstance(method.getName()));
+                    BaseTestCase t = c.newInstance(method.getName());
+
+                    BaseTestCase.addExpectedVmReuses(t.getVmReuseCount());
+                    BaseTestCase.addExpectedImageReuses(t.getImageReuseCount());
+                    addTest(t);
                 }
             }
         }
