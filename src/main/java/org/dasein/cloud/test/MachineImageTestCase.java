@@ -158,7 +158,7 @@ public class MachineImageTestCase extends BaseTestCase {
             }
         }
         else if( getName().equals(T_LIST_SHARES) || getName().equals(T_RM_PRIVATE_SHARE) || getName().equals(T_RM_ALL_SHARES) ) {
-            testImage = findTestImage(support, false, false, true);
+            testImage = findTestImage(provider, support, false, false, true);
             if( support.supportsImageSharing() ) {
                 String shareAccount = getTestShareAccount();
 
@@ -170,10 +170,10 @@ public class MachineImageTestCase extends BaseTestCase {
         else if( getName().equals(T_CAPTURE_IMAGE) || getName().equals(T_CAPTURE_IMAGE_ASYNC) ) {
             VirtualMachineSupport vmSupport = getVMSupport();
 
-            testVm = findTestVirtualMachine(vmSupport, false, true);
+            testVm = findTestVirtualMachine(provider, vmSupport, false, true);
         }
         else if( getName().equals(T_ADD_PRIVATE_SHARE) || getName().equals(T_ADD_PUBLIC_SHARE) || getName().equals(T_RM_PUBLIC_SHARE) ) {
-            testImage = findTestImage(support, false, false, true);
+            testImage = findTestImage(provider, support, false, false, true);
             if( getName().equals(T_RM_PUBLIC_SHARE) && support.supportsImageSharingWithPublic() ) {
                 support.addPublicShare(testImage.getProviderMachineImageId());
                 Assert.assertTrue("Image was not properly publicly shared", support.isImageSharedWithPublic(testImage.getProviderMachineImageId()));
@@ -182,7 +182,7 @@ public class MachineImageTestCase extends BaseTestCase {
         else if( getName().equals(T_BUNDLE_VM) || getName().equals(T_BUNDLE_VM_ASYNC) || getName().equals(T_REGISTER) ) {
             VirtualMachineSupport vmSupport = getVMSupport();
 
-            testVm = findTestVirtualMachine(vmSupport, false, true);
+            testVm = findTestVirtualMachine(provider, vmSupport, false, true);
             if( Requirement.REQUIRED.equals(support.identifyLocalBundlingRequirement()) ) {
                 canTestBundling = false;
                 out("WARNING: Cannot test any bundling because bundling must occur locally - NOT TESTED");
@@ -269,7 +269,10 @@ public class MachineImageTestCase extends BaseTestCase {
                 }
             }
             cleanUp();
-            cleanImage(getSupport(), killImageId);
+            if( killImageId != null ) {
+                cleanImage(getSupport(), killImageId);
+                killImageId = null;
+            }
         }
         finally {
             end();

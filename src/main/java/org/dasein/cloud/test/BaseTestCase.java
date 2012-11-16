@@ -343,7 +343,7 @@ public class BaseTestCase extends TestCase {
         out("END (" + (System.currentTimeMillis() - start) + " millis)");
     }
 
-    protected @Nonnull MachineImage findTestImage(@Nonnull MachineImageSupport support, boolean useConfigured, boolean findFree, boolean createNew) throws CloudException, InternalException {
+    protected @Nonnull MachineImage findTestImage(@Nonnull CloudProvider provider, @Nonnull MachineImageSupport support, boolean useConfigured, boolean findFree, boolean createNew) throws CloudException, InternalException {
         MachineImage image = null;
 
         if( createNew ) {
@@ -376,20 +376,12 @@ public class BaseTestCase extends TestCase {
             }
         }
         if( image == null && createNew ) {
-            try {
-                VirtualMachine vm = findTestVirtualMachine(getProvider().getComputeServices().getVirtualMachineSupport(), false, true);
-                String name = getClass().getName().substring(0, 3).toLowerCase() + "img-" + getName() + (System.currentTimeMillis()%10000);
-                ImageCreateOptions options = ImageCreateOptions.getInstance(vm, name, getName() + " test case execution");
+            VirtualMachine vm = findTestVirtualMachine(provider, provider.getComputeServices().getVirtualMachineSupport(), false, true);
+            String name = getClass().getName().substring(0, 3).toLowerCase() + "img-" + getName() + (System.currentTimeMillis()%10000);
+            ImageCreateOptions options = ImageCreateOptions.getInstance(vm, name, getName() + " test case execution");
 
-                image = support.captureImage(options);
-                imageToDelete = image.getProviderMachineImageId();
-            }
-            catch( IllegalAccessException e ) {
-                throw new InternalException(e);
-            }
-            catch( InstantiationException e ) {
-                throw new InternalException(e);
-            }
+            image = support.captureImage(options);
+            imageToDelete = image.getProviderMachineImageId();
         }
         if( image == null ) {
             Assert.fail("No test image could be found or created to support this test case");
@@ -397,7 +389,7 @@ public class BaseTestCase extends TestCase {
         return image;
     }
 
-    protected String findTestProduct(@Nonnull VirtualMachineSupport support, @Nullable Architecture architecture, boolean findFree) throws CloudException, InternalException {
+    protected String findTestProduct(@Nonnull CloudProvider provider, @Nonnull VirtualMachineSupport support, @Nullable Architecture architecture, boolean findFree) throws CloudException, InternalException {
         String productId = getTestProduct();
 
         if( productId == null && findFree ) {
@@ -418,7 +410,7 @@ public class BaseTestCase extends TestCase {
         return productId;
     }
 
-    protected VirtualMachine findTestVirtualMachine(@Nonnull VirtualMachineSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
+    protected VirtualMachine findTestVirtualMachine(@Nonnull CloudProvider provider, @Nonnull VirtualMachineSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
         VirtualMachine vm = null;
 
         if( createNew ) {
@@ -441,24 +433,16 @@ public class BaseTestCase extends TestCase {
             }
         }
         if( vm == null && createNew ) {
-            try {
-                MachineImage img = findTestImage(getProvider().getComputeServices().getImageSupport(), true, true, false);
-                String name = getClass().getName().substring(0, 3).toLowerCase() + "vm-" + getName() + (System.currentTimeMillis()%10000);
-                String productId = findTestProduct(support, img.getArchitecture(), true);
+            MachineImage img = findTestImage(provider, provider.getComputeServices().getImageSupport(), true, true, false);
+            String name = getClass().getName().substring(0, 3).toLowerCase() + "vm-" + getName() + (System.currentTimeMillis()%10000);
+            String productId = findTestProduct(provider, support, img.getArchitecture(), true);
 
-                VMLaunchOptions options = VMLaunchOptions.getInstance(productId, img.getProviderMachineImageId(), name, getName() + " test case execution");
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, img.getProviderMachineImageId(), name, getName() + " test case execution");
 
-                vm = support.launch(options);
-                vmToKill = vm.getProviderVirtualMachineId();
-                waitForState(support, vm.getProviderVirtualMachineId(), VmState.RUNNING, getLaunchWindow());
-                vm = support.getVirtualMachine(vm.getProviderVirtualMachineId());
-            }
-            catch( IllegalAccessException e ) {
-                throw new InternalException(e);
-            }
-            catch( InstantiationException e ) {
-                throw new InternalException(e);
-            }
+            vm = support.launch(options);
+            vmToKill = vm.getProviderVirtualMachineId();
+            waitForState(support, vm.getProviderVirtualMachineId(), VmState.RUNNING, getLaunchWindow());
+            vm = support.getVirtualMachine(vm.getProviderVirtualMachineId());
         }
         if( vm == null ) {
             Assert.fail("No test virtual machine could be found or created to support this test case");
