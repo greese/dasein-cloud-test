@@ -29,6 +29,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.ImageCreateOptions;
@@ -322,6 +323,24 @@ public class MachineImageTestCase extends BaseTestCase {
 
             for( MachineImage img : images ) {
                 out(cls + " image: " + img);
+                found = true;
+            }
+        }
+        if( !found ) {
+            out("No machine images were found so this test may not actually be valid");
+        }
+    }
+
+    @Test
+    public void testListPrivateLibraryStatus() throws CloudException, InternalException {
+        MachineImageSupport support = getSupport();
+        boolean found = false;
+
+        for( ImageClass cls : support.listSupportedImageClasses() ) {
+            Iterable<ResourceStatus> statusList = support.listImageStatus(cls);
+
+            for( ResourceStatus status : statusList ) {
+                out(cls + " Status: " + status);
                 found = true;
             }
         }
