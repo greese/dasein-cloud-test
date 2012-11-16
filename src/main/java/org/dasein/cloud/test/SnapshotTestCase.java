@@ -59,7 +59,7 @@ public class SnapshotTestCase extends BaseTestCase {
     static public final String T_SHARE_SNAPSHOT_WITH_PUBLIC = "testShareSnapshotWithPublic";
     static public final String T_SNAPSHOT_CONTENT           = "testSnapshotContent";
 
-    static private final String[] NEEDS_VOLUMES = { T_SNAPSHOT_CONTENT, T_GET_SNAPSHOT, T_CREATE_SNAPSHOT, T_REMOVE_SNAPSHOT, T_SHARE_SNAPSHOT_WITH_PUBLIC, T_REMOVE_PUBLIC_SHARE, T_SHARE_SNAPSHOT, T_REMOVE_SHARE };
+    static private final String[] NEEDS_VOLUMES = { T_SNAPSHOT_CONTENT, T_GET_SNAPSHOT, T_CREATE_SNAPSHOT, T_REMOVE_SNAPSHOT, T_SHARE_SNAPSHOT_WITH_PUBLIC, T_REMOVE_PUBLIC_SHARE, T_SHARE_SNAPSHOT, T_REMOVE_SHARE, T_REMOVE_ALL_SHARES };
 
     static private String         testVolume    = null;
     static private int            volumeUse     = 0;
@@ -96,7 +96,7 @@ public class SnapshotTestCase extends BaseTestCase {
         volumeUse++;
         VolumeCreateOptions options;
 
-        String name = "dsnsnap-" + getName() + "-" + (System.currentTimeMillis()%10000);
+        String name = "snap" + getName() + "-" + (System.currentTimeMillis()%10000);
         VolumeProduct product = null;
 
         if( getVolumeSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED) || getVolumeSupport().isVolumeSizeDeterminedByProduct() ) {
