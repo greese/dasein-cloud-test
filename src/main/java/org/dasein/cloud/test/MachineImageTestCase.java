@@ -689,6 +689,7 @@ public class MachineImageTestCase extends BaseTestCase {
             Assert.assertTrue("An attempt to unshare an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharing());
 
             shares = support.listShares(testImage.getProviderMachineImageId());
+            out("After: " + shares);
             Assert.assertFalse("A share still remains with the image", shares.iterator().hasNext());
         }
         catch( OperationNotSupportedException e ) {
