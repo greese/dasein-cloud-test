@@ -28,6 +28,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Snapshot;
 import org.dasein.cloud.compute.SnapshotState;
@@ -46,9 +47,11 @@ import org.junit.Test;
 
 import javax.annotation.Nullable;
 
+@SuppressWarnings("JUnit4AnnotatedMethodInJUnit3TestCase")
 public class SnapshotTestCase extends BaseTestCase {
     static public final String T_CREATE_SNAPSHOT            = "testCreateSnapshot";
     static public final String T_GET_SNAPSHOT               = "testGetSnapshot";
+    static public final String T_REMOVE_ALL_SHARES          = "testRemoveAllShares";
     static public final String T_REMOVE_PUBLIC_SHARE        = "testRemovePublicSnapshotShare";
     static public final String T_REMOVE_SHARE               = "testRemoveTargetedSnapshotShare";
     static public final String T_REMOVE_SNAPSHOT            = "testRemoveSnapshot";
@@ -68,9 +71,13 @@ public class SnapshotTestCase extends BaseTestCase {
     public SnapshotTestCase(String name) { super(name); }
 
     private @Nullable Snapshot createTestSnapshot() throws CloudException, InternalException {
-        snapshotToDelete = getSnapshotSupport().create(testVolume, getName() + " from " + testVolume);
+        Snapshot snapshot = getSnapshotSupport().snapshot(testVolume, getName() + "-" + (System.currentTimeMillis()%10000), getName() + " from " + testVolume);
 
-        Snapshot snapshot = getSnapshotSupport().getSnapshot(snapshotToDelete);
+        if( snapshot == null ) {
+            Assert.fail("Need data changes in order to create test snapshot");
+        }
+        snapshotToDelete = snapshot.getProviderSnapshotId();
+
         long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
         while( timeout > System.currentTimeMillis() ) {
@@ -181,17 +188,17 @@ public class SnapshotTestCase extends BaseTestCase {
             }
             Assert.assertNotNull("Unable to identify a test snapshot for this test", testSnapshot);
         }
-        else if( getName().equals(T_SHARE_SNAPSHOT_WITH_PUBLIC) || getName().equals(T_REMOVE_PUBLIC_SHARE) || getName().equals(T_SHARE_SNAPSHOT) || getName().equals(T_REMOVE_SHARE) ) {
+        else if( getName().equals(T_SHARE_SNAPSHOT_WITH_PUBLIC) || getName().equals(T_REMOVE_PUBLIC_SHARE) || getName().equals(T_SHARE_SNAPSHOT) || getName().equals(T_REMOVE_SHARE) || getName().equals(T_REMOVE_ALL_SHARES) ) {
             testSnapshot = createTestSnapshot();
             if( getSnapshotSupport().supportsSnapshotSharingWithPublic() && getName().equals(T_REMOVE_PUBLIC_SHARE) && testSnapshot != null ) {
-                getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), null, true);
+                getSnapshotSupport().addPublicShare(testSnapshot.getProviderSnapshotId());
                 Assert.assertTrue("Did not set up sharing for share removal test", getSnapshotSupport().isPublic(testSnapshot.getProviderSnapshotId()));
             }
-            else if( getSnapshotSupport().supportsSnapshotSharing() && getName().equals(T_REMOVE_SHARE) && testSnapshot != null ) {
+            else if( getSnapshotSupport().supportsSnapshotSharing() && (getName().equals(T_REMOVE_SHARE) || getName().equals(T_REMOVE_ALL_SHARES)) && testSnapshot != null ) {
                 String sharedAccount = System.getProperty("test.shareAccount");
 
                 if( sharedAccount != null ) {
-                    getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), sharedAccount, true);
+                    getSnapshotSupport().addSnapshotShare(testSnapshot.getProviderSnapshotId(), sharedAccount);
                     boolean shared = false;
 
                     for( String share : getSnapshotSupport().listShares(testSnapshot.getProviderSnapshotId()) ) {
@@ -293,6 +300,8 @@ public class SnapshotTestCase extends BaseTestCase {
 
         out("Term for snapshot: " + term);
         out("Subscribed:        " + subscribed);
+        out("Needs attachment:  " + support.identifyAttachmentRequirement());
+        out("Snapshot making:   " + support.supportsSnapshotCreation());
         out("Sharing:           " + support.supportsSnapshotSharing());
         out("Public sharing:    " + support.supportsSnapshotSharingWithPublic());
 
@@ -308,6 +317,46 @@ public class SnapshotTestCase extends BaseTestCase {
         int count = 0;
 
         Assert.assertNotNull("listSnapshots() must return a non-null list of snapshots (may be empty)", snapshots);
+        try {
+            for( Snapshot s : snapshots ) {
+                count++;
+                out("Snapshot: " + s);
+            }
+            if( count < 1 ) {
+                out("Warning: No snapshots were returned, difficult to assess success of this call");
+            }
+        }
+        catch( Throwable ignore ) {
+            // not part of test
+        }
+    }
+
+    @Test
+    public void testListSnapshotStatus() throws CloudException, InternalException {
+        Iterable<ResourceStatus> snapshots = getSnapshotSupport().listSnapshotStatus();
+        int count = 0;
+
+        Assert.assertNotNull("Snapshot status list must return a non-null (may be empty)", snapshots);
+        try {
+            for( ResourceStatus s : snapshots ) {
+                count++;
+                out("Snapshot status: " + s);
+            }
+            if( count < 1 ) {
+                out("WARNING: No snapshot status items were returned, difficult to assess success of this call");
+            }
+        }
+        catch( Throwable ignore ) {
+            // not part of test
+        }
+    }
+
+    @Test
+    public void testSearchSnapshots() throws CloudException, InternalException {
+        Iterable<Snapshot> snapshots = getSnapshotSupport().searchSnapshots(null, "tools");
+        int count = 0;
+
+        Assert.assertNotNull("Snapshot searches must return a non-null list of snapshots (may be empty)", snapshots);
         try {
             for( Snapshot s : snapshots ) {
                 count++;
@@ -342,6 +391,8 @@ public class SnapshotTestCase extends BaseTestCase {
     @Test
     public void testSnapshotContent() throws CloudException, InternalException {
         Snapshot snapshot = getSnapshotSupport().getSnapshot(testSnapshot.getProviderSnapshotId());
+
+        Assert.assertNotNull("Test snapshot is null for test", snapshot);
         Iterable<String> shares = getSnapshotSupport().listShares(snapshot.getProviderSnapshotId());
 
         out("ID:            " + snapshot.getProviderSnapshotId());
@@ -370,10 +421,12 @@ public class SnapshotTestCase extends BaseTestCase {
 
     @Test
     public void testCreateSnapshot() throws CloudException, InternalException {
-        snapshotToDelete = getSnapshotSupport().create(testVolume, getName() + " from " + testVolume);
+        testSnapshot = getSnapshotSupport().snapshot(testVolume, getName() + "-" + (System.currentTimeMillis()%10000), getName() + " from " + testVolume);
 
-        out("Created: " + snapshotToDelete);
-        Assert.assertNotNull("Created a null snapshot", snapshotToDelete);
+        out("Created: " + testSnapshot);
+        if( testSnapshot != null ) {
+            snapshotToDelete = testSnapshot.getProviderSnapshotId();
+        }
         testSnapshot = getSnapshotSupport().getSnapshot(snapshotToDelete);
         Assert.assertNotNull("Got ID " + snapshotToDelete + ", but found no snapshot", testSnapshot);
     }
@@ -387,7 +440,7 @@ public class SnapshotTestCase extends BaseTestCase {
                 out("Warning: Cannot run snapshot sharing tests because no share account has been configured (test.shareAccount)");
             }
             else {
-                getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), sharedAccount, true);
+                getSnapshotSupport().addSnapshotShare(testSnapshot.getProviderSnapshotId(), sharedAccount);
 
                 boolean shared = false;
 
@@ -405,7 +458,7 @@ public class SnapshotTestCase extends BaseTestCase {
                 sharedAccount = UUID.randomUUID().toString();
             }
             try {
-                getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), sharedAccount, true);
+                getSnapshotSupport().addSnapshotShare(testSnapshot.getProviderSnapshotId(), sharedAccount);
                 Assert.fail("Call to share snapshot succeeded even though sharing is not supported in this cloud");
             }
             catch( OperationNotSupportedException e ) {
@@ -429,7 +482,7 @@ public class SnapshotTestCase extends BaseTestCase {
                 out("Warning: test skipped due to lack of configuration");
             }
             else {
-                getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), sharedAccount, false);
+                getSnapshotSupport().removeSnapshotShare(testSnapshot.getProviderSnapshotId(), sharedAccount);
 
                 boolean shared = false;
 
@@ -448,10 +501,33 @@ public class SnapshotTestCase extends BaseTestCase {
     }
 
     @Test
+    public void testRemoveAllShares() throws CloudException, InternalException {
+        String sharedAccount = getTestShareAccount();
+
+        if( getSnapshotSupport().supportsSnapshotSharing() ) {
+            if( sharedAccount == null ) {
+                out("Warning: test skipped due to lack of configuration");
+            }
+            else {
+                Iterable<String> shares = getSnapshotSupport().listShares(testSnapshot.getProviderSnapshotId());
+
+                out("Before: " + shares);
+                getSnapshotSupport().removeAllSnapshotShares(testSnapshot.getProviderSnapshotId());
+                shares = getSnapshotSupport().listShares(testSnapshot.getProviderSnapshotId());
+                out("After: " + shares);
+                Assert.assertFalse("There are still active shares " + sharedAccount, shares.iterator().hasNext());
+            }
+        }
+        else {
+            out("Test ignored (OK)");
+        }
+    }
+
+    @Test
     public void testShareSnapshotWithPublic() throws CloudException, InternalException {
         if( getSnapshotSupport().supportsSnapshotSharingWithPublic() ) {
             Assert.assertFalse("Snapshot is already public", getSnapshotSupport().isPublic(testSnapshot.getProviderSnapshotId()));
-            getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), null, true);
+            getSnapshotSupport().addPublicShare(testSnapshot.getProviderSnapshotId());
             boolean p = getSnapshotSupport().isPublic(testSnapshot.getProviderSnapshotId());
 
             out("Public: " + p);
@@ -459,7 +535,7 @@ public class SnapshotTestCase extends BaseTestCase {
         }
         else {
             try {
-                getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), null, true);
+                getSnapshotSupport().addPublicShare(testSnapshot.getProviderSnapshotId());
                 Assert.fail("Call to share snapshot publicly succeeded even though sharing is not supported in this cloud");
             }
             catch( OperationNotSupportedException e ) {
@@ -478,7 +554,7 @@ public class SnapshotTestCase extends BaseTestCase {
     public void testRemovePublicSnapshotShare() throws CloudException, InternalException {
         if( getSnapshotSupport().supportsSnapshotSharingWithPublic() ) {
             Assert.assertTrue("Snapshot is not public", getSnapshotSupport().isPublic(testSnapshot.getProviderSnapshotId()));
-            getSnapshotSupport().shareSnapshot(testSnapshot.getProviderSnapshotId(), null, false);
+            getSnapshotSupport().removePublicShare(testSnapshot.getProviderSnapshotId());
             boolean p = getSnapshotSupport().isPublic(testSnapshot.getProviderSnapshotId());
 
             out("Public: " + p);
