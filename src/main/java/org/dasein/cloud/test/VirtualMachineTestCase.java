@@ -42,6 +42,7 @@ import org.dasein.cloud.network.SubnetState;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.network.VLANSupport;
+import org.dasein.cloud.util.APITrace;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Megabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -200,6 +201,11 @@ public class VirtualMachineTestCase extends BaseTestCase {
         }
         catch( Throwable ignore ) {
             // ignore
+        }
+        APITrace.report(getName());
+        APITrace.reset();
+        if( cloud != null ) {
+            cloud.close();
         }
     }
     

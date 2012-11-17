@@ -43,6 +43,7 @@ import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.storage.BlobStoreSupport;
 import org.dasein.cloud.storage.StorageServices;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -273,6 +274,16 @@ public class MachineImageTestCase extends BaseTestCase {
             if( killImageId != null ) {
                 cleanImage(getSupport(), killImageId);
                 killImageId = null;
+            }
+            APITrace.report(getName());
+            APITrace.reset();
+            try {
+                if( provider != null ) {
+                    provider.close();
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
             }
         }
         finally {

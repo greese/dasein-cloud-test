@@ -36,6 +36,7 @@ import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.IpForwardingRule;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Protocol;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -430,6 +431,16 @@ public class IpAddressTestCase extends BaseTestCase {
                 }
             }
             testRuleId = null;
+            APITrace.report(getName());
+            APITrace.reset();
+            try {
+                if( provider != null ) {
+                    provider.close();
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
         }
         finally {
             end();

@@ -23,6 +23,7 @@ import java.io.IOException;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,8 +43,15 @@ public class MinimumFunctionalityTestCase extends BaseTestCase {
     @After
     @Override
     public void tearDown() {
-        if( provider != null ) {
-            provider.close();
+        APITrace.report(getName());
+        APITrace.reset();
+        try {
+            if( provider != null ) {
+                provider.close();
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
         }
     }
 

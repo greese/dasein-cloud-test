@@ -22,6 +22,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.identity.SSHKeypair;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -57,6 +58,8 @@ public class ShellKeyTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( cloud != null ) {
                 cloud.close();

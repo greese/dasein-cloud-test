@@ -32,6 +32,7 @@ import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.storage.BlobStoreSupport;
 import org.dasein.cloud.storage.FileTransfer;
 import org.dasein.cloud.storage.StorageServices;
+import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.Before;
@@ -144,6 +145,16 @@ public class BlobStoreTestCase extends BaseTestCase {
         try {
             if( testLocalFile != null ) {
                 testLocalFile.delete();
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+        APITrace.report(getName());
+        APITrace.reset();
+        try {
+            if( cloud != null ) {
+                cloud.close();
             }
         }
         catch( Throwable ignore ) {

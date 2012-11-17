@@ -28,6 +28,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.Region;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -65,6 +66,8 @@ public class DataCenterTestCase extends BaseTestCase {
     @After
     @Override
     public void tearDown() {
+        APITrace.report(getName());
+        APITrace.reset();
         if( provider != null ) {
             provider.close();
         }

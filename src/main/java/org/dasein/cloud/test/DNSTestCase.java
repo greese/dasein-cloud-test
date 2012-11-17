@@ -28,6 +28,7 @@ import org.dasein.cloud.network.DNSRecord;
 import org.dasein.cloud.network.DNSRecordType;
 import org.dasein.cloud.network.DNSSupport;
 import org.dasein.cloud.network.DNSZone;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -71,6 +72,16 @@ public class DNSTestCase extends BaseTestCase {
         try {
             if( zoneToRemove != null ) {
                 cloud.getNetworkServices().getDnsSupport().deleteDnsZone(zoneToRemove);
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+        APITrace.report(getName());
+        APITrace.reset();
+        try {
+            if( cloud != null ) {
+                cloud.close();
             }
         }
         catch( Throwable ignore ) {

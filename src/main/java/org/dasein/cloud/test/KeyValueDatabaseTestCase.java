@@ -19,22 +19,37 @@
 package org.dasein.cloud.test;
 
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
 public class KeyValueDatabaseTestCase extends BaseTestCase {
+    private CloudProvider provider;
+
     public KeyValueDatabaseTestCase(String name) { super(name); }
     
     @Before
-    public void setUp() throws CloudException, InternalException {
-        
+    public void setUp() throws CloudException, InternalException, InstantiationException, IllegalAccessException {
+        begin();
+        provider = getProvider();
+        provider.connect(getTestContext());
     }
     
     @After
     public void tearDown() {
-        
+        APITrace.report(getName());
+        APITrace.reset();
+        try {
+            if( provider != null ) {
+                provider.close();
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
     }
 
     @Test

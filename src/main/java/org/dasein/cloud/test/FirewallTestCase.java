@@ -28,6 +28,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallRule;
 import org.dasein.cloud.network.Protocol;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -79,14 +80,16 @@ public class FirewallTestCase extends BaseTestCase {
         catch( Throwable t ) {
             t.printStackTrace();
         }
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( provider != null ) {
                 provider.close();
             }
         }
-        catch( Throwable t ) {
-            t.printStackTrace();
-        }        
+        catch( Throwable ignore ) {
+            // ignore
+        }
     }
 
     @Test

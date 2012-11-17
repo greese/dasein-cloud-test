@@ -41,6 +41,7 @@ import org.dasein.cloud.compute.VolumeCreateOptions;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.util.APITrace;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
@@ -393,6 +394,16 @@ public class VolumeTestCase extends BaseTestCase {
                 finally {
                     testVm = null;
                 }
+            }
+            APITrace.report(getName());
+            APITrace.reset();
+            try {
+                if( provider != null ) {
+                    provider.close();
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
             }
         }
         finally {

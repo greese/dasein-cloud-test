@@ -25,6 +25,7 @@ import org.dasein.cloud.platform.Database;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.DatabaseState;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -103,14 +104,16 @@ public class RelationalDatabaseTestCase extends BaseTestCase {
                 t.printStackTrace();
             }
         }
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( provider != null ) {
                 provider.close();
             }
         }
-        catch( Throwable t ) {
-            t.printStackTrace();
-        } 
+        catch( Throwable ignore ) {
+            // ignore
+        }
     }
     
     @Test

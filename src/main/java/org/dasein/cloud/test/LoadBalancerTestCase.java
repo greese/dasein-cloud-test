@@ -33,6 +33,7 @@ import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LbProtocol;
 import org.dasein.cloud.network.LoadBalancer;
 import org.dasein.cloud.network.LoadBalancerSupport;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -185,6 +186,8 @@ public class LoadBalancerTestCase extends BaseTestCase {
             // ignore
         }
         killTestAddress();
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( cloud != null ) {
                 cloud.close();

@@ -29,6 +29,7 @@ import org.dasein.cloud.identity.IdentityAndAccessSupport;
 import org.dasein.cloud.identity.IdentityServices;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallSupport;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -95,6 +96,8 @@ public class IAMTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( cloud != null ) {
                 cloud.close();

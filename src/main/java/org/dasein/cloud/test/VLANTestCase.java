@@ -33,6 +33,7 @@ import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.util.APITrace;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -179,6 +180,8 @@ public class VLANTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore me
         }
+        APITrace.report(getName());
+        APITrace.reset();
         try {
             if( cloud != null ) {
                 cloud.close();
