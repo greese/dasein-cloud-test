@@ -56,6 +56,8 @@ import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeState;
+import org.dasein.cloud.network.Firewall;
+import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
@@ -64,19 +66,34 @@ import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LbProtocol;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANState;
+import org.dasein.cloud.network.VLANSupport;
 import org.dasein.util.CalendarWrapper;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public class BaseTestCase extends TestCase {
-    static private int actualImageReuses   = 0;
-    static private int actualVmReuses      = 0;
-    static private int expectedImageReuses = 0;
-    static private int expectedVmReuses    = 0;
+    static private int actualFirewallReuses   = 0;
+    static private int actualImageReuses      = 0;
+    static private int actualVlanReuses       = 0;
+    static private int actualVmReuses         = 0;
+    static private int expectedFirewallReuses = 0;
+    static private int expectedImageReuses    = 0;
+    static private int expectedVlanReuses     = 0;
+    static private int expectedVmReuses       = 0;
+
+    static public void addExpectedFirewallReuses(int count) {
+        expectedFirewallReuses += count;
+    }
 
     static public void addExpectedImageReuses(int count) {
         expectedImageReuses += count;
+    }
+
+    static public void addExpectedVlanReuses(int count) {
+        expectedVlanReuses += count;
     }
 
     static public void addExpectedVmReuses(int count) {
@@ -182,6 +199,7 @@ public class BaseTestCase extends TestCase {
         }
     }
 
+    /*
     protected String allocateVolume(CloudProvider cloud) throws InternalException, CloudException {
         String id = cloud.getComputeServices().getVolumeSupport().create(null, 5, getTestDataCenterId());
         long timeout = (System.currentTimeMillis() + CalendarWrapper.MINUTE*5L);
@@ -197,7 +215,8 @@ public class BaseTestCase extends TestCase {
         }
         return id;
     }
-    
+    */
+
     protected void assertDirectoryExists(String errorMessage, CloudProvider provider, String directory) throws InternalException, CloudException {
         long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 2L);
         
@@ -210,7 +229,8 @@ public class BaseTestCase extends TestCase {
         }
         assertTrue(errorMessage, false);
     }
-    
+
+    /*
     protected void assertNotDirectoryExists(String errorMessage, CloudProvider provider, String directory) throws InternalException, CloudException {
         long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 2L);
         
@@ -249,7 +269,8 @@ public class BaseTestCase extends TestCase {
         }
         assertTrue(errorMessage, false);
     }
-    
+    */
+
     long start;
     
     protected void begin() {
@@ -281,10 +302,24 @@ public class BaseTestCase extends TestCase {
         }
     }
 
-
+    static private String         firewallToDelete = null;
     static private String         imageToDelete    = null;
     static private String         ipToRelease      = null;
+    static private String         vlanToKill       = null;
     static private String         vmToKill         = null;
+
+    protected void cleanFirewall(@Nonnull FirewallSupport support, @Nonnull String firewallId) {
+        try {
+            Firewall fw = support.getFirewall(firewallId);
+
+            if( fw != null ) {
+                support.delete(firewallId);
+            }
+        }
+        catch( Throwable t ) {
+            out("WARNING: Failed to clean up after test, the firewall " + firewallId + " was not removed cleanly");
+        }
+    }
 
     protected void cleanImage(@Nonnull MachineImageSupport support, @Nonnull String imageId) {
         try {
@@ -312,14 +347,46 @@ public class BaseTestCase extends TestCase {
             }
         }
         catch( Throwable t ) {
-            out("WARNING: Failed to clean up after test, the image " + imageToDelete + " was not removed cleanly");
+            out("WARNING: Failed to clean up after test, the image " + imageId + " was not removed cleanly");
         }
     }
 
-    protected void cleanUp() {
-        killTestVm();
-        killTestAddress();
-        killTestImage();
+    protected void cleanVlan(@Nonnull VLANSupport support, @Nonnull String vlanId) {
+        try {
+            long timeout = System.currentTimeMillis() + getStateChangeWindow();
+            VLAN vlan = null;
+
+            while( timeout > System.currentTimeMillis() ) {
+                try {
+                    vlan = support.getVlan(vlanId);
+                    if( vlan == null ) {
+                        return;
+                    }
+                    if( !VLANState.PENDING.equals(vlan.getCurrentState()) ) {
+                        break;
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+            }
+            if( vlan != null ) {
+                support.removeVlan(vlanId);
+            }
+        }
+        catch( Throwable t ) {
+            out("WARNING: Failed to clean up after test, the VLAN " + vlanId + " was not removed cleanly");
+        }
+    }
+
+    protected void cleanUp(@Nonnull CloudProvider provider) {
+        killTestVm(provider);
+        killTestAddress(provider);
+        killTestImage(provider);
+        killTestFirewall(provider);
+        killTestVlan(provider);
     }
 
     protected File createTestFile() {
@@ -341,6 +408,39 @@ public class BaseTestCase extends TestCase {
     
     protected void end() {
         out("END (" + (System.currentTimeMillis() - start) + " millis)");
+    }
+
+    protected @Nonnull Firewall findTestFirewall(@Nonnull CloudProvider provider, @Nonnull FirewallSupport support, boolean useConfigured, boolean findFree, boolean createNew) throws CloudException, InternalException {
+        Firewall firewall = null;
+
+        if( createNew ) {
+            actualFirewallReuses++;
+        }
+        if( firewallToDelete != null ) {
+            firewall = support.getFirewall(firewallToDelete);
+        }
+        if( firewall == null && useConfigured ) {
+            String id = getTestFirewallId();
+
+            if( id != null ) {
+                firewall = support.getFirewall(id);
+            }
+        }
+        if( firewall == null && findFree ) {
+            Iterator<Firewall> firewalls = support.list().iterator();
+
+            if( firewalls.hasNext() ) {
+                firewall = firewalls.next();
+            }
+        }
+        if( firewall == null && createNew ) {
+            firewallToDelete = support.create(getName() + (System.currentTimeMillis()%10000), "Reusable test firewall starting with " + getName());
+            firewall = support.getFirewall(firewallToDelete);
+        }
+        if( firewall == null ) {
+            Assert.fail("Unable to identify a test firewall");
+        }
+        return firewall;
     }
 
     protected @Nonnull MachineImage findTestImage(@Nonnull CloudProvider provider, @Nonnull MachineImageSupport support, boolean useConfigured, boolean findFree, boolean createNew) throws CloudException, InternalException {
@@ -410,6 +510,34 @@ public class BaseTestCase extends TestCase {
         return productId;
     }
 
+    protected VLAN findTestVLAN(@Nonnull CloudProvider provider, @Nullable VLANSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
+        VLAN vlan = null;
+
+        if( createNew ) {
+            actualVlanReuses++;
+        }
+        if( support == null ) {
+            Assert.fail("No VLAN support exists so cannot create a VLAN");
+        }
+        if( vlanToKill != null ) {
+            vlan = support.getVlan(vlanToKill);
+        }
+        if( vlan == null && findFree ) {
+            Iterator<VLAN> vlans = support.listVlans().iterator();
+
+            if( vlans.hasNext() ) {
+                vlan = vlans.next();
+            }
+        }
+        if( vlan == null && createNew ) {
+            vlan = support.createVlan("192.168.104.0/24", getName() + (System.currentTimeMillis()%10000), "VLAN for Dasein Cloud Integration Tests", "example.com", new String[0], new String[0]);
+        }
+        if( vlan == null ) {
+            Assert.fail("Unable to identify or create a test VLAN");
+        }
+        return vlan;
+    }
+
     protected VirtualMachine findTestVirtualMachine(@Nonnull CloudProvider provider, @Nonnull VirtualMachineSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
         VirtualMachine vm = null;
 
@@ -422,7 +550,7 @@ public class BaseTestCase extends TestCase {
                 vm = null;
             }
         }
-        if( vm != null && findFree ) {
+        if( vm == null && findFree ) {
             Iterable<VirtualMachine> servers = support.listVirtualMachines();
 
             for( VirtualMachine server : servers ) {
@@ -498,15 +626,23 @@ public class BaseTestCase extends TestCase {
         return ComprehensiveTestSuite.providerClass.newInstance();
     }
 
+    public int getFirewallReuseCount() {
+        return 0;
+    }
+
+    public int getVlanReuseCount() {
+        return 0;
+    }
+
     public int getVmReuseCount() {
         return 0;
     }
 
-    protected void killTestAddress() {
+    protected void killTestAddress(@Nonnull CloudProvider provider) {
         try {
             if( ipToRelease != null ) {
                 //noinspection ConstantConditions
-                getProvider().getNetworkServices().getIpAddressSupport().releaseFromPool(ipToRelease);
+                provider.getNetworkServices().getIpAddressSupport().releaseFromPool(ipToRelease);
                 ipToRelease = null;
             }
         }
@@ -515,10 +651,25 @@ public class BaseTestCase extends TestCase {
         }
     }
 
-    protected void killTestImage() {
+    protected void killTestFirewall(@Nonnull CloudProvider provider) {
+        if( firewallToDelete == null || actualFirewallReuses < expectedFirewallReuses ) {
+            return;
+        }
+        try {
+            @SuppressWarnings("ConstantConditions") FirewallSupport support = provider.getNetworkServices().getFirewallSupport();
+
+            cleanFirewall(support, firewallToDelete);
+            firewallToDelete = null;
+        }
+        catch( Throwable t ) {
+            out("WARNING: Failed to delete temporary firewall " + firewallToDelete + " used during tests: " + t.getMessage());
+        }
+    }
+
+    protected void killTestImage(CloudProvider provider) {
         if( imageToDelete != null && actualImageReuses >= expectedImageReuses ) {
             try {
-                cleanImage(getProvider().getComputeServices().getImageSupport(), imageToDelete);
+                cleanImage(provider.getComputeServices().getImageSupport(), imageToDelete);
                 imageToDelete = null;
             }
             catch( Throwable t ) {
@@ -527,19 +678,32 @@ public class BaseTestCase extends TestCase {
         }
     }
 
-    protected void killTestVm() {
+    protected void killTestVlan(CloudProvider provider) {
+        if( vlanToKill != null && actualVlanReuses >= expectedVlanReuses ) {
+            try {
+                @SuppressWarnings("ConstantConditions") VLANSupport support = provider.getNetworkServices().getVlanSupport();
+
+                cleanVlan(support, vlanToKill);
+                vlanToKill = null;
+            }
+            catch( Throwable t ) {
+                out("WARNING: Failed to clean up after test, the VLAN " + vlanToKill + " was not cleanly removed");
+            }
+        }
+    }
+    protected void killTestVm(@Nonnull CloudProvider provider) {
         if( vmToKill != null && actualVmReuses >= expectedVmReuses ) {
             try {
                 long timeout = System.currentTimeMillis() + getLaunchWindow();
-                VirtualMachine vm = getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
+                VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
                 boolean stopped = false;
 
                 if( vm == null ) {
                     return;
                 }
-                if( !VmState.STOPPED.equals(vm.getCurrentState()) && getProvider().getComputeServices().getVirtualMachineSupport().supportsStartStop(vm) ) {
+                if( !VmState.STOPPED.equals(vm.getCurrentState()) && provider.getComputeServices().getVirtualMachineSupport().supportsStartStop(vm) ) {
                     try {
-                        getProvider().getComputeServices().getVirtualMachineSupport().stop(vmToKill);
+                        provider.getComputeServices().getVirtualMachineSupport().stop(vmToKill);
                         stopped = true;
                     }
                     catch( Throwable ignore ) {
@@ -548,7 +712,7 @@ public class BaseTestCase extends TestCase {
                 }
                 while( timeout > System.currentTimeMillis() ) {
                     try {
-                        vm = getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
+                        vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmToKill);
                         if( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) ) {
                             return;
                         }
@@ -567,7 +731,7 @@ public class BaseTestCase extends TestCase {
                 }
                 if( vm != null ) {
                     //noinspection ConstantConditions
-                    getProvider().getComputeServices().getVirtualMachineSupport().terminate(vmToKill);
+                    provider.getComputeServices().getVirtualMachineSupport().terminate(vmToKill);
                 }
             }
             catch( Throwable t ) {

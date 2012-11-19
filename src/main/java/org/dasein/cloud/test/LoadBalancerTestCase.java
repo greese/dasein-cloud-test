@@ -185,7 +185,7 @@ public class LoadBalancerTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
-        killTestAddress();
+        killTestAddress(cloud);
         APITrace.report(getName());
         APITrace.reset();
         try {

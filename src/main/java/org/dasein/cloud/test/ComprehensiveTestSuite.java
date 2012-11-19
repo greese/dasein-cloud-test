@@ -175,6 +175,7 @@ public class ComprehensiveTestSuite extends TestSuite {
 
                     BaseTestCase.addExpectedVmReuses(t.getVmReuseCount());
                     BaseTestCase.addExpectedImageReuses(t.getImageReuseCount());
+                    BaseTestCase.addExpectedFirewallReuses(t.getFirewallReuseCount());
                     addTest(t);
                 }
             }

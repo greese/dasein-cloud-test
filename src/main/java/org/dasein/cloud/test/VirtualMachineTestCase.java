@@ -193,7 +193,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
-        killTestAddress();
+        killTestAddress(cloud);
         try {
             if( cloud != null ) {
                 cloud.close();

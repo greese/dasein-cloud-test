@@ -270,7 +270,7 @@ public class MachineImageTestCase extends BaseTestCase {
                     out("WARNING: Unable to clean up public sharing for " + testImage.getProviderMachineImageId() + ": " + t.getMessage());
                 }
             }
-            cleanUp();
+            cleanUp(provider);
             if( killImageId != null ) {
                 cleanImage(getSupport(), killImageId);
                 killImageId = null;
