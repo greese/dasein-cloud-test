@@ -38,9 +38,13 @@ import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -57,6 +61,7 @@ public class VolumeTestCase extends BaseTestCase {
     static public final String T_ATTACH_VOLUME      = "testAttachVolume";
     static public final String T_ATTACH_NO_SERVER   = "testAttachVolumeToNoServer";
     static public final String T_CREATE_FROM_SNAP   = "testCreateVolumeFromSnapshot";
+    static public final String T_CREATE_VOLUME      = "testCreateVolume";
     static public final String T_DETACH_VOLUME      = "testDetachVolume";
     static public final String T_DETACH_UNATTACHED  = "testDetachUnattachedVolume";
     static public final String T_GET_VOLUME         = "testGetVolume";
@@ -66,17 +71,23 @@ public class VolumeTestCase extends BaseTestCase {
     static private VirtualMachine testVm     = null;
     static private int            vmUse      = 0;
 
-    static public final String[] NEEDS_VMS = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED };
+    static public final String[] NEEDS_VMS   = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED };
+    static public final String[] NEEDS_VLANS = new String[] { T_VOLUME_CONTENT, T_GET_VOLUME, T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_REMOVE_VOLUME, T_ATTACH_NO_SERVER, T_CREATE_FROM_SNAP, T_CREATE_VOLUME };
 
     private CloudProvider provider       = null;
     private Snapshot testSnapshot   = null;
     private Volume        testVolume     = null;
+    private VLAN          testVlan       = null;
     private String        volumeToDelete = null;
 
     public VolumeTestCase(@Nonnull String name) { super(name); }
 
     private void createTestVm() throws CloudException, InternalException {
         vmUse++;
+
+        if( isNetwork() ) {
+            return;
+        }
         if( testVm == null ) {
             ComputeServices services = provider.getComputeServices();
             VirtualMachineSupport vmSupport;
@@ -84,6 +95,7 @@ public class VolumeTestCase extends BaseTestCase {
             if( services != null ) {
                 vmSupport = services.getVirtualMachineSupport();
                 if( vmSupport != null ) {
+                    testVm =
                     testVm = vmSupport.getVirtualMachine(launch(provider));
                     if( testVm == null ) {
                         Assert.fail("Virtual machine failed to be reflected as launched");
@@ -112,6 +124,7 @@ public class VolumeTestCase extends BaseTestCase {
     private @Nullable Volume createTestVolume() throws CloudException, InternalException {
         VolumeSupport support = getSupport();
         VolumeProduct product = null;
+        boolean network = isNetwork();
 
         if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) || support.isVolumeSizeDeterminedByProduct() ) {
             for( VolumeProduct prd : support.listVolumeProducts() ) {
@@ -138,10 +151,20 @@ public class VolumeTestCase extends BaseTestCase {
         VolumeCreateOptions options;
 
         if( product == null ) {
-            options = VolumeCreateOptions.getInstance(size, name, name);
+            if( testVlan == null ) {
+                options = VolumeCreateOptions.getInstance(size, name, name);
+            }
+            else {
+                options = VolumeCreateOptions.getNetworkInstance(testVlan.getProviderVlanId(), size, name, name);
+            }
         }
         else {
-             options = VolumeCreateOptions.getInstance(product.getProviderProductId(), size, name, name, 0);
+            if( testVlan == null ) {
+                options = VolumeCreateOptions.getInstance(product.getProviderProductId(), size, name, name, 0);
+            }
+            else {
+                options = VolumeCreateOptions.getNetworkInstance(product.getProviderProductId(), testVlan.getProviderVlanId(), size, name, name);
+            }
         }
         if( testVm != null ) {
             options.inDataCenter(testVm.getProviderDataCenterId());
@@ -184,6 +207,25 @@ public class VolumeTestCase extends BaseTestCase {
 
         Assert.assertNotNull("No volume services exist in " + provider.getCloudName(), support);
         return support;
+    }
+
+    @Override
+    public int getVlanReuseCount() {
+        return NEEDS_VLANS.length;
+    }
+
+    private boolean isNetwork() throws CloudException, InternalException {
+        boolean hasNetwork = false;
+
+        for( VolumeFormat format : getSupport().listSupportedFormats() ) {
+            if( format.equals(VolumeFormat.BLOCK) ) {
+                return false;
+            }
+            else if( format.equals(VolumeFormat.NFS) ) {
+                hasNetwork = true;
+            }
+        }
+        return hasNetwork;
     }
 
     private void attach() throws CloudException, InternalException {
@@ -235,6 +277,20 @@ public class VolumeTestCase extends BaseTestCase {
         begin();
         provider = getProvider();
         provider.connect(getTestContext());
+        for( String test : NEEDS_VLANS ) {
+            if( test.equals(getName()) ) {
+                NetworkServices services = provider.getNetworkServices();
+                VLANSupport support = null;
+
+                if( services != null ) {
+                    support = services.getVlanSupport();
+                }
+                testVlan = findTestVLAN(provider, support, true, true);
+                if( !isNetwork() ) {
+                    testVlan = null; // we have to call findTestVLAN() to up the counter so any provisioned VLANs are properly deleted
+                }
+            }
+        }
         for( String test : NEEDS_VMS ) {
             if( test.equals(getName()) ) {
                 createTestVm();
@@ -259,6 +315,8 @@ public class VolumeTestCase extends BaseTestCase {
             }
         }
         else if( getName().equals(T_CREATE_FROM_SNAP) ) {
+            testVolume = createTestVolume();
+
             ComputeServices services = provider.getComputeServices();
             SnapshotSupport support = null;
 
@@ -266,7 +324,6 @@ public class VolumeTestCase extends BaseTestCase {
                 support = services.getSnapshotSupport();
             }
             if( support != null && support.isSubscribed() ) {
-                testVolume = createTestVolume();
                 Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
                 try {
                     String id = support.create(testVolume.getProviderVolumeId(), "Test creation from snapshot");
@@ -441,7 +498,9 @@ public class VolumeTestCase extends BaseTestCase {
             out("\t" + id);
             hasOne = true;
         }
-        Assert.assertTrue("You must have at least one device ID for " + Platform.UNIX, hasOne);
+        if( !hasOne && !isNetwork() ) {
+            Assert.fail("You must have at least one device ID for " + Platform.UNIX);
+        }
 
         devices = support.listPossibleDeviceIds(Platform.WINDOWS);
 
@@ -452,7 +511,9 @@ public class VolumeTestCase extends BaseTestCase {
             out("\t" + id);
             hasOne = true;
         }
-        Assert.assertTrue("You must have at least one device ID for " + Platform.WINDOWS, hasOne);
+        if( !hasOne && !isNetwork() ) {
+            Assert.fail("You must have at least one device ID for " + Platform.WINDOWS);
+        }
     }
 
     @Test
@@ -571,6 +632,7 @@ public class VolumeTestCase extends BaseTestCase {
             out("Name:           " + volume.getName());
             out("Region ID:      " + volume.getProviderRegionId());
             out("Data Center ID: " + volume.getProviderDataCenterId());
+            out("VLAN ID:        " + volume.getProviderVlanId());
             out("Product ID:     " + volume.getProviderProductId());
             out("Created:        " + new Date(volume.getCreationTimestamp()));
             out("Size (in GB):   " + volume.getSizeInGigabytes());
@@ -608,8 +670,14 @@ public class VolumeTestCase extends BaseTestCase {
             prd = p;
         }
         if( prd == null ) {
-            assertFalse("A product is required to create a volume, but no products are provided", getSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED));
-            options = VolumeCreateOptions.getInstance(size, name, name);
+            Assert.assertFalse("A product is required to create a volume, but no products are provided", getSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED));
+            if( testVlan == null ) {
+                Assert.assertFalse("No network exists in which the test volume can be created", isNetwork());
+                options = VolumeCreateOptions.getInstance(size, name, name);
+            }
+            else {
+                options = VolumeCreateOptions.getNetworkInstance(testVlan.getProviderVlanId(), size, name, name);
+            }
         }
         else {
             iops = (prd.getMinIops() > 0 ? prd.getMinIops() : (prd.getMaxIops() > 0 ? 1 : 0));
@@ -620,7 +688,13 @@ public class VolumeTestCase extends BaseTestCase {
                     size = s;
                 }
             }
-            options = VolumeCreateOptions.getInstance(prd.getProviderProductId(), size, name, name, iops);
+            if( testVlan == null ) {
+                Assert.assertFalse("No network exists in which the test volume can be created", isNetwork());
+                options = VolumeCreateOptions.getInstance(prd.getProviderProductId(), size, name, name, iops);
+            }
+            else {
+                options = VolumeCreateOptions.getNetworkInstance(prd.getProviderProductId(), testVlan.getProviderVlanId(), size, name, name, iops);
+            }
         }
         volumeToDelete = getSupport().createVolume(options);
         out("Created: " + volumeToDelete);
