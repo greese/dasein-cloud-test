@@ -311,7 +311,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 
                 Storage<Megabyte> ram = product.getRamSize();
                 
-                assertNotNull("No RAM size is specified");
+                assertNotNull("No RAM size is specified", ram.getQuantity());
                 assertTrue("RAM size must be non-negative", ram.getQuantity().intValue() > -1);
                 count++;
             }

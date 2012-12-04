@@ -230,6 +230,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     private void attach() throws CloudException, InternalException {
         Volume volume = testVolume;
+
+        if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
+            return;
+        }
         VirtualMachine vm = testVm;
         boolean attached = false;
 
@@ -326,12 +330,12 @@ public class VolumeTestCase extends BaseTestCase {
             if( support != null && support.isSubscribed() ) {
                 Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
                 try {
-                    String id = support.create(testVolume.getProviderVolumeId(), "Test creation from snapshot");
+                    testSnapshot = support.snapshot(testVolume.getProviderVolumeId(), "dsnsnap-" + getName() + (System.currentTimeMillis() %10000), "Test creation from snapshot");
 
-                    testSnapshot = support.getSnapshot(id);
                     Assert.assertNotNull("The test snapshot does not exist", testSnapshot);
 
                     long timeout = System.currentTimeMillis() + getStateChangeWindow();
+                    String id = testSnapshot.getProviderSnapshotId();
 
                     while( timeout > System.currentTimeMillis() ) {
                         try {
@@ -768,35 +772,40 @@ public class VolumeTestCase extends BaseTestCase {
     @Test
     public void testAttachVolume() throws InternalException, CloudException {
         if( testVm != null ) {
-            boolean attached = false;
-
-            for( String device : getSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
-                try {
-                    getSupport().attach(testVolume.getProviderVolumeId(), testVm.getProviderVirtualMachineId(), device);
-                    attached = true;
-                    break;
-                }
-                catch( CloudException e ) {
-                    out("WARNING: Failed to mount using " + device + ", will hopefully try again");
-                }
+            if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
+                out("Cannot attach NFS volumes (OK)");
             }
-            Assert.assertTrue("Unable to attach using any available device", attached);
+            else {
+                boolean attached = false;
 
-            long timeout = System.currentTimeMillis() + getStateChangeWindow();
-
-            while( timeout > System.currentTimeMillis() ) {
-                Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
-
-                Assert.assertNotNull("Volume disappeared during attachment", volume);
-                out("Attachment: " + volume.getProviderVirtualMachineId());
-                if( volume.getProviderVirtualMachineId() != null ) {
-                    assertEquals("Volume attachment does not match target server", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
-                    return;
+                for( String device : getSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+                    try {
+                        getSupport().attach(testVolume.getProviderVolumeId(), testVm.getProviderVirtualMachineId(), device);
+                        attached = true;
+                        break;
+                    }
+                    catch( CloudException e ) {
+                        out("WARNING: Failed to mount using " + device + ", will hopefully try again");
+                    }
                 }
-                try { Thread.sleep(30000L); }
-                catch( InterruptedException e ) { }
+                Assert.assertTrue("Unable to attach using any available device", attached);
+
+                long timeout = System.currentTimeMillis() + getStateChangeWindow();
+
+                while( timeout > System.currentTimeMillis() ) {
+                    Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
+
+                    Assert.assertNotNull("Volume disappeared during attachment", volume);
+                    out("Attachment: " + volume.getProviderVirtualMachineId());
+                    if( volume.getProviderVirtualMachineId() != null ) {
+                        assertEquals("Volume attachment does not match target server", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
+                        return;
+                    }
+                    try { Thread.sleep(30000L); }
+                    catch( InterruptedException e ) { }
+                }
+                Assert.fail("System timed out verifying attachment");
             }
-            Assert.fail("System timed out verifying attachment");
         }
         else {
             out("Virtual machine services not supported (OK)");
@@ -806,37 +815,42 @@ public class VolumeTestCase extends BaseTestCase {
     @Test
     public void testDetachVolume() throws InternalException, CloudException {
         if( testVm != null ) {
-            Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
-            long timeout = System.currentTimeMillis() + getStateChangeWindow();
-
-            while( timeout > System.currentTimeMillis() ) {
-                if( volume != null && volume.getCurrentState().equals(VolumeState.AVAILABLE) && volume.getProviderVirtualMachineId() != null ) {
-                    break;
-                }
-                try { Thread.sleep(25000L); }
-                catch( InterruptedException e ) { }
-                try { volume = getSupport().getVolume(testVolume.getProviderVolumeId()); }
-                catch( Throwable ignore ) { }
+            if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
+                out("Cannot attach NFS volumes (OK)");
             }
-            assertNotNull("Volume to be detached was null", volume);
-            getSupport().detach(testVolume.getProviderVolumeId());
+            else {
+                Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
+                long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
-            timeout = System.currentTimeMillis() + getStateChangeWindow();
+                while( timeout > System.currentTimeMillis() ) {
+                    if( volume != null && volume.getCurrentState().equals(VolumeState.AVAILABLE) && volume.getProviderVirtualMachineId() != null ) {
+                        break;
+                    }
+                    try { Thread.sleep(25000L); }
+                    catch( InterruptedException e ) { }
+                    try { volume = getSupport().getVolume(testVolume.getProviderVolumeId()); }
+                    catch( Throwable ignore ) { }
+                }
+                assertNotNull("Volume to be detached was null", volume);
+                getSupport().detach(testVolume.getProviderVolumeId());
 
-            while( timeout > System.currentTimeMillis() ) {
-                try { volume = getSupport().getVolume(testVolume.getProviderVolumeId()); }
-                catch( Throwable ignore ) { }
-                if( volume == null ) {
-                    Assert.fail("Volume disappeared during detachment");
+                timeout = System.currentTimeMillis() + getStateChangeWindow();
+
+                while( timeout > System.currentTimeMillis() ) {
+                    try { volume = getSupport().getVolume(testVolume.getProviderVolumeId()); }
+                    catch( Throwable ignore ) { }
+                    if( volume == null ) {
+                        Assert.fail("Volume disappeared during detachment");
+                    }
+                    out("Attachment: " + volume.getProviderVirtualMachineId());
+                    if( volume.getProviderVirtualMachineId() == null ) {
+                        return;
+                    }
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException e ) { }
                 }
-                out("Attachment: " + volume.getProviderVirtualMachineId());
-                if( volume.getProviderVirtualMachineId() == null ) {
-                    return;
-                }
-                try { Thread.sleep(15000L); }
-                catch( InterruptedException e ) { }
+                fail("System timed out verifying detachment");
             }
-            fail("System timed out verifying detachment");
         }
         else {
             out("Virtual machine services not supported (OK)");
@@ -845,32 +859,37 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testAttachVolumeToNoServer() throws InternalException, CloudException {
-        ComputeServices services = provider.getComputeServices();
-
-        if( services != null ) {
-            VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
-
-            if( vmSupport != null ) {
-                Iterator<String> ids = getSupport().listPossibleDeviceIds(Platform.UNIX).iterator();
-                String device;
-
-                if( ids.hasNext() ) {
-                    device = ids.next();
-                }
-                else {
-                    device = "0";
-                }
-                try {
-                    getSupport().attach(testVolume.getProviderVolumeId(), UUID.randomUUID().toString(), device);
-                    Assert.fail("System did not error when attempting to attach to a fake server");
-                }
-                catch( CloudException expected ) {
-                    out("Received error attaching to a non-existent virtual machine (OK)");
-                }
-            }
+        if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
+            out("NFS attachments not supported (OK)");
         }
         else {
-            out("Virtual machine services not supported (OK)");
+            ComputeServices services = provider.getComputeServices();
+
+            if( services != null ) {
+                VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+
+                if( vmSupport != null ) {
+                    Iterator<String> ids = getSupport().listPossibleDeviceIds(Platform.UNIX).iterator();
+                    String device;
+
+                    if( ids.hasNext() ) {
+                        device = ids.next();
+                    }
+                    else {
+                        device = "0";
+                    }
+                    try {
+                        getSupport().attach(testVolume.getProviderVolumeId(), UUID.randomUUID().toString(), device);
+                        Assert.fail("System did not error when attempting to attach to a fake server");
+                    }
+                    catch( CloudException expected ) {
+                        out("Received error attaching to a non-existent virtual machine (OK)");
+                    }
+                }
+            }
+            else {
+                out("Virtual machine services not supported (OK)");
+            }
         }
     }
 

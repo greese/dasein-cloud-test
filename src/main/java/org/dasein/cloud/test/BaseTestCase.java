@@ -42,6 +42,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.Architecture;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.ImageCreateOptions;
@@ -55,7 +56,9 @@ import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
+import org.dasein.cloud.identity.ShellKeySupport;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
@@ -66,6 +69,8 @@ import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LbProtocol;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.SubnetState;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.network.VLANSupport;
@@ -748,9 +753,94 @@ public class BaseTestCase extends TestCase {
         VirtualMachineSupport support = provider.getComputeServices().getVirtualMachineSupport();
 
         if( support != null ) {
-            String[] firewalls = ((getTestFirewallId() == null) ? new String[0] : new String[] { getTestFirewallId() });
-        
-            return support.launch(getTestMachineImageId(), support.getProduct(getTestProduct()), getTestDataCenterId(), getTestHostname(), getTestHostname(), null, null, false, forImaging, firewalls).getProviderVirtualMachineId();
+            String hostName = "dsntestlaunch-" + (System.currentTimeMillis()%10000);
+
+            VMLaunchOptions testLaunchOptions = VMLaunchOptions.getInstance(getTestProduct(), getTestMachineImageId(), hostName, hostName, "DSN Test Host - " + getName());
+
+            testLaunchOptions.inDataCenter(getTestDataCenterId());
+            if( support.identifyPasswordRequirement().equals(Requirement.REQUIRED) ) {
+                testLaunchOptions.withBootstrapUser("dasein", "x" + System.currentTimeMillis());
+            }
+            if( support.identifyStaticIPRequirement().equals(Requirement.REQUIRED) ) {
+                NetworkServices services = provider.getNetworkServices();
+
+                if( services == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no network services exist.");
+                }
+                IpAddressSupport ips = services.getIpAddressSupport();
+
+                if( support == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no IP address support exists.");
+                }
+                for( IPVersion version : ips.listSupportedIPVersions() ) {
+                    try {
+                        testLaunchOptions.withStaticIps(identifyTestIPAddress(provider, version));
+                    }
+                    catch( CloudException ignore ) {
+                        // try again, maybe
+                    }
+                }
+                if( testLaunchOptions.getStaticIpIds().length < 1 ) {
+                    throw new CloudException("Unable to provision the required IP address for this test");
+                }
+            }
+            if( support.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
+                String productId = null;
+
+                for( VolumeProduct p : provider.getComputeServices().getVolumeSupport().listVolumeProducts() ) {
+                    productId = p.getProviderProductId();
+                }
+                assertNotNull("Cannot identify a volume product for the root volume.", productId);
+                testLaunchOptions.withRootVolumeProduct(productId);
+            }
+            if( support.identifyShellKeyRequirement().equals(Requirement.REQUIRED) ) {
+                ShellKeySupport sks = provider.getIdentityServices().getShellKeySupport();
+                String keyId = null;
+
+                if( sks.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
+                    fail("Import not yet supported in test cases.");
+                }
+                else {
+                    keyId = sks.createKeypair(hostName).getProviderKeypairId();
+                }
+                //noinspection ConstantConditions
+                testLaunchOptions.withBoostrapKey(keyId);
+            }
+            if( support.identifyVlanRequirement().equals(Requirement.REQUIRED) ) {
+                VLANSupport vs = provider.getNetworkServices().getVlanSupport();
+
+                assertNotNull("No VLAN support but a vlan is required.", vs);
+                String vlanId = null;
+
+                VLAN testVlan = null;
+
+                for( VLAN vlan : vs.listVlans() ) {
+                    if( vlan.getCurrentState().equals(VLANState.AVAILABLE) && (!vs.isVlanDataCenterConstrained() || vlan.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                        testVlan = vlan;
+                    }
+                }
+                assertNotNull("Test VLAN could not be found.", testVlan);
+                if( vs.getSubnetSupport().equals(Requirement.NONE) ) {
+                    vlanId = testVlan.getProviderVlanId();
+                }
+                else {
+                    for( Subnet subnet : vs.listSubnets(testVlan.getProviderVlanId()) ) {
+                        if( subnet.getCurrentState().equals(SubnetState.AVAILABLE) && (!vs.isSubnetDataCenterConstrained() || subnet.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                            vlanId = subnet.getProviderSubnetId();
+                        }
+                    }
+                }
+                assertNotNull("No test VLAN/subnet was identified.", vlanId);
+                testLaunchOptions.inVlan(null, getTestDataCenterId(), testVlan.getProviderVlanId());
+            }
+            if( provider.hasNetworkServices() && provider.getNetworkServices().hasFirewallSupport() ) {
+                String id = getTestFirewallId();
+
+                if( id != null ) {
+                    testLaunchOptions.behindFirewalls(id);
+                }
+            }
+            return support.launch(testLaunchOptions).getProviderVirtualMachineId();
         }
         return null;
     }
