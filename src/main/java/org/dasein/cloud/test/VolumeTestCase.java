@@ -71,7 +71,7 @@ public class VolumeTestCase extends BaseTestCase {
     static private VirtualMachine testVm     = null;
     static private int            vmUse      = 0;
 
-    static public final String[] NEEDS_VMS   = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED };
+    static public final String[] NEEDS_VMS   = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_CREATE_FROM_SNAP };
     static public final String[] NEEDS_VLANS = new String[] { T_VOLUME_CONTENT, T_GET_VOLUME, T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_REMOVE_VOLUME, T_ATTACH_NO_SERVER, T_CREATE_FROM_SNAP, T_CREATE_VOLUME };
 
     private CloudProvider provider       = null;
@@ -95,7 +95,6 @@ public class VolumeTestCase extends BaseTestCase {
             if( services != null ) {
                 vmSupport = services.getVirtualMachineSupport();
                 if( vmSupport != null ) {
-                    testVm =
                     testVm = vmSupport.getVirtualMachine(launch(provider));
                     if( testVm == null ) {
                         Assert.fail("Virtual machine failed to be reflected as launched");
@@ -124,7 +123,6 @@ public class VolumeTestCase extends BaseTestCase {
     private @Nullable Volume createTestVolume() throws CloudException, InternalException {
         VolumeSupport support = getSupport();
         VolumeProduct product = null;
-        boolean network = isNetwork();
 
         if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) || support.isVolumeSizeDeterminedByProduct() ) {
             for( VolumeProduct prd : support.listVolumeProducts() ) {
@@ -328,6 +326,9 @@ public class VolumeTestCase extends BaseTestCase {
                 support = services.getSnapshotSupport();
             }
             if( support != null && support.isSubscribed() ) {
+                if( support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+                    attach();
+                }
                 Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
                 try {
                     testSnapshot = support.snapshot(testVolume.getProviderVolumeId(), "dsnsnap-" + getName() + (System.currentTimeMillis() %10000), "Test creation from snapshot");

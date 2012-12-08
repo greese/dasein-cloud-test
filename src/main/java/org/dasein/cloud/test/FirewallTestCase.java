@@ -171,7 +171,7 @@ public class FirewallTestCase extends BaseTestCase {
                 killFirewallId = getSupport().createInVLAN(name, name, testVlan.getProviderVlanId());
                 testFirewall = getSupport().getFirewall(killFirewallId);
             }
-            if( !getName().startsWith("testAdd") ) {
+            if( !getName().startsWith("testAdd") && testFirewall != null ) {
                 testRuleId = getSupport().authorize(testFirewall.getProviderFirewallId(), "209.98.98.98/32", Protocol.TCP, 80, 80);
             }
         }
@@ -356,6 +356,7 @@ public class FirewallTestCase extends BaseTestCase {
                     if( !getSupport().supportsRules(Direction.INGRESS, Permission.DENY, true) ) {
                         if( !getSupport().supportsRules(Direction.EGRESS, Permission.DENY, true) ) {
                             out("Got error indicating lack of support for VLAN firewalls (OK)");
+                            return;
                         }
                     }
                 }

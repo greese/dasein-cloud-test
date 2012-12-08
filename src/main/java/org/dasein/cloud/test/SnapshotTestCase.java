@@ -33,12 +33,16 @@ import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Snapshot;
 import org.dasein.cloud.compute.SnapshotState;
 import org.dasein.cloud.compute.SnapshotSupport;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeCreateOptions;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.util.APITrace;
+import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
@@ -62,16 +66,53 @@ public class SnapshotTestCase extends BaseTestCase {
 
     static private final String[] NEEDS_VOLUMES = { T_SNAPSHOT_CONTENT, T_GET_SNAPSHOT, T_CREATE_SNAPSHOT, T_REMOVE_SNAPSHOT, T_SHARE_SNAPSHOT_WITH_PUBLIC, T_REMOVE_PUBLIC_SHARE, T_SHARE_SNAPSHOT, T_REMOVE_SHARE, T_REMOVE_ALL_SHARES };
 
-    static private String         testVolume    = null;
-    static private int            volumeUse     = 0;
+    static private VirtualMachine testVm        = null;
 
-    private CloudProvider provider         = null;
-    private Snapshot      testSnapshot     = null;
-    private String        snapshotToDelete = null;
+    private CloudProvider  provider         = null;
+    private String         snapshotToDelete = null;
+    private Snapshot       testSnapshot     = null;
+    private String         testVolume       = null;
 
     public SnapshotTestCase(String name) { super(name); }
 
     private @Nullable Snapshot createTestSnapshot() throws CloudException, InternalException {
+        if( getSnapshotSupport().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+            try {
+                Volume v = getVolumeSupport().getVolume(testVolume);
+
+                if( v != null ) {
+                    if( v.getProviderVirtualMachineId() == null ) {
+                        if( testVm != null ) {
+                            testVm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVm.getProviderVirtualMachineId());
+                            if( testVm != null && testVm.getCurrentState().equals(VmState.TERMINATED) ) {
+                                testVm = null;
+                            }
+                        }
+                        if( testVm == null ) {
+                            //noinspection ConstantConditions
+                            testVm = findTestVirtualMachine(provider, provider.getComputeServices().getVirtualMachineSupport(), false, true);
+                        }
+                        try {
+                            for( String deviceId : getVolumeSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+                                try {
+                                    getVolumeSupport().attach(testVolume, testVm.getProviderVirtualMachineId(), deviceId);
+                                    break;
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
         Snapshot snapshot = getSnapshotSupport().snapshot(testVolume, getName() + "-" + (System.currentTimeMillis()%10000), getName() + " from " + testVolume);
 
         if( snapshot == null ) {
@@ -93,21 +134,38 @@ public class SnapshotTestCase extends BaseTestCase {
         return snapshot;
     }
 
+    /*
     private void createTestVolume() throws CloudException, InternalException {
         volumeUse++;
+        if( testVm == null ) {
+            //noinspection ConstantConditions
+            testVm = findTestVirtualMachine(provider, provider.getComputeServices().getVirtualMachineSupport(), false, true);
+        }
         VolumeCreateOptions options;
 
         String name = "snap" + getName() + "-" + (System.currentTimeMillis()%10000);
         VolumeProduct product = null;
 
         if( getVolumeSupport().getVolumeProductRequirement().equals(Requirement.REQUIRED) || getVolumeSupport().isVolumeSizeDeterminedByProduct() ) {
-
             for( VolumeProduct prd : getVolumeSupport().listVolumeProducts() ) {
-                Float thisCost = prd.getMonthlyGigabyteCost();
-                Float currentCost = (product == null ? null : product.getMonthlyGigabyteCost());
-
-                if( currentCost == null || (thisCost == null ? 0.0f : thisCost) < currentCost ) {
+                if( product == null ) {
                     product = prd;
+                }
+                else {
+                    Float thisCost = prd.getMonthlyGigabyteCost();
+                    Float currentCost = product.getMonthlyGigabyteCost();
+
+                    if( currentCost == null || currentCost < 0.001f ) {
+                        Storage<Gigabyte> thisSize = prd.getVolumeSize();
+                        Storage<Gigabyte> currentSize = product.getVolumeSize();
+
+                        if( currentSize == null || (thisSize != null && thisSize.intValue() < currentSize.intValue()) ) {
+                            product = prd;
+                        }
+                    }
+                    else if( thisCost != null && thisCost > 0.0f && thisCost < currentCost ) {
+                        product = prd;
+                    }
                 }
             }
         }
@@ -137,7 +195,24 @@ public class SnapshotTestCase extends BaseTestCase {
             try { v = getVolumeSupport().getVolume(testVolume); }
             catch( Throwable ignore ) { }
         }
+        if( v != null && v.getProviderVirtualMachineId() == null && getSnapshotSupport().identifyAttachmentRequirement().equals(Requirement.REQUIRED) && testVm != null ) {
+            try {
+                for( String deviceId : getVolumeSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+                    try {
+                        getVolumeSupport().attach(testVolume, testVm.getProviderVirtualMachineId(), deviceId);
+                        break;
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
     }
+    */
 
     private SnapshotSupport getSnapshotSupport() {
         if( provider == null ) {
@@ -151,6 +226,16 @@ public class SnapshotTestCase extends BaseTestCase {
 
         Assert.assertNotNull("No snapshot support exist in " + provider.getCloudName(), support);
         return support;
+    }
+
+    @Override
+    public int getVmReuseCount() {
+        return NEEDS_VOLUMES.length;
+    }
+
+    @Override
+    public int getVolumeReuseCount() {
+        return getVmReuseCount();
     }
 
     private VolumeSupport getVolumeSupport() {
@@ -175,7 +260,51 @@ public class SnapshotTestCase extends BaseTestCase {
         provider.connect(getTestContext());
         for( String test : NEEDS_VOLUMES ) {
             if( test.equals(getName()) ) {
-                createTestVolume();
+                testVolume = findTestVolume(provider, getVolumeSupport(), false, true).getProviderVolumeId();
+
+                @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = provider.getComputeServices().getVirtualMachineSupport();
+
+                if( vmSupport != null ) {
+                    // must provision VM even if we don't intend to attach it
+                    testVm = findTestVirtualMachine(provider, vmSupport, false, true);
+                    if( getSnapshotSupport().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+                        try {
+                            Volume v = getVolumeSupport().getVolume(testVolume);
+
+                            if( v == null ) {
+                                throw new CloudException("Test volume disappeared");
+                            }
+                            String vmId = v.getProviderVirtualMachineId();
+
+                            if( vmId == null || !vmId.equals(testVm.getProviderVirtualMachineId()) ) {
+                                if( vmId != null ) {
+                                    VirtualMachine vm = vmSupport.getVirtualMachine(vmId);
+
+                                    if( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) ) {
+                                        try {
+                                            getVolumeSupport().detach(testVolume,  true);
+                                        }
+                                        catch( Throwable ignore ) {
+                                            // ignore
+                                        }
+                                    }
+                                }
+                                for( String deviceId : getVolumeSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
+                                    try {
+                                        getVolumeSupport().attach(testVolume, testVm.getProviderVirtualMachineId(), deviceId);
+                                        break;
+                                    }
+                                    catch( Throwable ignore ) {
+                                        // ignore
+                                    }
+                                }
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                }
             }
         }
         if( getName().equals(T_SNAPSHOT_CONTENT) || getName().equals(T_GET_SNAPSHOT) ) {
@@ -268,24 +397,7 @@ public class SnapshotTestCase extends BaseTestCase {
                     testSnapshot = null;
                 }
             }
-            if( volumeUse >= NEEDS_VOLUMES.length && testVolume != null ) {
-                try {
-                    Volume volume;
-
-                    try {
-                        volume = getVolumeSupport().getVolume(testVolume);
-                        if( volume != null ) {
-                            getVolumeSupport().remove(testVolume);
-                        }
-                    }
-                    catch( Throwable e ) {
-                        out("WARNING: Error tearing down virtual machine: " + e.getMessage());
-                    }
-                }
-                finally {
-                    testVolume = null;
-                }
-            }
+            cleanUp(provider);
             APITrace.report(getName());
             APITrace.reset();
             try {

@@ -44,6 +44,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.ImageClass;
 import org.dasein.cloud.compute.ImageCreateOptions;
 import org.dasein.cloud.compute.MachineImage;
@@ -56,8 +57,11 @@ import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
+import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.identity.ShellKeySupport;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallSupport;
@@ -75,6 +79,8 @@ import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.util.CalendarWrapper;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -84,10 +90,12 @@ public class BaseTestCase extends TestCase {
     static private int actualImageReuses      = 0;
     static private int actualVlanReuses       = 0;
     static private int actualVmReuses         = 0;
+    static private int actualVolumeReuses     = 0;
     static private int expectedFirewallReuses = 0;
     static private int expectedImageReuses    = 0;
     static private int expectedVlanReuses     = 0;
     static private int expectedVmReuses       = 0;
+    static private int expectedVolumeReuses   = 0;
 
     static public void addExpectedFirewallReuses(int count) {
         expectedFirewallReuses += count;
@@ -99,6 +107,10 @@ public class BaseTestCase extends TestCase {
 
     static public void addExpectedVlanReuses(int count) {
         expectedVlanReuses += count;
+    }
+
+    static public void addExpectedVolumeReuses(int count) {
+        expectedVolumeReuses += count;
     }
 
     static public void addExpectedVmReuses(int count) {
@@ -312,6 +324,7 @@ public class BaseTestCase extends TestCase {
     static private String         ipToRelease      = null;
     static private String         vlanToKill       = null;
     static private String         vmToKill         = null;
+    static private String         volumeToKill     = null;
 
     protected void cleanFirewall(@Nonnull FirewallSupport support, @Nonnull String firewallId) {
         try {
@@ -386,7 +399,45 @@ public class BaseTestCase extends TestCase {
         }
     }
 
+    protected void cleanVolume(@Nonnull VolumeSupport support, @Nonnull String volumeId) {
+        try {
+            Volume volume = support.getVolume(volumeId);
+
+            if( volume == null || VolumeState.DELETED.equals(volume.getCurrentState()) ) {
+                return;
+            }
+            if( volume.getProviderVirtualMachineId() != null ) {
+                try {
+                    support.detach(volumeId, true);
+
+                    long timeout = System.currentTimeMillis() + getLaunchWindow();
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        try { volume = support.getVolume(volumeId); }
+                        catch( Throwable ignore ) { }
+                        if( volume == null || volume.getProviderVirtualMachineId() == null ) {
+                            break;
+                        }
+                        try { Thread.sleep(15000L); }
+                        catch( InterruptedException ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+            if( volume != null ) {
+                //noinspection ConstantConditions
+                support.remove(volumeId);
+            }
+        }
+        catch( Throwable t ) {
+            out("warning: Failed to clean up after test, the volume " + volumeId + " was not removed cleanly");
+        }
+    }
+
     protected void cleanUp(@Nonnull CloudProvider provider) {
+        killTestVolume(provider);
         killTestVm(provider);
         killTestAddress(provider);
         killTestImage(provider);
@@ -583,6 +634,101 @@ public class BaseTestCase extends TestCase {
         return vm;
     }
 
+    protected Volume findTestVolume(@Nonnull CloudProvider provider, @Nonnull VolumeSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
+        Volume volume = null;
+
+        if( createNew ) {
+            actualVolumeReuses++;
+        }
+        if( volumeToKill != null ) {
+            volume = support.getVolume(volumeToKill);
+            if( volumeToKill != null && VolumeState.DELETED.equals(volume.getCurrentState()) ) {
+                volume = null;
+            }
+        }
+        if( volume == null && findFree ) {
+            Iterable<Volume> volumes = support.listVolumes();
+
+            for( Volume v : volumes ) {
+                if( VolumeState.AVAILABLE.equals(v.getCurrentState()) ) {
+                    volume = v;
+                    break;
+                }
+                if( !VolumeState.DELETED.equals(v.getCurrentState()) ) {
+                    volume = v;
+                }
+            }
+        }
+        if( volume == null && createNew ) {
+            VolumeCreateOptions options;
+            boolean network = true;
+
+            for( VolumeFormat fmt : support.listSupportedFormats() ) {
+                if( fmt.equals(VolumeFormat.BLOCK) ) {
+                    network = false;
+                    break;
+                }
+            }
+            if( network ) {
+                throw new CloudException("Test volumes not supported");
+            }
+            else {
+                String name = "dsnvol-" + getName() + (System.currentTimeMillis() % 10000);
+
+                if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
+                    VolumeProduct product = null;
+
+                    for( VolumeProduct prd : support.listVolumeProducts() ) {
+                        if( product == null ) {
+                            product = prd;
+                        }
+                        else {
+                            Float thisCost = prd.getMonthlyGigabyteCost();
+                            Float currentCost = product.getMonthlyGigabyteCost();
+
+                            if( currentCost == null || currentCost < 0.001f ) {
+                                Storage<Gigabyte> thisSize = prd.getVolumeSize();
+                                Storage<Gigabyte> currentSize = product.getVolumeSize();
+
+                                if( currentSize == null || (thisSize != null && thisSize.intValue() < currentSize.intValue()) ) {
+                                    product = prd;
+                                }
+                            }
+                            else if( thisCost != null && thisCost > 0.0f && thisCost < currentCost ) {
+                                product = prd;
+                            }
+                        }
+                    }
+                    if( product == null ) {
+                        options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), name, name);
+                    }
+                    else {
+                        Storage<Gigabyte> size = null;
+
+                        if( support.isVolumeSizeDeterminedByProduct() ) {
+                            size = product.getVolumeSize();
+                        }
+                        if( size == null || size.intValue() < 1 ) {
+                            size = support.getMinimumVolumeSize();
+                        }
+                        options = VolumeCreateOptions.getInstance(product.getProviderProductId(), size, name, name, 0);
+                    }
+                }
+                else {
+                    options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), name, name);
+                }
+            }
+            volume = support.getVolume(support.createVolume(options));
+            if( volume != null ) {
+                volumeToKill = volume.getProviderVolumeId();
+            }
+        }
+        if( volume == null ) {
+            Assert.fail("No test volume could be found or created to support this test case");
+        }
+        return volume;
+    }
+
     public int getImageReuseCount() {
         return 0;
     }
@@ -636,6 +782,10 @@ public class BaseTestCase extends TestCase {
     }
 
     public int getVlanReuseCount() {
+        return 0;
+    }
+
+    public int getVolumeReuseCount() {
         return 0;
     }
 
@@ -741,6 +891,28 @@ public class BaseTestCase extends TestCase {
             }
             catch( Throwable t ) {
                 out("WARNING: Failed to clean up after test, the VM " + vmToKill + " was not cleanly removed");
+            }
+        }
+    }
+
+    protected void killTestVolume(@Nonnull CloudProvider provider) {
+        if( volumeToKill != null && actualVolumeReuses >= expectedVolumeReuses ) {
+            try {
+                ComputeServices services = provider.getComputeServices();
+
+                if( services == null ) {
+                    return;
+                }
+                VolumeSupport support = provider.getComputeServices().getVolumeSupport();
+
+                if( support == null ) {
+                    return;
+                }
+                cleanVolume(support, volumeToKill);
+                volumeToKill = null;
+            }
+            catch( Throwable t ) {
+                out("WARNING: Failed to clean up after test, the volume " + volumeToKill + " was not cleanly removed");
             }
         }
     }
