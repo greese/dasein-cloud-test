@@ -27,6 +27,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
@@ -54,6 +55,8 @@ public class IpAddressTestCase extends BaseTestCase {
     static public final String T_GET_ADDRESS       = "testGetAddress";
     static public final String T4_RELEASE_ADDRESS  = "test4ReleaseAddress";
     static public final String T6_RELEASE_ADDRESS  = "test6ReleaseAddress";
+    static public final String T4_REQUEST_VLAN     = "test4RequestVLANAddress";
+    static public final String T6_REQUEST_VLAN     = "test6RequestVLANAddress";
     static public final String T4_ASSIGN_ADDRESS   = "test4AssignAddress";
     static public final String T6_ASSIGN_ADDRESS   = "test6AssignAddress";
     static public final String T_UNASSIGN_ADDRESS  = "testUnassignAddress";
@@ -65,6 +68,8 @@ public class IpAddressTestCase extends BaseTestCase {
     static public final String T6_STOP_FORWARD     = "test6StopForward";
 
     static public final int NEEDS_VMS = 9;
+
+    static private final String[] NEEDS_VLANS = { T4_REQUEST_VLAN, T6_REQUEST_VLAN };
 
     static public void assertVersion(IpAddress address, IPVersion version) {
         String ip = address.getAddress();
@@ -109,6 +114,7 @@ public class IpAddressTestCase extends BaseTestCase {
     private CloudProvider  provider         = null;
     private IpAddress      testAddress      = null;
     private String         testRuleId       = null;
+    private String         testVlan         = null;
 
     public IpAddressTestCase(String name) { super(name); }
 
@@ -128,6 +134,11 @@ public class IpAddressTestCase extends BaseTestCase {
                 }
             }
         }
+    }
+
+    @Override
+    public int getVlanReuseCount() {
+        return NEEDS_VLANS.length;
     }
 
     private boolean isSupported(@Nonnull IpAddressSupport support, @Nonnull IPVersion version) throws CloudException, InternalException {
@@ -170,6 +181,11 @@ public class IpAddressTestCase extends BaseTestCase {
         provider.connect(getTestContext());
         IpAddressSupport support = getSupport();
 
+        for( String test : NEEDS_VLANS ) {
+            if( getName().equals(test) ) {
+                testVlan = findTestVLAN(provider, provider.getNetworkServices().getVlanSupport(), true, true).getProviderVlanId();
+            }
+        }
         if( getName().equals(T4_ADDRESS_CONTENT) || getName().equals(T6_ADDRESS_CONTENT) ) {
             IPVersion version = (getName().equals(T4_ADDRESS_CONTENT) ? IPVersion.IPV4 : IPVersion.IPV6);
 
@@ -431,6 +447,8 @@ public class IpAddressTestCase extends BaseTestCase {
                 }
             }
             testRuleId = null;
+            cleanUp(provider);
+            testVlan = null;
             APITrace.report(getName());
             APITrace.reset();
             try {
@@ -583,7 +601,12 @@ public class IpAddressTestCase extends BaseTestCase {
         IpAddressSupport support = getSupport();
 
         if( forVlan && support.supportsVLANAddresses(version) ) {
-            addressToRelease = support.requestForVLAN(version);
+            if( support.identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
+                addressToRelease = support.requestForVLAN(version);
+            }
+            else {
+                addressToRelease = support.requestForVLAN(version, testVlan);
+            }
             out("Requested [" + version + "]: " + addressToRelease);
 
             IpAddress address = support.getIpAddress(addressToRelease);
@@ -594,7 +617,12 @@ public class IpAddressTestCase extends BaseTestCase {
         }
         else if( forVlan ) {
             try {
-                addressToRelease = support.requestForVLAN(version);
+                if( support.identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
+                    addressToRelease = support.requestForVLAN(version);
+                }
+                else {
+                    addressToRelease = support.requestForVLAN(version, testVlan);
+                }
                 Assert.fail("No exception was thrown when attempting to request an IP address from a VLAN when this functionality is not supported.");
             }
             catch( OperationNotSupportedException success ) {
