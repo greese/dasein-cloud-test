@@ -585,7 +585,7 @@ public class BaseTestCase extends TestCase {
                 vlan = vlans.next();
             }
         }
-        if( vlan == null && createNew ) {
+        if( vlan == null && createNew && support.allowsNewVlanCreation() ) {
             vlan = support.createVlan("192.168.104.0/24", getName() + (System.currentTimeMillis()%10000), "VLAN for Dasein Cloud Integration Tests", "example.com", new String[0], new String[0]);
         }
         return vlan;
