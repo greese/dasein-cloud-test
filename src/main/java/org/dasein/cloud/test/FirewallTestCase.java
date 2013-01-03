@@ -123,11 +123,21 @@ public class FirewallTestCase extends BaseTestCase {
         if( getName().equals(T_CREATE_VLAN_FIREWALL) || getName().equals(T_DELETE_FIREWALL) ) {
             @SuppressWarnings("ConstantConditions") VLANSupport vlanSupport = provider.getNetworkServices().getVlanSupport();
 
-            try {
-                testVlan = findTestVLAN(provider, vlanSupport, true, true);
-            }
-            catch( Throwable t ) {
-                out("WARNING: Unable to create test VLAN (OK if VLAN firewalls are not supported)");
+            testVlan = findTestVLAN(provider, vlanSupport, true, true);
+            if( testVlan != null ) {
+                boolean required = false;
+
+                for( Direction d : Direction.values() ) {
+                    for( Permission p : Permission.values() ) {
+                        if( getSupport().supportsRules(d, p, true) ) {
+                            required = true;
+                            break;
+                        }
+                    }
+                }
+                if( required ) {
+                    Assert.fail("Unable to set up a VLAN for VLAN firewall tests");
+                }
             }
         }
         if( getName().equals(T_DELETE_FIREWALL) ) {
@@ -159,11 +169,20 @@ public class FirewallTestCase extends BaseTestCase {
                 || getName().equals(T_REV_VLAN_EGRESS_ALLOW) || getName().equals(T_REV_VLAN_EGRESS_DENY) || getName().equals(T_REV_VLAN_INGRESS_ALLOW) || getName().equals(T_REV_VLAN_INGRESS_DENY) ) {
             @SuppressWarnings("ConstantConditions") VLANSupport vlanSupport = provider.getNetworkServices().getVlanSupport();
 
-            try {
-                testVlan = findTestVLAN(provider, vlanSupport, true, true);
-            }
-            catch( Throwable t ) {
-                out("WARNING: Unable to create test VLAN (OK if VLAN firewalls are not supported)");
+            if( testVlan != null ) {
+                boolean required = false;
+
+                for( Direction d : Direction.values() ) {
+                    for( Permission p : Permission.values() ) {
+                        if( getSupport().supportsRules(d, p, true) ) {
+                            required = true;
+                            break;
+                        }
+                    }
+                }
+                if( required ) {
+                    Assert.fail("Unable to set up a VLAN for VLAN firewall tests");
+                }
             }
             String name = getName() + (System.currentTimeMillis()%10000);
 

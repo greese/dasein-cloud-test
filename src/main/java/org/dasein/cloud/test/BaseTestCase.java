@@ -566,7 +566,7 @@ public class BaseTestCase extends TestCase {
         return productId;
     }
 
-    protected VLAN findTestVLAN(@Nonnull CloudProvider provider, @Nullable VLANSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
+    protected @Nullable VLAN findTestVLAN(@Nonnull CloudProvider provider, @Nullable VLANSupport support, boolean findFree, boolean createNew) throws CloudException, InternalException {
         VLAN vlan = null;
 
         if( createNew ) {
@@ -585,11 +585,8 @@ public class BaseTestCase extends TestCase {
                 vlan = vlans.next();
             }
         }
-        if( vlan == null && createNew ) {
+        if( vlan == null && createNew && support.allowsNewVlanCreation() ) {
             vlan = support.createVlan("192.168.104.0/24", getName() + (System.currentTimeMillis()%10000), "VLAN for Dasein Cloud Integration Tests", "example.com", new String[0], new String[0]);
-        }
-        if( vlan == null ) {
-            Assert.fail("Unable to identify or create a test VLAN");
         }
         return vlan;
     }
