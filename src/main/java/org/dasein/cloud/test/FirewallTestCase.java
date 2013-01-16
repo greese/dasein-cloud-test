@@ -34,6 +34,7 @@ import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Permission;
 import org.dasein.cloud.network.Protocol;
+import org.dasein.cloud.network.RuleTarget;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.util.APITrace;
@@ -162,6 +163,7 @@ public class FirewallTestCase extends BaseTestCase {
             testFirewall = findTestFirewall(provider, getSupport(), false, false, true);
             Assert.assertNotNull("No test firewall was created", testFirewall);
             if( !getName().startsWith("testAdd") ) {
+                //noinspection ConstantConditions
                 testRuleId = getSupport().authorize(testFirewall.getProviderFirewallId(), "209.98.98.98/32", Protocol.TCP, 80, 80);
             }
         }
@@ -421,10 +423,24 @@ public class FirewallTestCase extends BaseTestCase {
         int p = port++;
 
         try {
-            String ruleId = getSupport().authorize(testFirewall.getProviderFirewallId(), direction, permission, "209.98.98.98/32", Protocol.TCP, p, p);
+            RuleTarget sourceEndpoint, destinationEndpoint;
+            String firewallId = testFirewall.getProviderFirewallId();
+
+            if( firewallId == null ) {
+                Assert.fail("Firewall has no ID");
+            }
+            if( direction.equals(Direction.INGRESS) ) {
+                sourceEndpoint = RuleTarget.getCIDR("209.98.98.98/32");
+                destinationEndpoint = RuleTarget.getGlobal(firewallId);
+            }
+            else {
+                destinationEndpoint = RuleTarget.getCIDR("209.98.98.98/32");
+                sourceEndpoint = RuleTarget.getGlobal(firewallId);
+            }
+            String ruleId = getSupport().authorize(firewallId, direction, permission, sourceEndpoint, Protocol.TCP, destinationEndpoint, p, p, 0);
 
             out("Created rule: " + ruleId);
-            for( FirewallRule rule : getSupport().getRules(testFirewall.getProviderFirewallId()) ) {
+            for( FirewallRule rule : getSupport().getRules(firewallId) ) {
                 if( rule.getProviderRuleId().equals(ruleId) ) {
                     return;
                 }
