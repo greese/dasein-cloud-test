@@ -37,6 +37,7 @@ import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.IpForwardingRule;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Protocol;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.util.APITrace;
 import org.junit.After;
@@ -185,8 +186,12 @@ public class IpAddressTestCase extends BaseTestCase {
         for( String test : NEEDS_VLANS ) {
             if( getName().equals(test) ) {
                 NetworkServices networkServices = provider.getNetworkServices();
+                VLAN v;
 
-                testVlan = findTestVLAN(provider, networkServices == null ? null : networkServices.getVlanSupport(), true, true).getProviderVlanId();
+                v = findTestVLAN(provider, networkServices == null ? null : networkServices.getVlanSupport(), true, true);
+                if( v != null ) {
+                    testVlan = v.getProviderVlanId();
+                }
                 if( testVlan == null ) {
                     boolean required = false;
 
