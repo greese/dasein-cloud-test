@@ -184,7 +184,9 @@ public class IpAddressTestCase extends BaseTestCase {
 
         for( String test : NEEDS_VLANS ) {
             if( getName().equals(test) ) {
-                testVlan = findTestVLAN(provider, provider.getNetworkServices().getVlanSupport(), true, true).getProviderVlanId();
+                NetworkServices networkServices = provider.getNetworkServices();
+
+                testVlan = findTestVLAN(provider, networkServices == null ? null : networkServices.getVlanSupport(), true, true).getProviderVlanId();
                 if( testVlan == null ) {
                     boolean required = false;
 
