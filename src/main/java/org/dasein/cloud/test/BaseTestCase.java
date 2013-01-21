@@ -572,8 +572,8 @@ public class BaseTestCase extends TestCase {
         if( createNew ) {
             actualVlanReuses++;
         }
-        if( support == null ) {
-            Assert.fail("No VLAN support exists so cannot create a VLAN");
+        if( support == null || !support.isSubscribed() ) {
+            return null;
         }
         if( vlanToKill != null ) {
             vlan = support.getVlan(vlanToKill);
