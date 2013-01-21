@@ -733,6 +733,8 @@ public class IpAddressTestCase extends BaseTestCase {
         if( support.isAssigned(version) ) {
             support.assign(testAddress.getProviderIpAddressId(), testVm.getProviderVirtualMachineId());
             long timeout = System.currentTimeMillis() + getStateChangeWindow();
+            String addressId = testAddress.getProviderIpAddressId();
+            String serverId = testVm.getProviderVirtualMachineId();
             VirtualMachine server = testVm;
             IpAddress address = testAddress;
             boolean vm = false, ip = false;
@@ -740,29 +742,54 @@ public class IpAddressTestCase extends BaseTestCase {
             while( timeout > System.currentTimeMillis() ) {
                 try {
                     //noinspection ConstantConditions
-                    server = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVm.getProviderVirtualMachineId());
+                    server = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(serverId);
                 }
                 catch( Throwable ignore ) {
                     // ignore
                 }
-                try { address = support.getIpAddress(testAddress.getProviderIpAddressId()); }
+                try { address = support.getIpAddress(addressId); }
                 catch( Throwable ignore ) { }
                 Assert.assertNotNull("Virtual machine disappeared while waiting for assignment to be reflected", server);
                 Assert.assertNotNull("IP address disappeared while waiting for assignment to be reflected", address);
-                if( !vm && testAddress.getProviderIpAddressId().equals(server.getProviderAssignedIpAddressId()) ) {
-                    vm = true;
-                    out("Virtual machine assignment: " + server.getProviderAssignedIpAddressId());
+                String serverAddr = server.getProviderAssignedIpAddressId();
+                String addrServer = address.getServerId();
+
+                if( !vm ) {
+                    if( serverAddr != null ) {
+                        if( serverAddr.equals(addressId) ) {
+                            vm = true;
+                            out("Virtual machine assignment: " + server.getProviderAssignedIpAddressId());
+                        }
+                        else {
+                            Assert.fail("Server should have " + addressId + " as the address, but it has '" + serverAddr + "'");
+                        }
+                    }
                 }
-                if( !ip && testVm.getProviderVirtualMachineId().equals(address.getServerId()) ) {
-                    ip = true;
-                    out("IP address assignment: " + address.getServerId());
+                if( !ip ) {
+                    if( addrServer != null ) {
+                        if( addrServer.equals(serverId) ) {
+                            ip = true;
+                            out("IP address assignment: " + address.getServerId());
+                        }
+                        else {
+                            Assert.fail("Address should have " + serverId + " as the server, but it has '" + addrServer + "'");
+                        }
+                    }
                 }
                 if( vm && ip ) {
                     break;
                 }
             }
-            if( !vm || !ip ) {
-                Assert.fail("System timed out before IP assignment reflected in both VM and IP address");
+            if( !vm ) {
+                if( !ip ) {
+                    Assert.fail("System timed out before IP assignment reflected in both VM and IP address");
+                }
+                else {
+                    Assert.fail("System timed out before IP assignment reflected in VM");
+                }
+            }
+            if( !ip ) {
+                Assert.fail("System timed out before IP assignment reflected in IP address");
             }
         }
         else if( isSupported(support, version) ) {
