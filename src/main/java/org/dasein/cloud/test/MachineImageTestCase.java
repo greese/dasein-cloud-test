@@ -41,6 +41,7 @@ import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.storage.BlobStoreSupport;
 import org.dasein.cloud.storage.StorageServices;
 import org.dasein.cloud.util.APITrace;
@@ -173,6 +174,21 @@ public class MachineImageTestCase extends BaseTestCase {
             VirtualMachineSupport vmSupport = getVMSupport();
 
             testVm = findTestVirtualMachine(provider, vmSupport, false, true);
+            long timeout = getLaunchWindow() + System.currentTimeMillis();
+
+            if( testVm != null ) {
+                VirtualMachine v = testVm;
+
+                while( System.currentTimeMillis() < timeout ) {
+                    if( v == null || v.getCurrentState().equals(VmState.RUNNING) ) {
+                        break;
+                    }
+                    try { Thread.sleep(30000L); }
+                    catch( InterruptedException ignore ) {  }
+                    try { v = vmSupport.getVirtualMachine(testVm.getProviderVirtualMachineId()); }
+                    catch( Throwable ignore ) { }
+                }
+            }
         }
         else if( getName().equals(T_ADD_PRIVATE_SHARE) || getName().equals(T_ADD_PUBLIC_SHARE) || getName().equals(T_RM_PUBLIC_SHARE) ) {
             testImage = findTestImage(provider, support, false, false, true);
@@ -711,20 +727,17 @@ public class MachineImageTestCase extends BaseTestCase {
     public void testRemoveAllShares() throws CloudException, InternalException {
         MachineImageSupport support = getSupport();
 
-        try {
-            Iterable<String> shares = support.listShares(testImage.getProviderMachineImageId());
+        Iterable<String> shares = support.listShares(testImage.getProviderMachineImageId());
 
-            out("Before: " + shares);
-            support.removeAllImageShares(testImage.getProviderMachineImageId());
-            Assert.assertTrue("An attempt to unshare an image succeeded even though sharing is not supposed to be supported", support.supportsImageSharing());
-
+        out("Before: " + shares);
+        support.removeAllImageShares(testImage.getProviderMachineImageId());
+        if( support.supportsImageSharing() ) {
             shares = support.listShares(testImage.getProviderMachineImageId());
             out("After: " + shares);
             Assert.assertFalse("A share still remains with the image", shares.iterator().hasNext());
         }
-        catch( OperationNotSupportedException e ) {
-            out("Not supported " + (support.supportsImageSharing() ? "(ERROR)" : "(OK)"));
-            Assert.assertFalse("An attempt to unshare failed even though sharing is supposedly supported", support.supportsImageSharing());
+        else {
+            out("Ater: Not supported and NO-OP (OK)");
         }
     }
 }
