@@ -323,46 +323,42 @@ public class IpAddressTestCase extends BaseTestCase {
                 }
             }
         }
-        else if( getName().equals(T4_LIST_RULES) || getName().equals(T6_LIST_RULES) ) {
+        else if( getName().equals(T4_FORWARD) || getName().equals(T6_FORWARD) || getName().equals(T4_LIST_RULES) || getName().equals(T6_LIST_RULES)) {
             createTestVm();
 
-            IPVersion version = (getName().equals(T4_LIST_RULES) ? IPVersion.IPV4 : IPVersion.IPV6);
-
-            if( isSupported(support, version) ) {
-                if( support.isForwarding(version) ) {
-                    testAddress = requestTestAddress(support, version);
-                    if( testAddress == null ) {
-                        Assert.fail("Unable to test address forwarding due to a lack of IP addresses in the " + version + " space");
-                    }
-                    if( testVm != null ) {
-                        try {
-                            support.forward(testAddress.getProviderIpAddressId(), 9090, Protocol.TCP, 8080, testVm.getProviderVirtualMachineId());
-                        }
-                        catch( Throwable ignore ) {
-                            out("Warning: Won't be able to properly test IP forwarding rules due to lack of ability to forward");
-                        }
-                    }
-                }
-                else {
-                    Iterator<IpAddress> addresses = support.listIpPool(version, false).iterator();
-
-                    if( addresses.hasNext() ) {
-                        testAddress = addresses.next();
-                    }
-                    if( testAddress == null ) {
-                        Assert.fail("Cannot run a proper IP forwarding rule list test with no address");
-                    }
-                }
-            }
-        }
-        else if( getName().equals(T4_FORWARD) || getName().equals(T6_FORWARD) ) {
-            createTestVm();
-
-            IPVersion version = (getName().equals(T4_FORWARD) ? IPVersion.IPV4 : IPVersion.IPV6);
+            IPVersion version = ((getName().equals(T4_FORWARD) ||getName().equals(T4_LIST_RULES)) ? IPVersion.IPV4 : IPVersion.IPV6);
 
             testAddress = requestTestAddress(support, version);
             if( testAddress == null && support.isForwarding(version) ) {
                 Assert.fail("Cannot test IP forwarding for " + version + " due to lack of test address");
+            }
+            if( getName().equals(T4_LIST_RULES) || getName().equals(T6_LIST_RULES) ) {
+                if( isSupported(support, version) ) {
+                    if( support.isForwarding(version) ) {
+                        testAddress = requestTestAddress(support, version);
+                        if( testAddress == null ) {
+                            Assert.fail("Unable to test address forwarding due to a lack of IP addresses in the " + version + " space");
+                        }
+                        if( testVm != null ) {
+                            try {
+                                support.forward(testAddress.getProviderIpAddressId(), 9090, Protocol.TCP, 8080, testVm.getProviderVirtualMachineId());
+                            }
+                            catch( Throwable ignore ) {
+                                out("Warning: Won't be able to properly test IP forwarding rules due to lack of ability to forward");
+                            }
+                        }
+                    }
+                    else {
+                        Iterator<IpAddress> addresses = support.listIpPool(version, false).iterator();
+
+                        if( addresses.hasNext() ) {
+                            testAddress = addresses.next();
+                        }
+                        if( testAddress == null ) {
+                            Assert.fail("Cannot run a proper IP forwarding rule list test with no address");
+                        }
+                    }
+                }
             }
         }
         else if( getName().equals(T4_STOP_FORWARD) || getName().equals(T6_STOP_FORWARD) ) {
@@ -865,8 +861,16 @@ public class IpAddressTestCase extends BaseTestCase {
                     break;
                 }
             }
-            if( !iok || !vok ) {
-                Assert.fail("System timed out before IP de-assignment reflected in both VM and IP address");
+            if( !iok ) {
+                if( !vok ) {
+                    Assert.fail("System timed out before IP de-assignment reflected in both VM ('" + vm.getProviderAssignedIpAddressId() + "') and IP address ('" + address.getServerId() + "')");
+                }
+                else {
+                    Assert.fail("System timed out before IP de-assignment reflected in IP address: '" + address.getServerId() + "'");
+                }
+            }
+            else if( !vok ) {
+                Assert.fail("System timed out before IP de-assignment reflected in VM: '" + vm.getProviderAssignedIpAddressId() + "'");
             }
         }
     }
