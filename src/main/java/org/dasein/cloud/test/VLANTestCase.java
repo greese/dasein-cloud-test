@@ -31,6 +31,7 @@ import org.dasein.cloud.network.NICCreateOptions;
 import org.dasein.cloud.network.NetworkInterface;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.SubnetCreateOptions;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.util.APITrace;
@@ -78,7 +79,9 @@ public class VLANTestCase extends BaseTestCase {
                 vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
                 testVlan = vlanToRemove;
                 if( support.allowsNewSubnetCreation() ) {
-                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                    SubnetCreateOptions options= SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(options).getProviderSubnetId();
                     testSubnet = subnetToRemove;                    
                 }
             }
@@ -103,7 +106,9 @@ public class VLANTestCase extends BaseTestCase {
                         }
                         if( testSubnet == null ) {
                             if( name.equals("testSubnetContent") && cloud.getNetworkServices().getVlanSupport().allowsNewSubnetCreation() ) {
-                                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                                SubnetCreateOptions options = SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+                                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(options).getProviderSubnetId();
                                 testSubnet = subnetToRemove;
                             }
                         }
@@ -117,7 +122,10 @@ public class VLANTestCase extends BaseTestCase {
             else if( name.equals("testRemoveSubnet") && cloud.getNetworkServices().getVlanSupport().allowsNewVlanCreation() && cloud.getNetworkServices().getVlanSupport().allowsNewSubnetCreation() ) {
                 vlanToRemove = cloud.getNetworkServices().getVlanSupport().createVlan("10.0.0.0/16", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test", "dasein.org", new String[] { "192.168.1.1" },  new String[] { "192.168.1.1" }).getProviderVlanId();
                 testVlan = vlanToRemove;
-                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+
+                SubnetCreateOptions options = SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(options).getProviderSubnetId();
                 testSubnet = subnetToRemove;            
             }
             else if( name.equals("testRemoveNIC") && support.isNetworkInterfaceSupportEnabled() ) {
@@ -131,7 +139,9 @@ public class VLANTestCase extends BaseTestCase {
                     fail("Unable to create a vlan for testing nics");
                 }
                 if( support.allowsNewSubnetCreation() ) {
-                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                    SubnetCreateOptions sco = SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+                    subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(sco).getProviderSubnetId();
                     testSubnet = subnetToRemove;
                     options = NICCreateOptions.getInstanceForSubnet(testSubnet, "testRemoveNIC" + System.currentTimeMillis(), "testRemoveNIC");
                 }
@@ -289,7 +299,9 @@ public class VLANTestCase extends BaseTestCase {
     public void testProvisionSubnet() throws CloudException, InternalException {
         begin();
         if( cloud.getNetworkServices().getVlanSupport().allowsNewSubnetCreation() ) {
-            subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", testVlan, "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+            SubnetCreateOptions options = SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+            subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(options).getProviderSubnetId();
             assertNotNull("Did not return any subnet", subnetToRemove);
             out(subnetToRemove);
             try { Thread.sleep(5000L); }
@@ -301,7 +313,9 @@ public class VLANTestCase extends BaseTestCase {
         }
         else {
             try {
-                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet("10.0.1.0/24", "any", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test").getProviderSubnetId();
+                SubnetCreateOptions options = SubnetCreateOptions.getInstance(testVlan, "10.0.1.0/24", "dsngettest-" + System.currentTimeMillis(), "DSN Get Test");
+
+                subnetToRemove = cloud.getNetworkServices().getVlanSupport().createSubnet(options).getProviderSubnetId();
                 fail("Implementations that do not support subnet creation should throw OperationNotSupportedException");
             }
             catch( OperationNotSupportedException e ) {
