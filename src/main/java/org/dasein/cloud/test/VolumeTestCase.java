@@ -38,6 +38,7 @@ import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFilterOptions;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
@@ -64,6 +65,7 @@ public class VolumeTestCase extends BaseTestCase {
     static public final String T_CREATE_VOLUME      = "testCreateVolume";
     static public final String T_DETACH_VOLUME      = "testDetachVolume";
     static public final String T_DETACH_UNATTACHED  = "testDetachUnattachedVolume";
+    static public final String T_FILTER             = "testFilter";
     static public final String T_GET_VOLUME         = "testGetVolume";
     static public final String T_REMOVE_VOLUME      = "testRemoveVolume";
     static public final String T_VOLUME_CONTENT     = "testVolumeContent";
@@ -71,11 +73,11 @@ public class VolumeTestCase extends BaseTestCase {
     static private VirtualMachine testVm     = null;
     static private int            vmUse      = 0;
 
-    static public final String[] NEEDS_VMS   = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_CREATE_FROM_SNAP };
-    static public final String[] NEEDS_VLANS = new String[] { T_VOLUME_CONTENT, T_GET_VOLUME, T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_REMOVE_VOLUME, T_ATTACH_NO_SERVER, T_CREATE_FROM_SNAP, T_CREATE_VOLUME };
+    static public final String[] NEEDS_VMS   = new String[] { T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_CREATE_FROM_SNAP, T_FILTER };
+    static public final String[] NEEDS_VLANS = new String[] { T_VOLUME_CONTENT, T_GET_VOLUME, T_ATTACH_VOLUME, T_DETACH_VOLUME, T_DETACH_UNATTACHED, T_FILTER, T_REMOVE_VOLUME, T_ATTACH_NO_SERVER, T_CREATE_FROM_SNAP, T_CREATE_VOLUME };
 
     private CloudProvider provider       = null;
-    private Snapshot testSnapshot   = null;
+    private Snapshot      testSnapshot   = null;
     private Volume        testVolume     = null;
     private VLAN          testVlan       = null;
     private String        volumeToDelete = null;
@@ -309,10 +311,10 @@ public class VolumeTestCase extends BaseTestCase {
             }
             Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
         }
-        else if( getName().equals(T_ATTACH_VOLUME) || getName().equals(T_DETACH_VOLUME) || getName().equals(T_DETACH_UNATTACHED) || getName().equals(T_REMOVE_VOLUME) || getName().equals(T_ATTACH_NO_SERVER) ) {
+        else if( getName().equals(T_ATTACH_VOLUME) || getName().equals(T_DETACH_VOLUME) || getName().equals(T_DETACH_UNATTACHED) || getName().equals(T_REMOVE_VOLUME) || getName().equals(T_ATTACH_NO_SERVER) || getName().equals(T_FILTER)) {
             testVolume = createTestVolume();
             Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
-            if( getName().equals(T_DETACH_VOLUME) ) {
+            if( getName().equals(T_DETACH_VOLUME) || getName().equals(T_FILTER) ) {
                 attach();
             }
         }
@@ -930,5 +932,15 @@ public class VolumeTestCase extends BaseTestCase {
         Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
 
         Assert.assertTrue("Test volume still exists", volume == null || VolumeState.DELETED.equals(volume.getCurrentState()));
+    }
+
+    @Test
+    public void testFilter() throws InternalException, CloudException {
+        boolean found = false;
+
+        for( Volume volume : getSupport().listVolumes(VolumeFilterOptions.getInstance().attachedTo(testVm.getProviderVirtualMachineId())) ) {
+            Assert.assertEquals("Volume attachment returned from cloud provider does not match target virtual machine", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
+        }
+        Assert.assertTrue("Did not find the test volume among the mounted volumes", found);
     }
 }

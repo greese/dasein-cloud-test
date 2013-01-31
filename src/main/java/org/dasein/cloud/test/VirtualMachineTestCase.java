@@ -27,6 +27,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.VMFilterOptions;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineProduct;
@@ -57,7 +58,8 @@ public class VirtualMachineTestCase extends BaseTestCase {
     private VMLaunchOptions testLaunchOptions = null;
     private String          testVm            = null;
     private String          vmToTerminate     = null;
-    
+    private String          ralph             = null;
+
     public VirtualMachineTestCase(String name) { super(name); }
 
     private @Nonnull VirtualMachineSupport getSupport() {
@@ -82,9 +84,14 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 testVm = vmToTerminate;
             }
         }
-        if( name.equals("testTerminate") || name.equals("testStart") || name.equals("testStop") || name.equals("testPause") || name.equals("testUnpause") || name.equals("testSuspend") || name.equals("testResume") ) {
+        if( name.equals("testTerminate") || name.equals("testStart") || name.equals("testStop") || name.equals("testPause") || name.equals("testUnpause") || name.equals("testSuspend") || name.equals("testResume") || name.equals("testFilter")) {
             vmToTerminate = launch(cloud);
             testVm = vmToTerminate;
+            if( name.equals("testFilter") ) {
+                String productId = getTestProduct();
+                String imageId = getTestMachineImageId();
+                ralph = cloud.getComputeServices().getVirtualMachineSupport().launch(VMLaunchOptions.getInstance(productId, imageId, "namedRalph", "This is a virtual machine for filtering")).getProviderVirtualMachineId();
+            }
         }
         if( (name.equals("testEnableAnalytics") || name.equals("testDisableAnalytics")) && cloud.getComputeServices().getVirtualMachineSupport().supportsAnalytics() ) {
             vmToTerminate = launch(cloud);
@@ -188,6 +195,14 @@ public class VirtualMachineTestCase extends BaseTestCase {
         try {
             if( vmToTerminate != null ) {
                 cloud.getComputeServices().getVirtualMachineSupport().terminate(vmToTerminate);
+            }
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+        try {
+            if( ralph != null ) {
+                cloud.getComputeServices().getVirtualMachineSupport().terminate(ralph);
             }
         }
         catch( Throwable ignore ) {
@@ -526,6 +541,32 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 assertFalse("Expected error during pause but got no error.", pause(getSupport(), testVm));
                 out("Pause/unpause not supported (OK)");
             }
+        }
+        finally {
+            end();
+        }
+    }
+
+    @Test
+    public void testFilter() throws InternalException, CloudException {
+
+        begin();
+        try {
+            Iterable<VirtualMachine> vms = cloud.getComputeServices().getVirtualMachineSupport().listVirtualMachines(VMFilterOptions.getInstance("[Rr][Aa][Ll][Pp][Hh]"));
+            boolean found = false;
+
+            assertNotNull("Virtual machine listing may not be null", vms);
+            try {
+                for( VirtualMachine vm : vms ) {
+                    out("VM: " + vm);
+                    assertEquals("This virtual machine is not Ralph", ralph, vm.getProviderVirtualMachineId());
+                    found = true;
+                }
+            }
+            catch( Throwable notPartOfTest ) {
+                // ignore
+            }
+            assertTrue("Could not find Ralph", found);
         }
         finally {
             end();
