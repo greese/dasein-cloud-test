@@ -31,6 +31,7 @@ import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Snapshot;
+import org.dasein.cloud.compute.SnapshotCreateOptions;
 import org.dasein.cloud.compute.SnapshotState;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -41,6 +42,7 @@ import org.dasein.cloud.compute.VolumeCreateOptions;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
@@ -702,4 +704,45 @@ public class SnapshotTestCase extends BaseTestCase {
         Assert.assertTrue("Snapshot still exists", snapshot == null || SnapshotState.DELETED.equals(snapshot.getCurrentState()));
     }
 
+    @Test
+    public void testCopySnapshot() throws CloudException, InternalException {
+        if( !getSnapshotSupport().supportsSnapshotCopying() ) {
+            try {
+                String id = getSnapshotSupport().createSnapshot(SnapshotCreateOptions.getInstanceForCopy("nonsense", "nonsense", "nonsense", "nonsense"));
+
+                Assert.fail("No error occurred copying nonsense");
+            }
+            catch( OperationNotSupportedException e ) {
+                out("Snapshot copy unsupported (OK)");
+            }
+            catch( CloudException e ) {
+                Assert.fail("Should have incurred an OperationNotSupportedException");
+            }
+        }
+        else {
+            Snapshot sourceSnapshot = null;
+
+            for( Region r : provider.getDataCenterServices().listRegions() ) {
+                //noinspection ConstantConditions
+                if( !r.getProviderRegionId().equals(provider.getContext().getRegionId()) ) {
+                    for( Snapshot snapshot : provider.getComputeServices().getSnapshotSupport().listSnapshots() ) {
+                        if( snapshot.getCurrentState().equals(SnapshotState.AVAILABLE) ) {
+                            sourceSnapshot = snapshot;
+                            break;
+                        }
+                    }
+                }
+            }
+            if( sourceSnapshot == null ) {
+                out("WARNING: Unable to identify a source snapshot for test copy");
+            }
+            else {
+                String id = getSnapshotSupport().createSnapshot(SnapshotCreateOptions.getInstanceForCopy(sourceSnapshot.getRegionId(), sourceSnapshot.getProviderSnapshotId(), "DSN Copy of " + sourceSnapshot.getName(), "Dasein Cloud Unit test copy of " + sourceSnapshot.getName()));
+
+                out("Copy: " + id);
+                Assert.assertNotNull("Copy must result in the creation of a new snapshot", id);
+                snapshotToDelete = id;
+            }
+        }
+    }
 }

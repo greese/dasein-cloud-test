@@ -391,8 +391,28 @@ public class VolumeTestCase extends BaseTestCase {
                         id = volumeToDelete;
                     }
                     if( id != null ) {
-                        try { getSupport().detach(id); }
-                        catch( Throwable ignore ) { }
+                        try {
+                            getSupport().detach(id);
+                            long timeout = System.currentTimeMillis() + getStateChangeWindow();
+
+                            while( timeout > System.currentTimeMillis() ) {
+                                try {
+                                    Volume v = getSupport().getVolume(id);
+
+                                    if( v == null || v.getProviderVirtualMachineId() == null ) {
+                                        break;
+                                    }
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                                try { Thread.sleep(15000L); }
+                                catch( InterruptedException e ) { }
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
                         long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
                         while( timeout > System.currentTimeMillis() ) {
@@ -939,7 +959,9 @@ public class VolumeTestCase extends BaseTestCase {
         boolean found = false;
 
         for( Volume volume : getSupport().listVolumes(VolumeFilterOptions.getInstance().attachedTo(testVm.getProviderVirtualMachineId())) ) {
+            out("Volume: " + volume.getProviderVolumeId() + " -> " + volume.getProviderVirtualMachineId());
             Assert.assertEquals("Volume attachment returned from cloud provider does not match target virtual machine", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
+            found = true;
         }
         Assert.assertTrue("Did not find the test volume among the mounted volumes", found);
     }
