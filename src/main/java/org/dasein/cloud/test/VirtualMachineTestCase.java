@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
 
+import junit.framework.Assert;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -95,10 +96,20 @@ public class VirtualMachineTestCase extends BaseTestCase {
                 Requirement r = getSupport().identifyVlanRequirement();
 
                 if( r.equals(Requirement.NONE) ) {
-                    @SuppressWarnings("ConstantConditions") VLAN vlan = findTestVLAN(cloud, cloud.getNetworkServices().getVlanSupport(), true, false);
+                    VLAN vlan = null;
+
+                    //noinspection ConstantConditions
+                    for( VLAN v : cloud.getNetworkServices().getVlanSupport().listVlans() ) {
+                        if( v.getCurrentState().equals(VLANState.AVAILABLE) ) {
+                            vlan = v;
+                        }
+                    }
 
                     if( vlan != null ) {
                         options.inVlan(null, vlan.getProviderDataCenterId(), vlan.getProviderVlanId());
+                    }
+                    else {
+                        Assert.fail("Cannot create a VM for filtering due to lack of VLAN");
                     }
                 }
                 ralph = cloud.getComputeServices().getVirtualMachineSupport().launch(options).getProviderVirtualMachineId();
