@@ -615,11 +615,93 @@ public class BaseTestCase extends TestCase {
         }
         if( vm == null && createNew ) {
             MachineImage img = findTestImage(provider, provider.getComputeServices().getImageSupport(), true, true, false);
-            String name = getClass().getName().substring(0, 3).toLowerCase() + "vm-" + getName() + (System.currentTimeMillis()%10000);
+            String name = getClass().getSimpleName().substring(0, 3).toLowerCase() + "vm-" + getName() + (System.currentTimeMillis()%10000);
             String productId = findTestProduct(provider, support, img.getArchitecture(), true);
-
             VMLaunchOptions options = VMLaunchOptions.getInstance(productId, img.getProviderMachineImageId(), name, getName() + " test case execution");
 
+            options.inDataCenter(getTestDataCenterId());
+            if( support.identifyPasswordRequirement(img.getPlatform()).equals(Requirement.REQUIRED) ) {
+                options.withBootstrapUser("dasein", "x" + System.currentTimeMillis());
+            }
+            if( support.identifyStaticIPRequirement().equals(Requirement.REQUIRED) ) {
+                NetworkServices services = provider.getNetworkServices();
+
+                if( services == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no network services exist.");
+                }
+                IpAddressSupport ips = services.getIpAddressSupport();
+
+                if( support == null ) {
+                    throw new CloudException("A static IP is required to launch a virtual machine, but no IP address support exists.");
+                }
+                for( IPVersion version : ips.listSupportedIPVersions() ) {
+                    try {
+                        options.withStaticIps(identifyTestIPAddress(provider, version));
+                    }
+                    catch( CloudException ignore ) {
+                        // try again, maybe
+                    }
+                }
+                if( options.getStaticIpIds().length < 1 ) {
+                    throw new CloudException("Unable to provision the required IP address for this test");
+                }
+            }
+            if( support.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
+                String vp = null;
+
+                for( VolumeProduct p : provider.getComputeServices().getVolumeSupport().listVolumeProducts() ) {
+                    vp = p.getProviderProductId();
+                }
+                assertNotNull("Cannot identify a volume product for the root volume.", productId);
+                options.withRootVolumeProduct(vp);
+            }
+            if( support.identifyShellKeyRequirement(img.getPlatform()).equals(Requirement.REQUIRED) ) {
+                ShellKeySupport sks = provider.getIdentityServices().getShellKeySupport();
+                String keyId = null;
+
+                if( sks.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
+                    fail("Import not yet supported in test cases.");
+                }
+                else {
+                    keyId = sks.createKeypair(name).getProviderKeypairId();
+                }
+                //noinspection ConstantConditions
+                options.withBoostrapKey(keyId);
+            }
+            if( support.identifyVlanRequirement().equals(Requirement.REQUIRED) ) {
+                VLANSupport vs = provider.getNetworkServices().getVlanSupport();
+
+                assertNotNull("No VLAN support but a vlan is required.", vs);
+                String vlanId = null;
+
+                VLAN testVlan = null;
+
+                for( VLAN vlan : vs.listVlans() ) {
+                    if( vlan.getCurrentState().equals(VLANState.AVAILABLE) && (!vs.isVlanDataCenterConstrained() || vlan.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                        testVlan = vlan;
+                    }
+                }
+                assertNotNull("Test VLAN could not be found.", testVlan);
+                if( vs.getSubnetSupport().equals(Requirement.NONE) ) {
+                    vlanId = testVlan.getProviderVlanId();
+                }
+                else {
+                    for( Subnet subnet : vs.listSubnets(testVlan.getProviderVlanId()) ) {
+                        if( subnet.getCurrentState().equals(SubnetState.AVAILABLE) && (!vs.isSubnetDataCenterConstrained() || subnet.getProviderDataCenterId().equals(getTestDataCenterId())) ) {
+                            vlanId = subnet.getProviderSubnetId();
+                        }
+                    }
+                }
+                assertNotNull("No test VLAN/subnet was identified.", vlanId);
+                options.inVlan(null, getTestDataCenterId(), testVlan.getProviderVlanId());
+            }
+            if( provider.hasNetworkServices() && provider.getNetworkServices().hasFirewallSupport() ) {
+                String id = getTestFirewallId();
+
+                if( id != null ) {
+                    options.behindFirewalls(id);
+                }
+            }
             vm = support.launch(options);
             vmToKill = vm.getProviderVirtualMachineId();
             waitForState(support, vm.getProviderVirtualMachineId(), VmState.RUNNING, getLaunchWindow());
@@ -919,10 +1001,14 @@ public class BaseTestCase extends TestCase {
     }
     
     protected String launch(CloudProvider provider, boolean forImaging) throws InternalException, CloudException {
+        return launch(provider, "dsn" + getName(), forImaging);
+    }
+
+    protected String launch(@Nonnull CloudProvider provider, @Nonnull String namePrefix, boolean forImaging) throws InternalException, CloudException {
         VirtualMachineSupport support = provider.getComputeServices().getVirtualMachineSupport();
 
         if( support != null ) {
-            String hostName = "dsntestlaunch-" + (System.currentTimeMillis()%10000);
+            String hostName = namePrefix + (System.currentTimeMillis()%10000);
 
             VMLaunchOptions testLaunchOptions = VMLaunchOptions.getInstance(getTestProduct(), getTestMachineImageId(), hostName, hostName, "DSN Test Host - " + getName());
 

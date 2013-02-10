@@ -89,30 +89,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
             vmToTerminate = launch(cloud);
             testVm = vmToTerminate;
             if( name.equals("testFilter") ) {
-                String productId = getTestProduct();
-                String imageId = getTestMachineImageId();
-
-                VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "namedRalph", "This is a virtual machine for filtering");
-                Requirement r = getSupport().identifyVlanRequirement();
-
-                if( r.equals(Requirement.NONE) ) {
-                    VLAN vlan = null;
-
-                    //noinspection ConstantConditions
-                    for( VLAN v : cloud.getNetworkServices().getVlanSupport().listVlans() ) {
-                        if( v.getCurrentState().equals(VLANState.AVAILABLE) ) {
-                            vlan = v;
-                        }
-                    }
-
-                    if( vlan != null ) {
-                        options.inVlan(null, vlan.getProviderDataCenterId(), vlan.getProviderVlanId());
-                    }
-                    else {
-                        Assert.fail("Cannot create a VM for filtering due to lack of VLAN");
-                    }
-                }
-                ralph = cloud.getComputeServices().getVirtualMachineSupport().launch(options).getProviderVirtualMachineId();
+                ralph = launch(cloud, "namedRalph", false);
             }
         }
         if( (name.equals("testEnableAnalytics") || name.equals("testDisableAnalytics")) && cloud.getComputeServices().getVirtualMachineSupport().supportsAnalytics() ) {
