@@ -31,6 +31,7 @@ import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.Snapshot;
+import org.dasein.cloud.compute.SnapshotCreateOptions;
 import org.dasein.cloud.compute.SnapshotState;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -300,6 +301,9 @@ public class VolumeTestCase extends BaseTestCase {
                 createTestVm();
             }
         }
+        if( !getSupport().isSubscribed() ) {
+            return;
+        }
         if( getName().equals(T_VOLUME_CONTENT) || getName().equals(T_GET_VOLUME) ) {
             for( Volume v : getSupport().listVolumes() ) {
                 if( testVolume == null || VolumeState.AVAILABLE.equals(v.getCurrentState()) ) {
@@ -333,7 +337,9 @@ public class VolumeTestCase extends BaseTestCase {
                 }
                 Assert.assertNotNull("Unable to execute volume content test due to lack of test volume", testVolume);
                 try {
-                    testSnapshot = support.snapshot(testVolume.getProviderVolumeId(), "dsnsnap-" + getName() + (System.currentTimeMillis() %10000), "Test creation from snapshot");
+                    SnapshotCreateOptions options = SnapshotCreateOptions.getInstanceForCreate(testVolume.getProviderVolumeId(), "dsnsnap-" + getName() + (System.currentTimeMillis() %10000), "Test volume creation from snapshot");
+
+                    testSnapshot = support.getSnapshot(support.createSnapshot(options));
 
                     Assert.assertNotNull("The test snapshot does not exist", testSnapshot);
 
@@ -545,6 +551,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testListProducts() throws CloudException, InternalException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Iterable<VolumeProduct> products = getSupport().listVolumeProducts();
         boolean needsSize = getSupport().isVolumeSizeDeterminedByProduct();
         boolean hasSize = true;
@@ -576,6 +586,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testProductContent() throws CloudException, InternalException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Iterator<VolumeProduct> it = getSupport().listVolumeProducts().iterator();
         VolumeProduct prd = (it.hasNext() ? it.next() : null);
 
@@ -613,6 +627,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testListVolumes() throws CloudException, InternalException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Iterable<Volume> volumes = getSupport().listVolumes();
         int count = 0;
 
@@ -633,6 +651,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testGetVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
 
         out("Volume: " + volume);
@@ -641,6 +663,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testGetBogusVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         String id = UUID.randomUUID().toString();
         Volume volume = getSupport().getVolume(id);
 
@@ -650,6 +676,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testVolumeContent() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
 
         try {
@@ -687,6 +717,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testCreateVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         Storage<Gigabyte> size = getSupport().getMinimumVolumeSize();
         String name = "dsnvol-" + getName() + "-" + (System.currentTimeMillis()%10000);
         VolumeCreateOptions options;
@@ -731,6 +765,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testCreateVolumeFromSnapshot() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         ComputeServices services = provider.getComputeServices();
         SnapshotSupport support = null;
 
@@ -794,6 +832,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testAttachVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         if( testVm != null ) {
             if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
                 out("Cannot attach NFS volumes (OK)");
@@ -837,11 +879,15 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testDetachVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         if( testVm != null ) {
             if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
                 out("Cannot attach NFS volumes (OK)");
             }
-            else {
+            else if( testVolume != null ) {
                 Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
                 long timeout = System.currentTimeMillis() + getStateChangeWindow();
 
@@ -882,6 +928,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testAttachVolumeToNoServer() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
             out("NFS attachments not supported (OK)");
         }
@@ -918,6 +968,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testDetachUnattachedVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         if( testVm != null ) {
             try {
                 Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
@@ -947,6 +1001,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testRemoveVolume() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         getSupport().remove(testVolume.getProviderVolumeId());
         out("Removed: " + testVolume.getProviderVolumeId());
         Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
@@ -956,6 +1014,10 @@ public class VolumeTestCase extends BaseTestCase {
 
     @Test
     public void testFilter() throws InternalException, CloudException {
+        if( !getSupport().isSubscribed() ) {
+            out("Warning: Not subscribed, test will not run");
+            return;
+        }
         boolean found = false;
 
         for( Volume volume : getSupport().listVolumes(VolumeFilterOptions.getInstance().attachedTo(testVm.getProviderVirtualMachineId())) ) {
