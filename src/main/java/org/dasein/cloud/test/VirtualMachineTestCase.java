@@ -551,7 +551,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
 
         begin();
         try {
-            Iterable<VirtualMachine> vms = cloud.getComputeServices().getVirtualMachineSupport().listVirtualMachines(VMFilterOptions.getInstance("[Rr][Aa][Ll][Pp][Hh]"));
+            Iterable<VirtualMachine> vms = cloud.getComputeServices().getVirtualMachineSupport().listVirtualMachines(VMFilterOptions.getInstance(".*[Rr][Aa][Ll][Pp][Hh].*"));
             boolean found = false;
 
             assertNotNull("Virtual machine listing may not be null", vms);
