@@ -18,6 +18,7 @@
 
 package org.dasein.cloud.test;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Locale;
 import java.util.UUID;
@@ -39,6 +40,7 @@ import org.dasein.cloud.identity.ShellKeySupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.SubnetState;
 import org.dasein.cloud.network.VLAN;
@@ -380,10 +382,10 @@ public class VirtualMachineTestCase extends BaseTestCase {
             out("Data Center:   " + vm.getProviderDataCenterId());
             out("VLAN:          " + vm.getProviderVlanId());
             out("Subnet:        " + vm.getProviderSubnetId());
-            String[] addrs = vm.getPrivateIpAddresses();
-            out("Private IP:    " + ((addrs == null || addrs.length < 1) ? "none" : addrs[0]));
-            addrs = vm.getPublicIpAddresses();
-            out("Public IP:     " + ((addrs == null || addrs.length < 1) ? "none" : addrs[0]));
+            RawAddress[] addrs = vm.getPrivateAddresses();
+            out("Private IP:    " + ((addrs == null || addrs.length < 1) ? "none" : Arrays.toString(addrs)));
+            addrs = vm.getPublicAddresses();
+            out("Public IP:     " + ((addrs == null || addrs.length < 1) ? "none" : Arrays.toString(addrs)));
             out("Machine image: " + vm.getProviderMachineImageId());
             out("Created:       " + (new Date(vm.getCreationTimestamp())));
             out("Architecture:  " + vm.getArchitecture());
