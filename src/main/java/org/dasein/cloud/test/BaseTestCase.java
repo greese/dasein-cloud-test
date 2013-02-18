@@ -643,7 +643,7 @@ public class BaseTestCase extends TestCase {
                     }
                 }
                 if( options.getStaticIpIds().length < 1 ) {
-                    throw new CloudException("Unable to provision the required IP address for this test");
+                    throw new CloudException("Unable to provisionVM the required IP address for this test");
                 }
             }
             if( support.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
@@ -1036,7 +1036,7 @@ public class BaseTestCase extends TestCase {
                     }
                 }
                 if( testLaunchOptions.getStaticIpIds().length < 1 ) {
-                    throw new CloudException("Unable to provision the required IP address for this test");
+                    throw new CloudException("Unable to provisionVM the required IP address for this test");
                 }
             }
             if( support.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
@@ -1310,7 +1310,7 @@ public class BaseTestCase extends TestCase {
                 }
             }
             if( address == null ) {
-                throw new CloudException("Unable to provision an IP address to test load balancers");
+                throw new CloudException("Unable to provisionVM an IP address to test load balancers");
             }
         }
         if( support.isDataCenterLimited() ) {

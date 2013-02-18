@@ -117,7 +117,7 @@ public class LoadBalancerTestCase extends BaseTestCase {
                     }
                 }
                 if( testAddress == null ) {
-                    throw new CloudException("Unable to provision an IP address to test load balancers");
+                    throw new CloudException("Unable to provisionVM an IP address to test load balancers");
                 }
             }
             if( support.isDataCenterLimited() ) {

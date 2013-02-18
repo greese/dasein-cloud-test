@@ -267,7 +267,7 @@ public class SnapshotTestCase extends BaseTestCase {
                 @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = provider.getComputeServices().getVirtualMachineSupport();
 
                 if( vmSupport != null ) {
-                    // must provision VM even if we don't intend to attach it
+                    // must provisionVM VM even if we don't intend to attach it
                     testVm = findTestVirtualMachine(provider, vmSupport, false, true);
                     if( getSnapshotSupport().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
                         try {

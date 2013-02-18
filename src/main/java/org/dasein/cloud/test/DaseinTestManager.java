@@ -4,8 +4,9 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
-import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.test.compute.ComputeResources;
+import org.dasein.cloud.test.identity.IdentityResources;
+import org.dasein.cloud.test.network.NetworkResources;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,14 +21,17 @@ import java.io.UnsupportedEncodingException;
 import java.util.Properties;
 
 /**
- * [Class Documentation]
+ * Consolidates and manages cloud resources shared across many different tests.
  * <p>Created by George Reese: 2/17/13 3:23 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class DaseinTestManager {
-    static private ComputeResources computeResources;
-    static private DataCenter       defaultDataCenter;
+    static private ComputeResources  computeResources;
+    static private String            defaultDataCenterId;
+    static private IdentityResources identityResources;
+    static private NetworkResources  networkResources;
 
     static private @Nonnull CloudProvider constructProvider() {
         String cname = System.getProperty("providerClass");
@@ -130,27 +134,31 @@ public class DaseinTestManager {
         return provider;
     }
 
-    static public ComputeResources getComputeResources() {
+    static public @Nullable ComputeResources getComputeResources() {
         return computeResources;
+    }
+
+    static public @Nullable String getDefaultDataCenterId() {
+        return defaultDataCenterId;
+    }
+
+    static public @Nullable IdentityResources getIdentityResources() {
+        return identityResources;
+    }
+
+    static public @Nullable NetworkResources getNetworkResources() {
+        return networkResources;
     }
 
     static public void init(boolean stateful) {
         CloudProvider provider = constructProvider();
 
-        try {
-            //noinspection ConstantConditions
-            for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                if( dc.isActive() && dc.isAvailable() ) {
-                    defaultDataCenter = dc;
-                    break;
-                }
-            }
-        }
-        catch( Throwable ignore ) {
-            // ignore
-        }
-        computeResources = new ComputeResources(provider, defaultDataCenter);
-        computeResources.init(stateful);
+        networkResources = new NetworkResources(provider);
+        networkResources.init(stateful);
+        identityResources = new IdentityResources(provider);
+        identityResources.init(stateful);
+        computeResources = new ComputeResources(provider);
+        defaultDataCenterId = computeResources.init(stateful);
     }
 
     static public void cleanUp() {
@@ -162,8 +170,6 @@ public class DaseinTestManager {
     private String prefix;
     private CloudProvider provider;
     private String suite;
-
-
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
         logger = Logger.getLogger(testClass);
@@ -244,6 +250,22 @@ public class DaseinTestManager {
         return (computeResources == null ? null : computeResources.getTestImageId());
     }
 
+    public @Nullable String getTestKeypairId() {
+        return (identityResources == null ? null : identityResources.getTestKeypairId());
+    }
+
+    public @Nullable String getTestStaticIpId(boolean shared) {
+        return networkResources == null ? null : networkResources.getTestStaticIpId(shared);
+    }
+
+    public @Nullable String getTestSubnetId(boolean shared) {
+        return (networkResources == null ? null : networkResources.getTestSubnetId(shared));
+    }
+
+    public @Nullable String getTestVLANId(boolean shared) {
+        return (networkResources == null ? null : networkResources.getTestVLANId(shared));
+    }
+
     public @Nullable String getTestVMId(boolean shared, @Nullable VmState desiredState) {
         if( computeResources == null ) {
             return null;
@@ -253,6 +275,14 @@ public class DaseinTestManager {
 
     public @Nullable String getTestVMProductId() {
         return (computeResources == null ? null : computeResources.getTestVMProductId());
+    }
+
+    public @Nullable String getTestVolumeId(boolean shared) {
+        return (computeResources == null ? null : computeResources.getTestVolumeId(shared));
+    }
+
+    public @Nullable String getTestVolumeProductId() {
+        return (computeResources == null ? null : computeResources.getTestVolumeProductId());
     }
 
     public @Nonnull CloudProvider getProvider() {

@@ -18,21 +18,12 @@
 
 package org.dasein.cloud.test;
 
-import java.util.Arrays;
-import java.util.Date;
-import java.util.Locale;
-import java.util.UUID;
-
-import junit.framework.Assert;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.Architecture;
-import org.dasein.cloud.compute.VMFilterOptions;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineProduct;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeProduct;
@@ -40,16 +31,12 @@ import org.dasein.cloud.identity.ShellKeySupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.RawAddress;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.SubnetState;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANState;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.util.APITrace;
-import org.dasein.util.uom.storage.Gigabyte;
-import org.dasein.util.uom.storage.Megabyte;
-import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -61,7 +48,6 @@ public class VirtualMachineTestCase extends BaseTestCase {
     private VMLaunchOptions testLaunchOptions = null;
     private String          testVm            = null;
     private String          vmToTerminate     = null;
-    private String          ralph             = null;
 
     public VirtualMachineTestCase(String name) { super(name); }
 
@@ -90,9 +76,6 @@ public class VirtualMachineTestCase extends BaseTestCase {
         if( name.equals("testTerminate") || name.equals("testStart") || name.equals("testStop") || name.equals("testPause") || name.equals("testUnpause") || name.equals("testSuspend") || name.equals("testResume") || name.equals("testFilter")) {
             vmToTerminate = launch(cloud);
             testVm = vmToTerminate;
-            if( name.equals("testFilter") ) {
-                ralph = launch(cloud, "namedRalph", false);
-            }
         }
         if( (name.equals("testEnableAnalytics") || name.equals("testDisableAnalytics")) && cloud.getComputeServices().getVirtualMachineSupport().supportsAnalytics() ) {
             vmToTerminate = launch(cloud);
@@ -128,7 +111,7 @@ public class VirtualMachineTestCase extends BaseTestCase {
                     }
                 }
                 if( testLaunchOptions.getStaticIpIds().length < 1 ) {
-                    throw new CloudException("Unable to provision the required IP address for this test");
+                    throw new CloudException("Unable to provisionVM the required IP address for this test");
                 }
             }
             if( s.identifyRootVolumeRequirement().equals(Requirement.REQUIRED) ) {
@@ -201,14 +184,6 @@ public class VirtualMachineTestCase extends BaseTestCase {
         catch( Throwable ignore ) {
             // ignore
         }
-        try {
-            if( ralph != null ) {
-                cloud.getComputeServices().getVirtualMachineSupport().terminate(ralph);
-            }
-        }
-        catch( Throwable ignore ) {
-            // ignore
-        }
         killTestAddress(cloud);
         try {
             if( cloud != null ) {
@@ -240,112 +215,6 @@ public class VirtualMachineTestCase extends BaseTestCase {
     }
     
     @Test
-    public void testGetBogusVirtualMachine() throws InternalException, CloudException {
-        begin();
-        VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(UUID.randomUUID().toString());
-        
-        assertNull("Found a VM matching the bogus ID", vm);
-        end();
-    }
-    
-    @Test
-    public void testLaunchVirtualMachine() throws InternalException, CloudException {
-        begin();
-        VirtualMachineSupport vmSupport = cloud.getComputeServices().getVirtualMachineSupport();
-
-        VirtualMachine vm = vmSupport.launch(testLaunchOptions);
-
-        assertNotNull("Failed to return a launched virtual machine", vm);
-        assertNotNull("VM has no ID", vm.getProviderOwnerId());
-        vmToTerminate = vm.getProviderVirtualMachineId();
-        assertEquals("Virtual machine failed to launch in target region", cloud.getContext().getRegionId(), vm.getProviderRegionId());
-        assertEquals("Virtual machine failed to launch in target data center", getTestDataCenterId(), vm.getProviderDataCenterId());
-        assertEquals("Virtual machine not owned by launcher", cloud.testContext(), vm.getProviderOwnerId());
-        out("Launched: " + vm);
-        end();
-    }
-    
-    @Test
-    public void testListVirtualMachines() throws InternalException, CloudException {
-        begin();
-        Iterable<VirtualMachine> vms = cloud.getComputeServices().getVirtualMachineSupport().listVirtualMachines();
-        
-        assertNotNull("Virtual machine listing may not be null", vms);
-        try {
-            for( VirtualMachine vm : vms ) {
-                out("VM: " + vm);
-            }
-        }
-        catch( Throwable notPartOfTest ) {
-            // ignore
-        }
-        end();
-    }
-    
-    @Test
-    public void testMetaData() throws CloudException, InternalException {
-        begin();
-        VirtualMachineSupport vmSupport = getSupport();
-        
-        assertNotNull("You must specify a provider term for virtual machine", vmSupport.getProviderTermForServer(Locale.getDefault()));
-        out("Term:                       " + vmSupport.getProviderTermForServer(Locale.getDefault()));
-        out("Subscribed:                 " + vmSupport.isSubscribed());
-        out("Max VMs:                    " + vmSupport.getMaximumVirtualMachineCount());
-        out("API termination prevention: " + vmSupport.isAPITerminationPreventable());
-        out("Analytics:                  " + vmSupport.supportsAnalytics());
-        out("Basic analytics:            " + vmSupport.isBasicAnalyticsSupported());
-        out("Extended analytics:         " + vmSupport.isExtendedAnalyticsSupported());
-        out("User data:                  " + vmSupport.isUserDataSupported());
-        out("Shell keys:                 " + vmSupport.identifyShellKeyRequirement());
-        out("Root volume:                " + vmSupport.identifyRootVolumeRequirement());
-        out("Password:                   " + vmSupport.identifyPasswordRequirement());
-        out("Static IPs:                 " + vmSupport.identifyStaticIPRequirement());
-        out("VLAN:                       " + vmSupport.identifyVlanRequirement());
-        end();
-    }
-    
-    @Test
-    public void testProductList() throws CloudException, InternalException {
-        begin();
-        VirtualMachineSupport vmSupport = cloud.getComputeServices().getVirtualMachineSupport();
-        int count = 0;
-        
-        for( Architecture architecture : Architecture.values() ) {
-            Iterable<VirtualMachineProduct> products = vmSupport.listProducts(architecture);
-            
-            assertNotNull("Received a null product list for " + architecture, products);
-            for( VirtualMachineProduct product : products ) {
-                out("Product: " + product);
-                assertNotNull("Product ID cannot be null", product.getProviderProductId());
-                assertTrue("CPU count must be at least 1", product.getCpuCount() > 0);
-                assertNotNull("Product name cannot be null", product.getName());
-                assertNotNull("Product description cannot be null", product.getDescription());
-                Storage<Gigabyte> disk = product.getRootVolumeSize();
-                
-                assertNotNull("No disk size is specified", disk);
-                assertTrue("Disk size must be non-negative", disk.getQuantity().intValue() > -1);
-                
-                Storage<Megabyte> ram = product.getRamSize();
-                
-                assertNotNull("No RAM size is specified", ram.getQuantity());
-                assertTrue("RAM size must be non-negative", ram.getQuantity().intValue() > -1);
-                count++;
-            }
-        }
-        assertTrue("No products exist in this cloud and therefore no VMs are provisionable", count > 0);
-        end();
-    }
-    
-    @Test
-    public void testSubscription() throws CloudException, InternalException {
-        begin();
-        VirtualMachineSupport vmSupport = cloud.getComputeServices().getVirtualMachineSupport();
-        
-        assertTrue("Account must be subscribed to test virtual machine support", vmSupport.isSubscribed());
-        end();        
-    }
-    
-    @Test
     public void testTerminate() throws CloudException, InternalException {
         begin();
         cloud.getComputeServices().getVirtualMachineSupport().terminate(vmToTerminate);
@@ -356,51 +225,6 @@ public class VirtualMachineTestCase extends BaseTestCase {
         assertTrue("VM is still running", vm == null || !vm.getCurrentState().equals(VmState.RUNNING));
         vmToTerminate = null;
         testVm = null;
-        end();
-    }
-    
-    @Test 
-    public void testVirtualMachineContent() throws InternalException, CloudException {
-        begin();
-        VirtualMachine vm = cloud.getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVm);
-        
-        assertNotNull("No VM matching the test ID was found", vm);
-        assertEquals("The ID of the retrieved VM does not match", testVm, vm.getProviderVirtualMachineId());
-        assertNotNull("A VM must have a name", vm.getName());
-        assertNotNull("A VM must have a description", vm.getDescription());
-        assertNotNull("A VM must have an owner", vm.getProviderOwnerId());
-        assertEquals("The VM region must match", cloud.getContext().getRegionId(), vm.getProviderRegionId());
-        assertNotNull("The VM data center cannot be null", vm.getProviderDataCenterId());
-        assertNotNull("A VM must have an architecture", vm.getArchitecture());
-        assertNotNull("A VM must have a platform", vm.getPlatform());
-        assertNotNull("A VM must have a product", vm.getProductId());
-        try {
-            out("VM ID:         " + vm.getProviderVirtualMachineId());
-            out("Name:          " + vm.getName());
-            out("Owner:         " + vm.getProviderOwnerId());
-            out("Region:        " + vm.getProviderRegionId());
-            out("Data Center:   " + vm.getProviderDataCenterId());
-            out("VLAN:          " + vm.getProviderVlanId());
-            out("Subnet:        " + vm.getProviderSubnetId());
-            RawAddress[] addrs = vm.getPrivateAddresses();
-            out("Private IP:    " + ((addrs == null || addrs.length < 1) ? "none" : Arrays.toString(addrs)));
-            addrs = vm.getPublicAddresses();
-            out("Public IP:     " + ((addrs == null || addrs.length < 1) ? "none" : Arrays.toString(addrs)));
-            out("Machine image: " + vm.getProviderMachineImageId());
-            out("Created:       " + (new Date(vm.getCreationTimestamp())));
-            out("Architecture:  " + vm.getArchitecture());
-            out("Platform:      " + vm.getPlatform());
-            out("Assigned:      " + vm.getProviderAssignedIpAddressId());
-            out("Product:       " + vm.getProductId());
-            out("State:         " + vm.getCurrentState());
-            out("Pause/unpause: " + getSupport().supportsPauseUnpause(vm));
-            out("Start/stop:    " + getSupport().supportsStartStop(vm));
-            out("Suspnd/resume: " + getSupport().supportsSuspendResume(vm));
-            out("Description:\n" + vm.getDescription());
-        }
-        catch( Throwable notPartOfTest ) {
-            // ignore
-        }
         end();
     }
 
@@ -548,29 +372,4 @@ public class VirtualMachineTestCase extends BaseTestCase {
         }
     }
 
-    @Test
-    public void testFilter() throws InternalException, CloudException {
-
-        begin();
-        try {
-            Iterable<VirtualMachine> vms = cloud.getComputeServices().getVirtualMachineSupport().listVirtualMachines(VMFilterOptions.getInstance(".*[Rr][Aa][Ll][Pp][Hh].*"));
-            boolean found = false;
-
-            assertNotNull("Virtual machine listing may not be null", vms);
-            try {
-                for( VirtualMachine vm : vms ) {
-                    out("VM: " + vm);
-                    assertEquals("This virtual machine is not Ralph", ralph, vm.getProviderVirtualMachineId());
-                    found = true;
-                }
-            }
-            catch( Throwable notPartOfTest ) {
-                // ignore
-            }
-            assertTrue("Could not find Ralph", found);
-        }
-        finally {
-            end();
-        }
-    }
 }

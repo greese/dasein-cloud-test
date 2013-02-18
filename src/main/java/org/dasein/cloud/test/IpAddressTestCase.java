@@ -198,7 +198,7 @@ public class IpAddressTestCase extends BaseTestCase {
                         }
                     }
                     if( required ) {
-                        Assert.fail("Did not find or provision a test VLAN as required for test");
+                        Assert.fail("Did not find or provisionVM a test VLAN as required for test");
                     }
                 }
             }
