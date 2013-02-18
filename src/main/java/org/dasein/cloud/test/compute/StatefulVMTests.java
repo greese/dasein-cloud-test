@@ -20,7 +20,9 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
+import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotNull;
 import static junit.framework.Assert.assertTrue;
 import static junit.framework.Assert.fail;
@@ -36,7 +38,7 @@ public class StatefulVMTests {
 
     @BeforeClass
     static public void configure() {
-        tm = new DaseinTestManager(StatelessVMTests.class);
+        tm = new DaseinTestManager(StatefulVMTests.class);
     }
 
     @AfterClass
@@ -53,23 +55,24 @@ public class StatefulVMTests {
 
     public StatefulVMTests() { }
 
-    private void assertVMState(@Nonnull VirtualMachine vm, @Nonnull VmState targetState, @Nonnegative long timeout) {
+    private @Nullable VirtualMachine awaitState(@Nonnull VirtualMachine vm, @Nonnull VmState targetState, @Nonnegative long timeout) {
         VmState currentState = vm.getCurrentState();
+        VirtualMachine v = vm;
 
         while( System.currentTimeMillis() < timeout ) {
-            if( targetState.equals(vm.getCurrentState()) ) {
-                return;
+            if( targetState.equals(currentState) ) {
+                return v;
             }
             try { Thread.sleep(15000L); }
             catch( InterruptedException ignore ) { }
             try {
-                @SuppressWarnings("ConstantConditions") VirtualMachine v = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vm.getProviderVirtualMachineId());
-
+                //noinspection ConstantConditions
+                v = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vm.getProviderVirtualMachineId());
                 if( v == null && !targetState.equals(VmState.TERMINATED) ) {
-                    fail("Virtual machine went away before entering target state " + targetState.name());
+                    return null;
                 }
                 else if( v == null ) {
-                    return;
+                    return null;
                 }
                 currentState = v.getCurrentState();
             }
@@ -77,7 +80,7 @@ public class StatefulVMTests {
                 // ignore
             }
         }
-        fail("VM " + vm.getProviderVirtualMachineId() + " failed to reach " + targetState + " prior to timeout (last known state: " + currentState + ")");
+        return v;
     }
 
     @Before
@@ -95,16 +98,45 @@ public class StatefulVMTests {
                         testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Filter Test", "dsnfilter", null);
                     }
                     catch( Throwable t ) {
-                        tm.warn("Failed to provisionVM VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
+                    }
+                }
+            }
+        }
+        else if( name.getMethodName().equals("terminate") ) {
+            ComputeServices services = tm.getProvider().getComputeServices();
+
+            if( services != null ) {
+                VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+                if( support != null ) {
+                    try {
+                        //noinspection ConstantConditions
+                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Termination Test", "dsnterm", null);
+                    }
+                    catch( Throwable t ) {
+                        tm.warn("Failed to provision VM for termination test: " + t.getMessage());
                     }
                 }
             }
         }
         else if( name.getMethodName().equals("start") ) {
-            testVmId = tm.getTestVMId(false, VmState.STOPPED);
+                testVmId = tm.getTestVMId(false, VmState.STOPPED);
         }
         else if( name.getMethodName().equals("stop") ) {
             testVmId = tm.getTestVMId(false, VmState.RUNNING);
+        }
+        else if( name.getMethodName().equals("pause") ) {
+            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+        }
+        else if( name.getMethodName().equals("unpause") ) {
+            testVmId = tm.getTestVMId(false, VmState.PAUSED);
+        }
+        else if( name.getMethodName().equals("suspend") ) {
+            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+        }
+        else if( name.getMethodName().equals("resume") ) {
+            testVmId = tm.getTestVMId(false, VmState.SUSPENDED);
         }
         else {
             testVmId = tm.getTestVMId(false, null);
@@ -258,8 +290,12 @@ public class StatefulVMTests {
 
                     if( vm != null ) {
                         if( support.supportsStartStop(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
                             support.stop(testVmId);
-                            assertVMState(vm, VmState.STOPPED, CalendarWrapper.MINUTE * 20L);
+                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.STOPPED, currentState);
                         }
                         else {
                             try {
@@ -276,7 +312,7 @@ public class StatefulVMTests {
                     }
                 }
                 else {
-                    tm.warn("No test virtual machine was found for testing enabling analytics");
+                    tm.warn("No test virtual machine was found for this test");
                 }
             }
             else {
@@ -301,8 +337,12 @@ public class StatefulVMTests {
 
                     if( vm != null ) {
                         if( support.supportsStartStop(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
                             support.start(testVmId);
-                            assertVMState(vm, VmState.RUNNING, CalendarWrapper.MINUTE * 20L);
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
                         }
                         else {
                             try {
@@ -319,7 +359,231 @@ public class StatefulVMTests {
                     }
                 }
                 else {
-                    tm.warn("No test virtual machine was found for testing enabling analytics");
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void pause() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        if( support.supportsPauseUnpause(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
+                            support.pause(testVmId);
+                            vm = awaitState(vm, VmState.PAUSED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.PAUSED, currentState);
+                        }
+                        else {
+                            try {
+                                support.pause(testVmId);
+                                fail("Pause/unpause is unsupported, yet the method completed without an error");
+                            }
+                            catch( OperationNotSupportedException expected ) {
+                                tm.ok("PAUSE -> Operation not supported exception");
+                            }
+                        }
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void unpause() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        if( support.supportsPauseUnpause(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
+                            support.unpause(testVmId);
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
+                        }
+                        else {
+                            try {
+                                support.unpause(testVmId);
+                                fail("Pause/unpause is unsupported, yet the method completed without an error");
+                            }
+                            catch( OperationNotSupportedException expected ) {
+                                tm.ok("UNPAUSE -> Operation not supported exception");
+                            }
+                        }
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void suspend() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        if( support.supportsSuspendResume(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
+                            support.suspend(testVmId);
+                            vm = awaitState(vm, VmState.SUSPENDED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.SUSPENDED, currentState);
+                        }
+                        else {
+                            try {
+                                support.suspend(testVmId);
+                                fail("Suspend/resume is unsupported, yet the method completed without an error");
+                            }
+                            catch( OperationNotSupportedException expected ) {
+                                tm.ok("SUSPEND -> Operation not supported exception");
+                            }
+                        }
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void resume() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        if( support.supportsSuspendResume(vm) ) {
+                            tm.out("Before", vm.getCurrentState());
+                            support.resume(testVmId);
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            tm.out("After", currentState);
+                            assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
+                        }
+                        else {
+                            try {
+                                support.resume(testVmId);
+                                fail("Suspend/resume is unsupported, yet the method completed without an error");
+                            }
+                            catch( OperationNotSupportedException expected ) {
+                                tm.ok("RESUME -> Operation not supported exception");
+                            }
+                        }
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void terminate() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        tm.out("Before", vm.getCurrentState());
+                        support.terminate(vm.getProviderVirtualMachineId());
+                        vm = awaitState(vm, VmState.TERMINATED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
+                        VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                        tm.out("After", currentState);
+                        assertEquals("Current state does not match the target state", VmState.TERMINATED, currentState);
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
                 }
             }
             else {

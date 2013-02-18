@@ -120,10 +120,7 @@ public class ComprehensiveTestSuite extends TestSuite {
             }
             if( provider.hasComputeServices() ) {
                 ComputeServices compute = provider.getComputeServices();
-                
-                if( compute.hasVirtualMachineSupport() ) {
-                    addTests(VirtualMachineTestCase.class);
-                }
+
                 if( compute.hasImageSupport() ) {
                     addTests(MachineImageTestCase.class);
                 }

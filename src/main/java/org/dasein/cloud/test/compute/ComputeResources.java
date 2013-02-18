@@ -12,6 +12,7 @@ import org.dasein.cloud.compute.ImageFilterOptions;
 import org.dasein.cloud.compute.MachineImage;
 import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.MachineImageSupport;
+import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -212,6 +213,19 @@ public class ComputeResources {
             MachineImageSupport imageSupport = computeServices.getImageSupport();
 
             if( imageSupport != null ) {
+                boolean volumeBased = false;
+
+                try {
+                    for( MachineImageType type : imageSupport.listSupportedImageTypes() ) {
+                        if( type.equals(MachineImageType.VOLUME) ) {
+                            volumeBased = true;
+                            break;
+                        }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
                 for( Architecture architecture : new Architecture[] { Architecture.I64, Architecture.POWER, Architecture.I32, Architecture.SPARC } ) {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
@@ -225,7 +239,9 @@ public class ComputeResources {
                                         testVMProductId = currentProduct.getProviderProductId();
                                         testImageId = image.getProviderMachineImageId();
                                         testImagePlatform = image.getPlatform();
-                                        break;
+                                        if( !volumeBased || image.getType().equals(MachineImageType.VOLUME) ) {
+                                            break;
+                                        }
                                     }
                                 }
                             }
@@ -234,6 +250,21 @@ public class ComputeResources {
                             }
                             if( testVMProductId != null ) {
                                 break;
+                            }
+                            try {
+                                for( MachineImage image : imageSupport.searchPublicImages(options) ) {
+                                    if( MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware()) ) {
+                                        testVMProductId = currentProduct.getProviderProductId();
+                                        testImageId = image.getProviderMachineImageId();
+                                        testImagePlatform = image.getPlatform();
+                                        if( !volumeBased || image.getType().equals(MachineImageType.VOLUME) ) {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
                             }
                         }
                         if( testVMProductId != null ) {
