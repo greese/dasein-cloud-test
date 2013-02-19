@@ -71,7 +71,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             provider.connect(BaseTestCase.getTestContext(providerClass));
             addTests(ContextTestCase.class);
             
-            addTests(DataCenterTestCase.class);
             if( provider.hasIdentityServices() ) {
                 IdentityServices identity = provider.getIdentityServices();
                 
