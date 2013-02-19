@@ -1,6 +1,7 @@
 package org.dasein.cloud.test;
 
 import org.dasein.cloud.test.compute.StatefulVMTests;
+import org.dasein.cloud.test.identity.StatefulKeypairTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -11,6 +12,6 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatefulVMTests.class })
+@Suite.SuiteClasses({ StatefulVMTests.class, StatefulKeypairTests.class })
 public class StatefulTestSuite extends AbstractStatefulTestSuite {
 }

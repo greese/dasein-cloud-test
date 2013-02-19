@@ -20,10 +20,11 @@ import java.util.Locale;
 import java.util.UUID;
 
 /**
- * [Class Documentation]
+ * Test cases to validate an implementation of Dasein Cloud data center services.
  * <p>Created by George Reese: 2/18/13 5:51 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class StatelessDCTests {
     static private DaseinTestManager tm;
@@ -110,12 +111,15 @@ public class StatelessDCTests {
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Region region = services.getRegion(tm.getContext().getRegionId());
 
+        assertNotNull("Failed to find the region associated with the current operational context", region);
         tm.out("Region ID", region.getProviderRegionId());
         tm.out("Active", region.isActive());
         tm.out("Available", region.isAvailable());
         tm.out("Name", region.getName());
         tm.out("Jurisdiction", region.getJurisdiction());
-        assertNotNull("Failed to find the region associated with the current operational context", region);
+        assertNotNull("Region ID may not be null", region.getProviderRegionId());
+        assertNotNull("Region name may not be null", region.getName());
+        assertNotNull("Region jurisdiction may not be null", region.getJurisdiction());
     }
 
     @Test
@@ -161,12 +165,15 @@ public class StatelessDCTests {
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         DataCenter dc = services.getDataCenter(testDataCenterId);
 
+        assertNotNull("Failed to find the test data center", dc);
         tm.out("Data Center ID", dc.getProviderDataCenterId());
         tm.out("Active", dc.isActive());
         tm.out("Available", dc.isAvailable());
         tm.out("Name", dc.getName());
         tm.out("Region ID", dc.getRegionId());
-        assertNotNull("Failed to find the test data center", dc);
+        assertNotNull("Data center ID must not be null", dc.getProviderDataCenterId());
+        assertNotNull("Data center name must not be null", dc.getName());
+        assertEquals("Data center should be in the current region", tm.getContext().getRegionId(), dc.getRegionId());
     }
 
     @Test

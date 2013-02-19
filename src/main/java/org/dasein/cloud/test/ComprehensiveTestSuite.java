@@ -73,9 +73,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             if( provider.hasIdentityServices() ) {
                 IdentityServices identity = provider.getIdentityServices();
                 
-                if( identity.hasShellKeySupport() ) {
-                    addTests(ShellKeyTestCase.class);
-                }
                 if( identity.hasIdentityAndAccessSupport() ) {
                     addTests(IAMTestCase.class);
                 }

@@ -33,7 +33,7 @@ public class DaseinTestManager {
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
 
-    static private @Nonnull CloudProvider constructProvider() {
+    static public @Nonnull CloudProvider constructProvider() {
         String cname = System.getProperty("providerClass");
         CloudProvider provider;
 

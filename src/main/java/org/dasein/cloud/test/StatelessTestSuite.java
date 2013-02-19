@@ -3,6 +3,7 @@ package org.dasein.cloud.test;
 import org.dasein.cloud.test.cloud.StatelessAuthenticationTests;
 import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
+import org.dasein.cloud.test.identity.StatelessKeypairTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -13,6 +14,6 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessAuthenticationTests.class, StatelessDCTests.class, StatelessVMTests.class })
+@Suite.SuiteClasses({ StatelessAuthenticationTests.class, StatelessDCTests.class, StatelessVMTests.class, StatelessKeypairTests.class })
 public class StatelessTestSuite extends AbstractStatelessTestSuite {
 }
