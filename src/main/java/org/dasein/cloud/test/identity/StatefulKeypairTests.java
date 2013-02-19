@@ -17,6 +17,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * [Class Documentation]
@@ -88,6 +89,7 @@ public class StatefulKeypairTests {
 
     @Test
     public void generateKeypair() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -125,6 +127,7 @@ public class StatefulKeypairTests {
     /*
     @Test
     public void importKeypair() throws CloudException, InternalException {
+    assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -171,6 +174,7 @@ public class StatefulKeypairTests {
 
     @Test
     public void removeKeypair() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {

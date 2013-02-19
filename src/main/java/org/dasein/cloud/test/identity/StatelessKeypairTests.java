@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -60,6 +61,7 @@ public class StatelessKeypairTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -81,6 +83,7 @@ public class StatelessKeypairTests {
 
     @Test
     public void getBogusKeypair() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -103,6 +106,7 @@ public class StatelessKeypairTests {
 
     @Test
     public void getKeypair() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -130,6 +134,7 @@ public class StatelessKeypairTests {
 
     @Test
     public void keypairContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {
@@ -171,6 +176,7 @@ public class StatelessKeypairTests {
 
     @Test
     public void listKeypairs() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         IdentityServices services = tm.getProvider().getIdentityServices();
 
         if( services != null ) {

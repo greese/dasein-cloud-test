@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -72,201 +73,157 @@ public class StatelessDCTests {
 
     @Test
     public void configuration() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-            tm.out("DC Services", services);
-            assertNotNull("Data center services must be implemented for all clouds", services);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("DC Services", services);
+        assertNotNull("Data center services must be implemented for all clouds", services);
     }
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-            tm.out("Term for Region", services.getProviderTermForRegion(Locale.getDefault()));
-            tm.out("Term for DataCenter", services.getProviderTermForDataCenter(Locale.getDefault()));
-            assertNotNull("The provider term for region may not be null", services.getProviderTermForRegion(Locale.getDefault()));
-            assertNotNull("The provider term for data center may not be null", services.getProviderTermForDataCenter(Locale.getDefault()));
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Term for Region", services.getProviderTermForRegion(Locale.getDefault()));
+        tm.out("Term for DataCenter", services.getProviderTermForDataCenter(Locale.getDefault()));
+        assertNotNull("The provider term for region may not be null", services.getProviderTermForRegion(Locale.getDefault()));
+        assertNotNull("The provider term for data center may not be null", services.getProviderTermForDataCenter(Locale.getDefault()));
     }
 
     @Test
     public void getBogusRegion() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            Region region = services.getRegion(UUID.randomUUID().toString());
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        Region region = services.getRegion(UUID.randomUUID().toString());
 
-            tm.out("Bogus Region", region);
-            assertNull("Dummy region must be null, but one was found", region);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Bogus Region", region);
+        assertNull("Dummy region must be null, but one was found", region);
     }
 
     @Test
     public void getRegion() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            Region region = services.getRegion(tm.getContext().getRegionId());
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        Region region = services.getRegion(tm.getContext().getRegionId());
 
-            tm.out("Region", region);
-            assertNotNull("Failed to find the region associated with the current operational context", region);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Region", region);
+        assertNotNull("Failed to find the region associated with the current operational context", region);
     }
 
     @Test
     public void regionContent() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            Region region = services.getRegion(tm.getContext().getRegionId());
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        Region region = services.getRegion(tm.getContext().getRegionId());
 
-            assertNotNull("Failed to find the region associated with the current operational context", region);
-            tm.out("Region ID", region.getProviderRegionId());
-            tm.out("Active", region.isActive());
-            tm.out("Available", region.isAvailable());
-            tm.out("Name", region.getName());
-            tm.out("Jurisdiction", region.getJurisdiction());
-            assertNotNull("Region ID may not be null", region.getProviderRegionId());
-            assertNotNull("Region name may not be null", region.getName());
-            assertNotNull("Region jurisdiction may not be null", region.getJurisdiction());
-        }
-        else {
-            tm.skip();
-        }
+        assertNotNull("Failed to find the region associated with the current operational context", region);
+        tm.out("Region ID", region.getProviderRegionId());
+        tm.out("Active", region.isActive());
+        tm.out("Available", region.isAvailable());
+        tm.out("Name", region.getName());
+        tm.out("Jurisdiction", region.getJurisdiction());
+        assertNotNull("Region ID may not be null", region.getProviderRegionId());
+        assertNotNull("Region name may not be null", region.getName());
+        assertNotNull("Region jurisdiction may not be null", region.getJurisdiction());
     }
 
     @Test
     public void listRegions() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            Iterable<Region> regions = services.listRegions();
-            boolean found = false;
-            int count = 0;
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        Iterable<Region> regions = services.listRegions();
+        boolean found = false;
+        int count = 0;
 
-            assertNotNull("Null set of regions returned from listRegions()", regions);
-            for( Region region : regions ) {
-                count++;
-                tm.out("Region", region);
-                if( region.getProviderRegionId().equals(tm.getContext().getRegionId()) ) {
-                    found = true;
-                }
+        assertNotNull("Null set of regions returned from listRegions()", regions);
+        for( Region region : regions ) {
+            count++;
+            tm.out("Region", region);
+            if( region.getProviderRegionId().equals(tm.getContext().getRegionId()) ) {
+                found = true;
             }
-            tm.out("Total Region Count", count);
-            assertTrue("There must be at least one region", count > 0);
-            assertTrue("Did not find the context region ID among returned regions", found);
         }
-        else {
-            tm.skip();
-        }
+        tm.out("Total Region Count", count);
+        assertTrue("There must be at least one region", count > 0);
+        assertTrue("Did not find the context region ID among returned regions", found);
     }
 
     @Test
     public void getBogusDataCenter() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            DataCenter dc = services.getDataCenter(UUID.randomUUID().toString());
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        DataCenter dc = services.getDataCenter(UUID.randomUUID().toString());
 
-            tm.out("Bogus Data Center", dc);
-            assertNull("Dummy data center must be null, but one was found", dc);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Bogus Data Center", dc);
+        assertNull("Dummy data center must be null, but one was found", dc);
     }
 
     @Test
     public void getDataCenter() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            DataCenter dc = services.getDataCenter(testDataCenterId);
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        DataCenter dc = services.getDataCenter(testDataCenterId);
 
-            tm.out("Data Center", dc);
-            assertNotNull("Failed to find the test data center", dc);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Data Center", dc);
+        assertNotNull("Failed to find the test data center", dc);
     }
 
     @Test
     public void dataCenterContent() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            DataCenter dc = services.getDataCenter(testDataCenterId);
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        DataCenter dc = services.getDataCenter(testDataCenterId);
 
-            assertNotNull("Failed to find the test data center", dc);
-            tm.out("Data Center ID", dc.getProviderDataCenterId());
-            tm.out("Active", dc.isActive());
-            tm.out("Available", dc.isAvailable());
-            tm.out("Name", dc.getName());
-            tm.out("Region ID", dc.getRegionId());
-            assertNotNull("Data center ID must not be null", dc.getProviderDataCenterId());
-            assertNotNull("Data center name must not be null", dc.getName());
-            assertEquals("Data center should be in the current region", tm.getContext().getRegionId(), dc.getRegionId());
-        }
-        else {
-            tm.skip();
-        }
+        assertNotNull("Failed to find the test data center", dc);
+        tm.out("Data Center ID", dc.getProviderDataCenterId());
+        tm.out("Active", dc.isActive());
+        tm.out("Available", dc.isAvailable());
+        tm.out("Name", dc.getName());
+        tm.out("Region ID", dc.getRegionId());
+        assertNotNull("Data center ID must not be null", dc.getProviderDataCenterId());
+        assertNotNull("Data center name must not be null", dc.getName());
+        assertEquals("Data center should be in the current region", tm.getContext().getRegionId(), dc.getRegionId());
     }
 
     @Test
     public void listDataCenters() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-            Iterable<DataCenter> dataCenters = services.listDataCenters(tm.getContext().getRegionId());
-            boolean found = false;
-            int count = 0;
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        Iterable<DataCenter> dataCenters = services.listDataCenters(tm.getContext().getRegionId());
+        boolean found = false;
+        int count = 0;
 
-            assertNotNull("Null set of data centers returned from listDataCenters()", dataCenters);
-            for( DataCenter dc : dataCenters ) {
-                count++;
-                tm.out("Data Center", dc);
-                if( dc.getProviderDataCenterId().equals(testDataCenterId) ) {
-                    found = true;
-                }
+        assertNotNull("Null set of data centers returned from listDataCenters()", dataCenters);
+        for( DataCenter dc : dataCenters ) {
+            count++;
+            tm.out("Data Center", dc);
+            if( dc.getProviderDataCenterId().equals(testDataCenterId) ) {
+                found = true;
             }
-            tm.out("Total Data Center Count", count);
-            assertTrue("There must be at least one data center in this region", count > 0);
-            assertTrue("Did not find the test data center ID among returned data centers", found);
         }
-        else {
-            tm.skip();
-        }
+        tm.out("Total Data Center Count", count);
+        assertTrue("There must be at least one data center in this region", count > 0);
+        assertTrue("Did not find the test data center ID among returned data centers", found);
     }
 
     @Test
     public void regionIntegrity() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-            for( Region region : services.listRegions() ) {
-                if( region.isActive() ) {
-                    int count = 0;
+        for( Region region : services.listRegions() ) {
+            if( region.isActive() ) {
+                int count = 0;
 
-                    for( DataCenter dc : services.listDataCenters(region.getProviderRegionId()) ) {
-                        if( dc.isActive() ) {
-                            count++;
-                        }
+                for( DataCenter dc : services.listDataCenters(region.getProviderRegionId()) ) {
+                    if( dc.isActive() ) {
+                        count++;
                     }
-                    tm.out("Data Centers in " + region, count);
-                    assertTrue("An active region must have at least one active data center; " + region.getProviderRegionId() + " has none", count > 0);
                 }
+                tm.out("Data Centers in " + region, count);
+                assertTrue("An active region must have at least one active data center; " + region.getProviderRegionId() + " has none", count > 0);
             }
-        }
-        else {
-            tm.skip();
         }
     }
 }

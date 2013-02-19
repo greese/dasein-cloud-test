@@ -16,6 +16,7 @@ import org.junit.rules.TestName;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * [Class Documentation]
@@ -55,8 +56,10 @@ public class StatefulImageTests {
     public void after() {
         tm.end();
     }
+
     @Test
     public void listShares() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {

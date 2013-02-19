@@ -81,38 +81,26 @@ public class StatelessAuthenticationTests {
 
     @Test
     public void authenticate() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            String id = tm.getProvider().testContext();
+        assumeTrue(!tm.isTestSkipped());
+        String id = tm.getProvider().testContext();
 
-            tm.out("Account" + id);
-            assertNotNull("Connection test failed", id);
-        }
-        else {
-            tm.skip();
-        }
+        tm.out("Account" + id);
+        assertNotNull("Connection test failed", id);
     }
 
     @Test
     public void reconnect() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            String id = provider.testContext();
+        assumeTrue(!tm.isTestSkipped());
+        String id = provider.testContext();
 
-            //noinspection ConstantConditions
-            assertEquals("New account number fails connection", id, provider.getContext().getAccountNumber());
-        }
-        else {
-            tm.skip();
-        }
+        //noinspection ConstantConditions
+        assertEquals("New account number fails connection", id, provider.getContext().getAccountNumber());
     }
 
     @Test
     public void invalidPassword() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            assertNull("Connection succeeded with bad API secret", provider.testContext());
-        }
-        else {
-            tm.skip();
-        }
+        assumeTrue(!tm.isTestSkipped());
+        assertNull("Connection succeeded with bad API secret", provider.testContext());
     }
 
     @Test
