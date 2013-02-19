@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests on {@link org.dasein.cloud.compute.VirtualMachineSupport} that do not involve making any changes to the system.
@@ -72,6 +73,7 @@ public class StatelessVMTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -187,6 +189,7 @@ public class StatelessVMTests {
 
     @Test
     public void getBogusVMProduct() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -209,6 +212,7 @@ public class StatelessVMTests {
 
     @Test
     public void getVMProduct() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -235,6 +239,7 @@ public class StatelessVMTests {
 
     @Test
     public void productContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -277,6 +282,7 @@ public class StatelessVMTests {
 
     @Test
     public void listVMProducts() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -325,6 +331,7 @@ public class StatelessVMTests {
 
     @Test
     public void getBogusVM() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -347,6 +354,7 @@ public class StatelessVMTests {
 
     @Test
     public void getVirtualMachine() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -376,6 +384,7 @@ public class StatelessVMTests {
 
     @Test
     public void virtualMachineContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -463,6 +472,7 @@ public class StatelessVMTests {
 
     @Test
     public void listVMs() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -506,6 +516,7 @@ public class StatelessVMTests {
 
     @Test
     public void listVMStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -549,6 +560,7 @@ public class StatelessVMTests {
 
     @Test
     public void compareVMListAndStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {

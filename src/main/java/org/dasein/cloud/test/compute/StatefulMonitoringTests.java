@@ -14,6 +14,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import static org.junit.Assume.assumeTrue;
+
 /**
  * Verifies the stateful functionality of cloud monitoring solutions like AWS CloudWatch.
  * <p>Created by Cameron Stokes: 2/19/13 2:38 PM</p>
@@ -117,25 +119,21 @@ public class StatefulMonitoringTests {
 
     @Test
     public void whatever() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
 
-            if( services != null ) {
-                //MonitoringSupport support = services.getMonitoringSupport(); or whatever you call it
+        if( services != null ) {
+            //MonitoringSupport support = services.getMonitoringSupport(); or whatever you call it
 
-                //if( support != null ) {
-                // whatever
-                //else {
-                //    tm.ok(tm.getProvider().getCloudName() + " does not support monitoring");
-                //}
-            }
-            else {
-                // No compute services, so pass the test without output that says all is OK
-                tm.ok(tm.getProvider().getCloudName() + " does not support any compute services");
-            }
+            //if( support != null ) {
+            // whatever
+            //else {
+            //    tm.ok(tm.getProvider().getCloudName() + " does not support monitoring");
+            //}
         }
         else {
-            tm.skip();
+            // No compute services, so pass the test without output that says all is OK
+            tm.ok(tm.getProvider().getCloudName() + " does not support any compute services");
         }
     }
 }

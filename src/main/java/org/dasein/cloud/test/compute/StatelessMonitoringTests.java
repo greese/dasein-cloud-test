@@ -13,6 +13,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Verifies the stateless elements of cloud monitoring solutions like AWS CloudWatch.
@@ -79,29 +80,25 @@ public class StatelessMonitoringTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
 
-            if( services != null ) {
-                //MonitoringSupport support = services.getMonitoringSupport(); or whatever you call it
+        if( services != null ) {
+            //MonitoringSupport support = services.getMonitoringSupport(); or whatever you call it
 
-                //if( support != null ) {
-                //    tm.out("Subscribed", support.isSubscribed());
-                //    tm.out("Term for Monitoring Product", support.getProviderTermForMonitoring(Locale.getDefault()));
-                //    TODO: print all meta-data elements out, but assume the values may be null
-                //    assertNotNull("Monitoring term may not be null", support.getProviderTermForMonitoring(Locale.getDefault()));
-                //    TODO: after all values are printed out, do assertions to validate the values
-                //else {
-                //    tm.ok(tm.getProvider().getCloudName() + " does not support monitoring");
-                //}
-            }
-            else {
-                // No compute services, so pass the test without output that says all is OK
-                tm.ok(tm.getProvider().getCloudName() + " does not support any compute services");
-            }
+            //if( support != null ) {
+            //    tm.out("Subscribed", support.isSubscribed());
+            //    tm.out("Term for Monitoring Product", support.getProviderTermForMonitoring(Locale.getDefault()));
+            //    TODO: print all meta-data elements out, but assume the values may be null
+            //    assertNotNull("Monitoring term may not be null", support.getProviderTermForMonitoring(Locale.getDefault()));
+            //    TODO: after all values are printed out, do assertions to validate the values
+            //else {
+            //    tm.ok(tm.getProvider().getCloudName() + " does not support monitoring");
+            //}
         }
         else {
-            tm.skip();
+            // No compute services, so pass the test without output that says all is OK
+            tm.ok(tm.getProvider().getCloudName() + " does not support any compute services");
         }
     }
 

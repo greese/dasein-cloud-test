@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * [Class Documentation]
@@ -148,6 +149,7 @@ public class StatefulVMTests {
 
     @Test
     public void disableAnalytics() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -172,6 +174,7 @@ public class StatefulVMTests {
 
     @Test
     public void enableAnalytics() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -196,6 +199,7 @@ public class StatefulVMTests {
 
     @Test
     public void launch() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -231,6 +235,7 @@ public class StatefulVMTests {
 
     @Test
     public void filterVMs() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -276,6 +281,7 @@ public class StatefulVMTests {
 
     @Test
     public void stop() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -323,6 +329,7 @@ public class StatefulVMTests {
 
     @Test
     public void start() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -370,6 +377,7 @@ public class StatefulVMTests {
 
     @Test
     public void pause() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -417,6 +425,7 @@ public class StatefulVMTests {
 
     @Test
     public void unpause() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -464,6 +473,7 @@ public class StatefulVMTests {
 
     @Test
     public void suspend() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -511,6 +521,7 @@ public class StatefulVMTests {
 
     @Test
     public void resume() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -558,6 +569,7 @@ public class StatefulVMTests {
 
     @Test
     public void terminate() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
