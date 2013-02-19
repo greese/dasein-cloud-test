@@ -69,8 +69,7 @@ public class ComprehensiveTestSuite extends TestSuite {
             CloudProvider provider = providerClass.newInstance();
             
             provider.connect(BaseTestCase.getTestContext(providerClass));
-            addTests(ContextTestCase.class);
-            
+
             if( provider.hasIdentityServices() ) {
                 IdentityServices identity = provider.getIdentityServices();
                 
