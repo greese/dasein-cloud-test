@@ -289,6 +289,11 @@ public class DaseinTestManager {
         return provider;
     }
 
+    public boolean isTestSkipped() {
+        // TODO: implement me
+        return false;
+    }
+
     public void ok(@Nonnull String message) {
         logger.info(prefix + message + " (OK)");
     }
@@ -334,6 +339,10 @@ public class DaseinTestManager {
             }
         }
         out( str.toString() + value);
+    }
+
+    public void skip() {
+        out("SKIPPING");
     }
 
     public void warn(@Nonnull String message) {
