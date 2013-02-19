@@ -19,6 +19,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.Properties;
+import java.util.TreeSet;
 
 /**
  * Consolidates and manages cloud resources shared across many different tests.
@@ -30,8 +31,10 @@ import java.util.Properties;
 public class DaseinTestManager {
     static private ComputeResources  computeResources;
     static private String            defaultDataCenterId;
+    static private TreeSet<String>   exclusions;
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
+    static private TreeSet<String>   inclusions;
 
     static public @Nonnull CloudProvider constructProvider() {
         String cname = System.getProperty("providerClass");
@@ -159,6 +162,33 @@ public class DaseinTestManager {
         identityResources.init(stateful);
         computeResources = new ComputeResources(provider);
         defaultDataCenterId = computeResources.init(stateful);
+
+        String prop = System.getProperty("dasein.inclusions");
+
+        if( prop != null && !prop.equals("") ) {
+            inclusions = new TreeSet<String>();
+            if( prop.contains(",") ) {
+                for( String which : prop.split(",") ) {
+                    inclusions.add(which.toLowerCase());
+                }
+            }
+            else {
+                inclusions.add(prop.toLowerCase());
+            }
+        }
+        prop = System.getProperty("dasein.exclusions");
+
+        if( prop != null && !prop.equals("") ) {
+            exclusions = new TreeSet<String>();
+            if( prop.contains(",") ) {
+                for( String which : prop.split(",") ) {
+                    exclusions.add(which.toLowerCase());
+                }
+            }
+            else {
+                exclusions.add(prop.toLowerCase());
+            }
+        }
     }
 
     static public void cleanUp() {
@@ -289,9 +319,56 @@ public class DaseinTestManager {
         return provider;
     }
 
+    /**
+     * Checks to see if the test currently being executed is supposed to be skipped.
+     * A test is assumed to be run unless there are a list of inclusions and the test is not
+     * in the list or there is a list of exclusions and the test is in the list. If there are
+     * inclusions and exclusions, any conflict is resolved in favor of executing the test.
+     * Exclusions and inclusions are set as the {@link System} properties dasein.inclusions and
+     * dasein.exclusions. You may specify an entire suite (e.g. "StatelessVMTests") or a specific
+     * test (e.g. "StatelessVMTests.listVirtualMachines"). You may also specify multiple tests:
+     * <pre>
+     *     -Ddasein.inclusions=StatelessVMTests.listVirtualMachines,StatelessDCTests
+     * </pre>
+     * This will execute only the listVirtualMachines test from StatelessVMTests and all StatelessDCTests. All other
+     * tests will be skipped.
+     * @return true if the current test is to be skipped
+     */
     public boolean isTestSkipped() {
-        // TODO: implement me
-        return false;
+        if( inclusions == null && exclusions == null ) {
+            return false;
+        }
+        String s = suite.toLowerCase();
+        String t = (name == null ? null : name.toLowerCase());
+
+        boolean suiteIncluded = true;
+        boolean testIncluded = true;
+
+        if( inclusions != null ) {
+            suiteIncluded = false;
+            testIncluded = false;
+            if( inclusions.contains(s) ) {
+                suiteIncluded = true;
+            }
+            if( t != null && inclusions.contains(s + "." + t) ) {
+                testIncluded = true;
+            }
+            if( !suiteIncluded && !testIncluded ) {
+                return false;
+            }
+        }
+        if( exclusions != null ) {
+            if( t != null && exclusions.contains(s + "." + t) ) {
+                return !testIncluded;
+            }
+            if( exclusions.contains(s) ) {
+                if( testIncluded ) {
+                    return false;
+                }
+                // otherwise you have a conflict and the conflict is resolved by including it
+            }
+        }
+        return (!suiteIncluded && !testIncluded);
     }
 
     public void ok(@Nonnull String message) {
