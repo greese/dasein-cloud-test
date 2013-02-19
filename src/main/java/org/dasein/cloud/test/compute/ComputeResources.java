@@ -479,7 +479,7 @@ public class ComputeResources {
         }
         options.withMetaData("dsntestcase", "true");
 
-        String id = support.launch(options).getProviderVirtualMachineId();
+        String id = options.build(provider);
 
         provisionedVMs.add(id);
         return id;
@@ -584,7 +584,7 @@ public class ComputeResources {
             options.inDataCenter(preferredDataCenterId);
         }
         options.withMetaData("dsntestcase", "true");
-        String id = support.createVolume(options);
+        String id = options.build(provider);
         provisionedVolumes.add(id);
         return id;
 

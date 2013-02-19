@@ -281,7 +281,7 @@ public class NetworkResources {
         String id;
 
         options.withSupportedTraffic(support.listSupportedIPVersions().iterator().next());
-        id = support.createSubnet(options).getProviderSubnetId();
+        id = options.build(provider);
         provisionedSubnets.add(id);
         return id;
     }
