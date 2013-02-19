@@ -14,7 +14,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 import java.util.Locale;
 import java.util.UUID;

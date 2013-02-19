@@ -30,7 +30,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 /**
  * Tests on {@link org.dasein.cloud.compute.VirtualMachineSupport} that do not involve making any changes to the system.

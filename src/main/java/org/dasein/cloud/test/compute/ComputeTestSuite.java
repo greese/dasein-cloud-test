@@ -11,6 +11,6 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessVMTests.class, StatefulVMTests.class })
+@Suite.SuiteClasses({ StatelessVMTests.class, StatefulVMTests.class, StatelessImageTests.class })
 public class ComputeTestSuite extends AbstractStatefulTestSuite {
 }

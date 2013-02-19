@@ -13,7 +13,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
 
 /**
  * General authentication tests to verify the ability of a Dasein Cloud implementation to authenticate with the cloud
