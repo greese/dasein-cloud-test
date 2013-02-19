@@ -21,6 +21,7 @@ import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
 import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
@@ -361,7 +362,7 @@ public class ComputeResources {
                 }
                 if( stateful ) {
                     try {
-                        testVolumeIdCustom = provisionVolume(volumeSupport, "dsnvol", dataCenterId);
+                        testVolumeIdCustom = provisionVolume(volumeSupport, "dsnvol", null, dataCenterId);
                         if( dataCenterId == null && testVolumeIdCustom != null ) {
                             Volume v = volumeSupport.getVolume(testVolumeIdCustom);
 
@@ -484,9 +485,20 @@ public class ComputeResources {
         return id;
     }
 
-    public @Nonnull String provisionVolume(@Nonnull VolumeSupport support, @Nonnull String namePrefix, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
+    public @Nonnull String provisionVolume(@Nonnull VolumeSupport support, @Nonnull String namePrefix, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
         VolumeCreateOptions options;
 
+        if( desiredFormat == null ) {
+            for( VolumeFormat fmt : support.listSupportedFormats() ) {
+                if( fmt.equals(VolumeFormat.BLOCK) ) {
+                    desiredFormat = VolumeFormat.BLOCK;
+                    break;
+                }
+            }
+            if( desiredFormat == null ) {
+                desiredFormat = VolumeFormat.NFS;
+            }
+        }
         if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) && testVolumeProductId != null ) {
             Storage<Gigabyte> size;
 
@@ -512,10 +524,42 @@ public class ComputeResources {
             else {
                 size = support.getMinimumVolumeSize();
             }
-            options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
+            if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
+                options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
+            }
+            else {
+                NetworkResources network = DaseinTestManager.getNetworkResources();
+                String testVlanId = null;
+
+                if( network != null ) {
+                    testVlanId = network.getTestVLANId(true);
+                }
+                if( testVlanId != null ) {
+                    options = VolumeCreateOptions.getNetworkInstance(testVolumeProductId, testVlanId, size, namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration Tests Volume Tests", 0);
+                }
+                else {
+                    options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
+                }
+            }
         }
         else {
-            options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Test Integration tests volume");
+            if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
+                options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Test Integration tests volume");
+            }
+            else {
+                NetworkResources network = DaseinTestManager.getNetworkResources();
+                String testVlanId = null;
+
+                if( network != null ) {
+                    testVlanId = network.getTestVLANId(true);
+                }
+                if( testVlanId != null ) {
+                    options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration Tests Volume Tests");
+                }
+                else {
+                    options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests");
+                }
+            }
         }
         if( preferredDataCenterId == null ) {
             String vmId = getTestVMId(true, null);

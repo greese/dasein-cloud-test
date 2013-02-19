@@ -1,5 +1,6 @@
 package org.dasein.cloud.test;
 
+import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -11,6 +12,6 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessVMTests.class })
+@Suite.SuiteClasses({StatelessDCTests.class, StatelessVMTests.class })
 public class StatelessTestSuite extends AbstractStatelessTestSuite {
 }
