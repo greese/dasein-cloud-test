@@ -195,9 +195,12 @@ public class DaseinTestManager {
                 exclusions.add(prop.toLowerCase());
             }
         }
+        APITrace.report("Init");
+        APITrace.reset();
     }
 
     static public void cleanUp() {
+        APITrace.report("Clean Up");
         computeResources.close();
     }
 
@@ -216,6 +219,7 @@ public class DaseinTestManager {
 
     public void begin(@Nonnull String name) {
         this.name = name;
+        APITrace.report("Setup");
         APITrace.reset();
         changePrefix();
         out("");
