@@ -1,6 +1,5 @@
 package org.dasein.cloud.test.compute;
 
-import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -45,20 +44,20 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * [Class Documentation]
+ * Handles the shared compute resources for executing various tests.
  * <p>Created by George Reese: 2/17/13 8:35 PM</p>
- *
  * @author George Reese
+ * @version 2013.04
+ * @since 2013.02
  */
 public class ComputeResources {
-    static private final Logger logger = Logger.getLogger(ComputeResources.class);
     static private final Random random = new Random();
 
     private CloudProvider   provider;
 
-    private HashMap<String,String> testMachineImages = new HashMap<String,String>();
-    private HashMap<String,String> testVMs           = new HashMap<String, String>();
-    private HashMap<String,String> testVolumes       = new HashMap<String, String>();
+    private final HashMap<String,String> testMachineImages = new HashMap<String,String>();
+    private final HashMap<String,String> testVMs           = new HashMap<String, String>();
+    private final HashMap<String,String> testVolumes       = new HashMap<String, String>();
 
     private String        testDataCenterId;
     private Platform      testImagePlatform;
@@ -493,7 +492,10 @@ public class ComputeResources {
             throw new CloudException("Unable to provision a machine image because Dasein Cloud is showing no VM support");
         }
         if( vmId == null ) {
-            vmId = provisionVM(vmSupport, "dsnimg", "Dasein Image Builder", null);
+            vmId = getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            if( vmId == null ) {
+                throw new CloudException("Could not identify a VM for imaging");
+            }
         }
         VirtualMachine vm = vmSupport.getVirtualMachine(vmId);
 
@@ -506,7 +508,12 @@ public class ComputeResources {
         if( image == null || support.supportsImageCapture(image.getType()) ) {
             String id = ImageCreateOptions.getInstance(vm, namePrefix + (System.currentTimeMillis()%10000), "Test machine image with label " + label).build(provider);
 
-            testMachineImages.put(label, id);
+            synchronized( testMachineImages ) {
+                while( testMachineImages.containsKey(label) ) {
+                    label = label + random.nextInt(9);
+                }
+                testMachineImages.put(label, id);
+            }
             return id;
         }
         else if( !support.identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
@@ -516,7 +523,12 @@ public class ComputeResources {
             if( format != null ) {
                 String id = support.bundleVirtualMachine(vmId, format, "dsnimg" + (System.currentTimeMillis()%100000), "dsnimg");
 
-                testMachineImages.put(label, id);
+                synchronized( testMachineImages ) {
+                    while( testMachineImages.containsKey(label) ) {
+                        label = label + random.nextInt(9);
+                    }
+                    testMachineImages.put(label, id);
+                }
                 return id;
             }
         }
@@ -527,6 +539,7 @@ public class ComputeResources {
      * Provisions a virtual machine and returns the ID of the new virtual machine. This method tracks the newly provisioned
      * virtual machine and will tear it down at the end of the test suite.
      * @param support the virtual machine support object used to provision the VM
+     * @param label the label to store the VM under for re-use
      * @param namePrefix a prefix for the friendly name of the VM
      * @param hostPrefix a prefix for the host name of the VM
      * @param preferredDataCenter the data center, if any is preferred, in which the VM should be provisioned
@@ -534,10 +547,6 @@ public class ComputeResources {
      * @throws CloudException an error occurred with the cloud provider in provisioning the VM
      * @throws InternalException an error occurred within Dasein Cloud provisioning the VM
      */
-    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter) throws CloudException, InternalException {
-        return provisionVM(support, String.valueOf(System.currentTimeMillis()), namePrefix, hostPrefix, preferredDataCenter);
-    }
-
     public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter) throws CloudException, InternalException {
         String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
 
@@ -633,7 +642,12 @@ public class ComputeResources {
 
         String id = options.build(provider);
 
-        testVMs.put(label, id);
+        synchronized( testVMs ) {
+            while( testVMs.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testVMs.put(label, id);
+        }
         return id;
     }
 
@@ -727,7 +741,12 @@ public class ComputeResources {
         if( volume != null && testDataCenterId == null ) {
             testDataCenterId = volume.getProviderDataCenterId();
         }
-        testVolumes.put(label, id);
+        synchronized( testVolumes ) {
+            while( testVolumes.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testVolumes.put(label, id);
+        }
         return id;
 
     }

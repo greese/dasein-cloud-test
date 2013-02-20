@@ -90,7 +90,7 @@ public class StatefulMonitoringTests {
                         // Dasein Cloud Test Manager will automatically terminate this once all tests complete
                         // Always prefix resource names with dsn so they can be readily identified as things that
                         // can be killed should the clean up fail for whatever reason
-                        testVmYouLikelyDontNeed = compute.provisionVM(support, "My Special Dasein Test", "dsnmytest", null);
+                        testVmYouLikelyDontNeed = compute.provisionVM(support, "customLabel", "My Special Dasein Test", "dsnmytest", null);
                     }
                     catch( Throwable ignore ) {
                         // deal with the lack of VM later, because there may be good reasons for this to fail
