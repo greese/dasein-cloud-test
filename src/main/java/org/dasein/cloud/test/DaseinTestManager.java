@@ -9,6 +9,7 @@ import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
+import org.dasein.cloud.util.APITrace;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -20,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.TreeSet;
 
@@ -33,6 +35,8 @@ import java.util.TreeSet;
 public class DaseinTestManager {
     static public final String STATEFUL  = "stateful";
     static public final String STATELESS = "stateless";
+
+    static private HashMap<String,Integer> apiAudit = new HashMap<String, Integer>();
 
     static private ComputeResources  computeResources;
     static private TreeSet<String>   exclusions;
@@ -197,11 +201,11 @@ public class DaseinTestManager {
         computeResources.close();
     }
 
-    private Logger logger;
-    private String name;
-    private String prefix;
-    private CloudProvider provider;
-    private String suite;
+    private Logger                  logger;
+    private String                  name;
+    private String                  prefix;
+    private CloudProvider           provider;
+    private String                  suite;
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
         logger = Logger.getLogger(testClass);
@@ -212,6 +216,7 @@ public class DaseinTestManager {
 
     public void begin(@Nonnull String name) {
         this.name = name;
+        APITrace.reset();
         changePrefix();
         out("");
         out(">>> BEGIN ---------------------------------------------------------------------------------------------->>>");
@@ -251,8 +256,26 @@ public class DaseinTestManager {
     }
 
     public void end() {
+        String[] calls = APITrace.listApis(provider.getProviderName(), provider.getCloudName());
+
+        if( calls.length > 0 ) {
+            out("---------- API Log ----------");
+            for( String call : calls ) {
+                int count = (int)APITrace.getAPICountAcrossAccounts(provider.getProviderName(), provider.getCloudName(), call);
+
+                if( apiAudit.containsKey(call) ) {
+                    apiAudit.put(call, count + apiAudit.get(call));
+                }
+                else {
+                    apiAudit.put(call, count);
+                }
+                out("---> " + call, count);
+            }
+        }
         out("<<< END   ----------------------------------------------------------------------------------------------<<<");
         out("");
+        APITrace.report(prefix);
+        APITrace.reset();
         name = null;
         changePrefix();
     }
