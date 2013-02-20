@@ -12,8 +12,7 @@ import org.junit.rules.TestName;
 import java.util.Collection;
 import java.util.Map;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.*;
 import static org.junit.Assert.fail;
 
 /**
@@ -111,6 +110,7 @@ public class StatelessMonitoringTests {
 
   @Test
   public void listMetrics() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Metric> metrics = support.listMetrics( MetricFilterOptions.getInstance() );
@@ -125,6 +125,7 @@ public class StatelessMonitoringTests {
 
   @Test
   public void listMetricsWithFilter() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
     String metricNamespace = "AWS/EC2";
     String metricName = "CPUUtilization";
 
@@ -138,7 +139,7 @@ public class StatelessMonitoringTests {
       for ( Metric metric : metrics ) {
         assertMetric( metric );
         assertEquals( metricName, metric.getName() );
-        assertEquals( metricNamespace, metric.getNamespace() );
+        assertEquals( metricNamespace, metric.getMetadata().get( "Namespace" ) );
       }
     }
     else {
@@ -148,6 +149,7 @@ public class StatelessMonitoringTests {
 
   @Test
   public void listAlarms() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Alarm> alarms = support.listAlarms( AlarmFilterOptions.getInstance() );
@@ -162,6 +164,7 @@ public class StatelessMonitoringTests {
 
   @Test
   public void enableAlarmActions() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       try {
@@ -179,6 +182,7 @@ public class StatelessMonitoringTests {
 
   @Test
   public void disableAlarmActions() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       try {
@@ -197,9 +201,9 @@ public class StatelessMonitoringTests {
   private void assertMetric( Metric metric ) {
     assertNotNull( metric );
     assertNotNull( metric.getName() );
-    assertNotNull( metric.getNamespace() );
-    if ( metric.getDimensions() != null ) {
-      for ( Map.Entry<String, String> entry : metric.getDimensions().entrySet() ) {
+
+    if ( metric.getMetadata() != null ) {
+      for ( Map.Entry<String, String> entry : metric.getMetadata().entrySet() ) {
         assertNotNull( entry.getKey() );
       }
     }
@@ -208,8 +212,12 @@ public class StatelessMonitoringTests {
   private void assertAlarm( Alarm alarm ) {
     assertNotNull( alarm );
     assertNotNull( alarm.getName() );
-    assertNotNull( alarm.getMetricName() );
-    assertNotNull( alarm.getMetricNamespace() );
+    assertNotNull( alarm.getMetric() );
+    if ( !alarm.isFunction() ) {
+      assertNotNull( alarm.getStatistic() );
+      assertNotNull( alarm.getComparisonOperator() );
+      assertNotNull( alarm.getThreshold() );
+    }
     assertNotNull( alarm.getProviderAlarmId() );
     if ( alarm.getProviderOKActionIds() != null ) {
       for ( String id : alarm.getProviderOKActionIds() ) {
@@ -226,8 +234,8 @@ public class StatelessMonitoringTests {
         assertNotNull( id );
       }
     }
-    if ( alarm.getDimensions() != null ) {
-      for ( Map.Entry<String, String> entry : alarm.getDimensions().entrySet() ) {
+    if ( alarm.getMetadata() != null ) {
+      for ( Map.Entry<String, String> entry : alarm.getMetadata().entrySet() ) {
         assertNotNull( entry.getKey() );
       }
     }
