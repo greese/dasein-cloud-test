@@ -96,8 +96,10 @@ public class ComputeResources {
                         // ignore
                     }
                 }
-                try { Thread.sleep(60000L); }
-                catch( InterruptedException ignore ) { }
+                if ( provisionedVolumes != null && provisionedVolumes.size() > 0 ) {
+                  try { Thread.sleep(60000L); }
+                  catch( InterruptedException ignore ) { }
+                }
                 for( String id : provisionedVolumes ) {
                     try {
                         volumeSupport.remove(id);

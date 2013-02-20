@@ -1,4 +1,4 @@
-package org.dasein.cloud.test.compute;
+package org.dasein.cloud.test.platform;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
@@ -30,7 +30,7 @@ public class StatefulMonitoringTests {
     static public void configure() {
         // I always call this method configure; doesn't matter what it is called as long as it has the BeforeClass
         // annotation. It's role is to initialize the test manager
-        tm = new DaseinTestManager(StatelessImageTests.class);
+        tm = new DaseinTestManager(StatefulMonitoringTests.class);
     }
 
     @AfterClass
@@ -74,7 +74,7 @@ public class StatefulMonitoringTests {
         // the VM is in a running state before the call returns
         // it will automatically figure out how to get the VM from it's current state to the desired state
         // if I pass null OR if the VM is stateless (arg 1 == true), then no change will be attempted
-
+/*
         ComputeResources compute = DaseinTestManager.getComputeResources();
 
         if( compute != null ) {
@@ -97,6 +97,7 @@ public class StatefulMonitoringTests {
                 }
             }
         }
+        */
     }
 
     @After
