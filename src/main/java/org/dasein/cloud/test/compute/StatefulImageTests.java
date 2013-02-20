@@ -4,9 +4,11 @@ import org.dasein.cloud.AsynchronousTask;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.ImageCreateOptions;
 import org.dasein.cloud.compute.MachineImage;
+import org.dasein.cloud.compute.MachineImageFormat;
 import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.MachineImageSupport;
 import org.dasein.cloud.compute.MachineImageType;
@@ -24,6 +26,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import java.util.Random;
+
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
@@ -34,6 +38,7 @@ import static org.junit.Assume.assumeTrue;
  * @author George Reese
  */
 public class StatefulImageTests {
+    static private final Random random = new Random();
     static private DaseinTestManager tm;
 
     @BeforeClass
@@ -51,6 +56,7 @@ public class StatefulImageTests {
     @Rule
     public final TestName name = new TestName();
 
+    private String bundleLocation;
     private String provisionedImage;
     private String testShareAccount;
     private String testImageId;
@@ -613,6 +619,211 @@ public class StatefulImageTests {
                         }
                         catch( OperationNotSupportedException expected ) {
                             tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
+                        }
+                    }
+                }
+                else {
+                    if( !support.isSubscribed() ) {
+                        tm.warn("No test VM was identified for image capture, so this test is not valid");
+                    }
+                    else {
+                        fail("No test VM exists for the " + name.getMethodName() + " test");
+                    }
+                }
+            }
+            else {
+                tm.ok("No image support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void bundleVM() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            MachineImageSupport support = services.getImageSupport();
+
+            if( support != null ) {
+                if( !support.identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
+                    VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+
+                    if( vmSupport != null ) {
+                        if( testVMId != null ) {
+                            VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+
+                            assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
+
+                            if( support.listSupportedFormatsForBundling().iterator().hasNext() ) {
+                                MachineImageFormat fmt = support.listSupportedFormatsForBundling().iterator().next();
+
+                                bundleLocation = support.bundleVirtualMachine(testVMId, fmt, "dsnbucket" + random.nextInt(100000), "dsnimgbundle");
+                                tm.out("Bundle Location", bundleLocation);
+                                assertNotNull("The bundle location returned from bundling the image was null", bundleLocation);
+
+                                ImageCreateOptions options = ImageCreateOptions.getInstance(fmt, bundleLocation, vm.getPlatform(), "dsnimgbdl" + random.nextInt(100000), "Dasein Test Bundle Image");
+
+                                options.withMetaData("dsntestcase", "true");
+
+                                provisionedImage = support.registerImageBundle(options).getProviderMachineImageId();
+                                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+
+                                while( timeout > System.currentTimeMillis() ) {
+                                    try {
+                                        MachineImage image = support.getImage(provisionedImage);
+
+                                        assertNotNull("The image disappeared after it was created, but before it became available", image);
+                                        tm.out("--> Current State", image.getCurrentState());
+                                        if( MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
+                                            break;
+                                        }
+                                    }
+                                    catch( Throwable t ) {
+                                        tm.warn("Error fetching captured image " + provisionedImage);
+                                    }
+                                    try { Thread.sleep(15000L); }
+                                    catch( InterruptedException ignore ) { }
+                                }
+                                MachineImage image = support.getImage(provisionedImage);
+
+                                assertNotNull("The image disappeared after it was created, but before it became available", image);
+                                assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
+                            }
+                            else {
+                                try {
+                                    bundleLocation = support.bundleVirtualMachine(testVMId, MachineImageFormat.OVF, "dsnbundlefail" + random.nextInt(100000), "dsnimgbundle");
+                                    fail("Bundling completed even though bundling is not supposed to be supported");
+                                }
+                                catch( OperationNotSupportedException expected ) {
+                                    tm.ok("Caught OperationNotSupportedException while attempting to bundle image in cloud that does not support bundling");
+                                }
+                                try {
+                                    ImageCreateOptions options = ImageCreateOptions.getInstance(MachineImageFormat.OVF, "/dev/null", vm.getPlatform(), "dsnimgbdl" + random.nextInt(100000), "Dasein Test Bundle Image");
+
+                                    options.withMetaData("dsntestcase", "true");
+
+                                    provisionedImage = support.registerImageBundle(options).getProviderMachineImageId();
+                                    fail("Registration succeeded from fake bundle even for some incomprehensible reason");
+                                }
+                                catch( OperationNotSupportedException expected ) {
+                                    tm.ok("Caught OperationNotSupportedException while attempting to register image in cloud that does not support bundling");
+                                }
+                            }
+                        }
+                        else {
+                            if( !support.isSubscribed() ) {
+                                tm.warn("No test VM was identified for image capture, so this test is not valid");
+                            }
+                            else {
+                                fail("No test VM exists for the " + name.getMethodName() + " test");
+                            }
+                        }
+                    }
+                    else {
+                        tm.warn("Image support but no VM support?");
+                    }
+                }
+                else {
+                    tm.ok("Bundling must occur locally on the virtual machine and thus cannot be tested here");
+                }
+            }
+            else {
+                tm.ok("No image support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+
+    @Test
+    public void bundleVMAsync() throws Throwable {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+            MachineImageSupport support = services.getImageSupport();
+
+            if( support != null && vmSupport != null ) {
+                if( testVMId != null ) {
+                    VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+
+                    assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
+
+                    AsynchronousTask<String> task = new AsynchronousTask<String>();
+
+                    if( support.listSupportedFormatsForBundling().iterator().hasNext() ) {
+                        MachineImageFormat fmt = support.listSupportedFormatsForBundling().iterator().next();
+
+                        support.bundleVirtualMachineAsync(testVMId, fmt, "dsnbucket" + random.nextInt(100000), "dsnimgbundle", task);
+                        tm.out("Task", "");
+
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            if( task.isComplete() ) {
+                                Throwable t = task.getTaskError();
+
+                                if( t != null ) {
+                                    tm.out("-->", "Failure: " + t.getMessage());
+                                    throw t;
+                                }
+                                tm.out("-->", "Complete");
+                                break;
+                            }
+                            else {
+                                tm.out("-->", task.getPercentComplete() + "%");
+                            }
+                            try { Thread.sleep(15000L); }
+                            catch( InterruptedException ignore ) { }
+                        }
+                        bundleLocation = task.getResult();
+
+                        tm.out("Bundle Location", bundleLocation);
+                        assertNotNull("The bundle location returned from bundling the image was null", bundleLocation);
+
+                        ImageCreateOptions options = ImageCreateOptions.getInstance(fmt, bundleLocation, vm.getPlatform(), "dsnimgbdl" + random.nextInt(100000), "Dasein Test Bundle Image");
+
+                        options.withMetaData("dsntestcase", "true");
+
+                        provisionedImage = support.registerImageBundle(options).getProviderMachineImageId();
+
+                        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            try {
+                                MachineImage img = support.getImage(provisionedImage);
+
+                                assertNotNull("The image disappeared after it was created, but before it became available", img);
+                                tm.out("--> Current State", img.getCurrentState());
+                                if( MachineImageState.ACTIVE.equals(img.getCurrentState()) ) {
+                                    break;
+                                }
+                            }
+                            catch( Throwable t ) {
+                                tm.warn("Error fetching captured image " + provisionedImage);
+                            }
+                            try { Thread.sleep(15000L); }
+                            catch( InterruptedException ignore ) { }
+                        }
+                        MachineImage image = support.getImage(provisionedImage);
+
+                        assertNotNull("The image disappeared after it was created, but before it became available", image);
+                        assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
+                    }
+                    else {
+                        try {
+                            support.bundleVirtualMachineAsync(testVMId, MachineImageFormat.OVF, "dsnbdlfail" + random.nextInt(100000), "dsnimgbundle", task);
+                            fail("Bundling completed even though bundling is not supposed to be supported");
+                        }
+                        catch( OperationNotSupportedException expected ) {
+                            tm.ok("Caught OperationNotSupportedException while attempting to bundle image in cloud that does not support bundling");
                         }
                     }
                 }
