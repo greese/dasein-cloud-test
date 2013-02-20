@@ -84,6 +84,7 @@ public class StatefulVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("filterVMs") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
 

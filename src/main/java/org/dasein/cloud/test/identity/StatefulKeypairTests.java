@@ -50,6 +50,7 @@ public class StatefulKeypairTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("removeKeypair") ) {
             IdentityResources id = DaseinTestManager.getIdentityResources();
 

@@ -49,6 +49,7 @@ public class StatelessAuthenticationTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
 
         provider = DaseinTestManager.constructProvider();
         ProviderContext ctx = provider.getContext();

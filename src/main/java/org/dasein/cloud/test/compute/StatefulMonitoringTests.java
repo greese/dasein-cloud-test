@@ -62,7 +62,7 @@ public class StatefulMonitoringTests {
         // It should minimally tell the test manager that a test is beginning
         // Any further initialization should happen AFTER this tm.begin() call
         tm.begin(name.getMethodName());
-
+        assumeTrue(!tm.isTestSkipped());
         // Here is where you do any provisioning specific to a test and setup test resource references
         // NOTE: You rarely need to provision your own resources except when you are doing something
         // destructive like a termination test

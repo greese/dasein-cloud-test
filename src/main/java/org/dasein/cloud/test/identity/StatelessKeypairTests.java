@@ -51,6 +51,7 @@ public class StatelessKeypairTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         testKeyId = tm.getTestKeypairId();
     }
 

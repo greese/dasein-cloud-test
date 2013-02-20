@@ -62,6 +62,7 @@ public class StatelessImageTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
     }
 

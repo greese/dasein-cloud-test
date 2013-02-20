@@ -52,6 +52,7 @@ public class StatelessDCTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         try {
             DataCenterServices services = tm.getProvider().getDataCenterServices();
 

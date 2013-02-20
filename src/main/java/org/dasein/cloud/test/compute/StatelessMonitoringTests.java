@@ -57,6 +57,7 @@ public class StatelessMonitoringTests {
         // Any further initialization should happen AFTER this tm.begin() call
         tm.begin(name.getMethodName());
 
+        assumeTrue(!tm.isTestSkipped());
         // stateless tests by design should be doing basically nothing here because they should not care
         // about the state of the system
         // I might have a private String for a test VM I am looking for:
