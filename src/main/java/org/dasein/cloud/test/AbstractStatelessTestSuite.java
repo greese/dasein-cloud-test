@@ -12,7 +12,7 @@ import org.junit.BeforeClass;
 public abstract class AbstractStatelessTestSuite {
     @BeforeClass
     static public void setup() {
-        DaseinTestManager.init(false);
+        DaseinTestManager.init();
     }
 
     @AfterClass

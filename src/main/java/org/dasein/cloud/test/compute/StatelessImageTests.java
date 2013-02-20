@@ -62,7 +62,7 @@ public class StatelessImageTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        testImageId = tm.getTestImageId();
+        testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
     }
 
     @After

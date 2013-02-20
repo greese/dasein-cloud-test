@@ -60,7 +60,7 @@ public class IdentityResources {
         return testKeyId;
     }
 
-    public void init(boolean stateful) {
+    public void init() {
         IdentityServices identityServices = provider.getIdentityServices();
 
         if( identityServices != null ) {
@@ -68,15 +68,10 @@ public class IdentityResources {
 
             try {
                 if( keySupport != null && keySupport.isSubscribed() ) {
-                    if( stateful ) {
-                        testKeyId = provision(keySupport, "dsnkp");
-                    }
-                    else {
-                        Iterator<SSHKeypair> keypairs = keySupport.list().iterator();
+                    Iterator<SSHKeypair> keypairs = keySupport.list().iterator();
 
-                        if( keypairs.hasNext() ) {
-                            testKeyId = keypairs.next().getProviderKeypairId();
-                        }
+                    if( keypairs.hasNext() ) {
+                        testKeyId = keypairs.next().getProviderKeypairId();
                     }
                 }
             }

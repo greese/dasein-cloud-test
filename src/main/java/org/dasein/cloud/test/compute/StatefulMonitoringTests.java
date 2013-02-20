@@ -67,7 +67,7 @@ public class StatefulMonitoringTests {
         // NOTE: You rarely need to provision your own resources except when you are doing something
         // destructive like a termination test
         // FOR EXAMPLE:
-        testVMId = tm.getTestVMId(false, VmState.RUNNING);
+        testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
 
         // the above call fetched a pre-provisioned VM that I can feel comfortable doing horrible things to
         // the "false" value says that the reference is not stateless (if I had passed in true, I would

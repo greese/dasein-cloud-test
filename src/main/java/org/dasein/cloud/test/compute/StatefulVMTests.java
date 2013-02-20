@@ -102,42 +102,28 @@ public class StatefulVMTests {
             }
         }
         else if( name.getMethodName().equals("terminate") ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
-
-            if( services != null ) {
-                VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                if( support != null ) {
-                    try {
-                        //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Termination Test", "dsnterm", null);
-                    }
-                    catch( Throwable t ) {
-                        tm.warn("Failed to provision VM for termination test: " + t.getMessage());
-                    }
-                }
-            }
+            testVmId = tm.getTestVMId("terminate", null, true, null);
         }
         else if( name.getMethodName().equals("start") ) {
-                testVmId = tm.getTestVMId(false, VmState.STOPPED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
         }
         else if( name.getMethodName().equals("stop") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("pause") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("unpause") ) {
-            testVmId = tm.getTestVMId(false, VmState.PAUSED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.PAUSED, true, null);
         }
         else if( name.getMethodName().equals("suspend") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("resume") ) {
-            testVmId = tm.getTestVMId(false, VmState.SUSPENDED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.SUSPENDED, true, null);
         }
         else {
-            testVmId = tm.getTestVMId(false, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, null, true, null);
         }
     }
 

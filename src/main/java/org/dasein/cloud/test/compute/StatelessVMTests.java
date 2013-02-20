@@ -58,16 +58,19 @@ public class StatelessVMTests {
     @Rule
     public final TestName name = new TestName();
 
+    private String testVMId;
 
     public StatelessVMTests() { }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, false, null);
     }
 
     @After
     public void after() {
+        testVMId = null;
         tm.end();
     }
 
@@ -361,13 +364,11 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String id = tm.getTestVMId(true, null);
-
-                if( id != null ) {
-                    VirtualMachine vm = support.getVirtualMachine(id);
+                if( testVMId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVMId);
 
                     tm.out("Test Virtual Machine", vm);
-                    assertNotNull("Did not find the test virtual machine " + id, vm);
+                    assertNotNull("Did not find the test virtual machine " + testVMId, vm);
                 }
                 else if( support.isSubscribed() ) {
                     fail("No test virtual machine exists and thus no test could be run for getVirtualMachine");
@@ -391,12 +392,10 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String id = tm.getTestVMId(true, null);
+                if( testVMId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVMId);
 
-                if( id != null ) {
-                    VirtualMachine vm = support.getVirtualMachine(id);
-
-                    assertNotNull("Did not find the test virtual machine " + id, vm);
+                    assertNotNull("Did not find the test virtual machine " + testVMId, vm);
 
                     tm.out("Virtual Machine ID", vm.getProviderVirtualMachineId());
                     tm.out("Current State", vm.getCurrentState());
@@ -479,7 +478,6 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String id = tm.getTestVMId(true, null);
                 Iterable<VirtualMachine> vms = support.listVirtualMachines();
                 boolean found = false;
                 int count = 0;
@@ -488,21 +486,21 @@ public class StatelessVMTests {
                 for( VirtualMachine vm : vms ) {
                     count++;
                     tm.out("VM", vm);
-                    if( id != null && id.equals(vm.getProviderVirtualMachineId()) ) {
+                    if( testVMId != null && testVMId.equals(vm.getProviderVirtualMachineId()) ) {
                         found = true;
                     }
                 }
                 tm.out("Total VM Count", count);
                 if( count < 1 && support.isSubscribed() ) {
-                    if( id == null ) {
+                    if( testVMId == null ) {
                         tm.warn("No virtual machines were listed and thus the test may be in error");
                     }
                     else {
-                        fail("Should have found test virtual machine " + id + ", but none were found");
+                        fail("Should have found test virtual machine " + testVMId + ", but none were found");
                     }
                 }
-                else if( id != null ) {
-                    assertTrue("Failed to find test VM " + id + " among the listed virtual machines", found);
+                else if( testVMId != null ) {
+                    assertTrue("Failed to find test VM " + testVMId + " among the listed virtual machines", found);
                 }
             }
             else {
@@ -523,7 +521,6 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String id = tm.getTestVMId(true, null);
                 Iterable<ResourceStatus> vms = support.listVirtualMachineStatus();
                 boolean found = false;
                 int count = 0;
@@ -532,21 +529,21 @@ public class StatelessVMTests {
                 for( ResourceStatus vm : vms ) {
                     count++;
                     tm.out("VM Status", vm);
-                    if( id != null && id.equals(vm.getProviderResourceId()) ) {
+                    if( testVMId != null && testVMId.equals(vm.getProviderResourceId()) ) {
                         found = true;
                     }
                 }
                 tm.out("Total VM Count", count);
                 if( count < 1 && support.isSubscribed() ) {
-                    if( id == null ) {
+                    if( testVMId == null ) {
                         tm.warn("No virtual machines were listed and thus the test may be in error");
                     }
                     else {
-                        fail("Should have found test virtual machine " + id + ", but none were found");
+                        fail("Should have found test virtual machine " + testVMId + ", but none were found");
                     }
                 }
-                else if( id != null ) {
-                    assertTrue("Failed to find test VM " + id + " in the listed virtual machine status", found);
+                else if( testVMId != null ) {
+                    assertTrue("Failed to find test VM " + testVMId + " in the listed virtual machine status", found);
                 }
             }
             else {

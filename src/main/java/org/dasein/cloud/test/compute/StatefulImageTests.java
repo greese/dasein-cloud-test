@@ -49,7 +49,7 @@ public class StatefulImageTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        testImageId = tm.getTestImageId();
+        testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
     }
 
     @After

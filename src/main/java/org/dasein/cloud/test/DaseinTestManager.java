@@ -4,6 +4,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
@@ -29,8 +30,10 @@ import java.util.TreeSet;
  * @since 2013.04
  */
 public class DaseinTestManager {
+    static public final String STATEFUL  = "stateful";
+    static public final String STATELESS = "stateless";
+
     static private ComputeResources  computeResources;
-    static private String            defaultDataCenterId;
     static private TreeSet<String>   exclusions;
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
@@ -141,8 +144,8 @@ public class DaseinTestManager {
         return computeResources;
     }
 
-    static public @Nullable String getDefaultDataCenterId() {
-        return defaultDataCenterId;
+    static public @Nullable String getDefaultDataCenterId(boolean stateless) {
+        return (computeResources == null ? null : computeResources.getTestDataCenterId(stateless));
     }
 
     static public @Nullable IdentityResources getIdentityResources() {
@@ -153,15 +156,15 @@ public class DaseinTestManager {
         return networkResources;
     }
 
-    static public void init(boolean stateful) {
+    static public void init() {
         CloudProvider provider = constructProvider();
 
         networkResources = new NetworkResources(provider);
-        networkResources.init(stateful);
+        networkResources.init();
         identityResources = new IdentityResources(provider);
-        identityResources.init(stateful);
+        identityResources.init();
         computeResources = new ComputeResources(provider);
-        defaultDataCenterId = computeResources.init(stateful);
+        computeResources.init();
 
         String prop = System.getProperty("dasein.inclusions");
 
@@ -276,8 +279,8 @@ public class DaseinTestManager {
         return suite;
     }
 
-    public @Nullable String getTestImageId() {
-        return (computeResources == null ? null : computeResources.getTestImageId());
+    public @Nullable String getTestImageId(@Nonnull String label, boolean provisionIfNull) {
+        return (computeResources == null ? null : computeResources.getTestImageId(label, provisionIfNull));
     }
 
     public @Nullable String getTestKeypairId() {
@@ -296,19 +299,22 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestVLANId(shared));
     }
 
-    public @Nullable String getTestVMId(boolean shared, @Nullable VmState desiredState) {
+    public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;
         }
-        return computeResources.getTestVMId(shared, desiredState);
+        return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
     }
 
     public @Nullable String getTestVMProductId() {
         return (computeResources == null ? null : computeResources.getTestVMProductId());
     }
 
-    public @Nullable String getTestVolumeId(boolean shared) {
-        return (computeResources == null ? null : computeResources.getTestVolumeId(shared));
+    public @Nullable String getTestVolumeId(@Nonnull String label, boolean provisionIfNull, @Nullable VolumeFormat preferredFormat, @Nullable String preferredDataCenterId) {
+        if( computeResources == null ) {
+            return null;
+        }
+        return computeResources.getTestVolumeId(label, provisionIfNull, preferredFormat, preferredDataCenterId);
     }
 
     public @Nullable String getTestVolumeProductId() {
@@ -341,34 +347,40 @@ public class DaseinTestManager {
         String s = suite.toLowerCase();
         String t = (name == null ? null : name.toLowerCase());
 
-        boolean suiteIncluded = true;
-        boolean testIncluded = true;
+        Boolean suiteIncluded = null;
+        Boolean testIncluded = null;
 
         if( inclusions != null ) {
-            suiteIncluded = false;
-            testIncluded = false;
             if( inclusions.contains(s) ) {
                 suiteIncluded = true;
             }
             if( t != null && inclusions.contains(s + "." + t) ) {
                 testIncluded = true;
             }
-            if( !suiteIncluded && !testIncluded ) {
-                return false;
+            if( suiteIncluded == null && testIncluded == null ) {
+                skip();
+                return true;
             }
         }
         if( exclusions != null ) {
             if( t != null && exclusions.contains(s + "." + t) ) {
-                return !testIncluded;
+                if( testIncluded == null || !testIncluded ) {
+                    skip();
+                    return true;
+                }
+                return false; // conflict goes to not skipping
             }
             if( exclusions.contains(s) ) {
-                if( testIncluded ) {
-                    return false;
+                if( testIncluded != null && testIncluded ) {
+                    return false; // specific test inclusion overrides suite exclusion
                 }
-                // otherwise you have a conflict and the conflict is resolved by including it
+                // suite included must be true to get this far
+                if( suiteIncluded != null && suiteIncluded ) {
+                    return false; // conflict goes to skipping
+                }
             }
         }
-        return (!suiteIncluded && !testIncluded);
+        return false;
     }
 
     public void ok(@Nonnull String message) {

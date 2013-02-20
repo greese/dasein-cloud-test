@@ -145,7 +145,7 @@ public class NetworkResources {
         return testVLANIdCustom;
     }
 
-    public void init(boolean stateful) {
+    public void init() {
         NetworkServices networkServices = provider.getNetworkServices();
 
         if( networkServices != null ) {
@@ -171,6 +171,7 @@ public class NetworkResources {
                     if( defaultAddress != null ) {
                         testStaticIpIdShared = defaultAddress.getProviderIpAddressId();
                     }
+                    /*
                     if( stateful ) {
                         IPVersion version = null;
 
@@ -184,6 +185,7 @@ public class NetworkResources {
                             testStaticIpIdCustom = provisionAddress(ipSupport, version);
                         }
                     }
+                    */
                 }
             }
             catch( Throwable ignore ) {
@@ -225,12 +227,14 @@ public class NetworkResources {
                     if( defaultSubnet != null ) {
                         testSubnetIdShared = defaultSubnet.getProviderSubnetId();
                     }
+                    /*
                     if( stateful && vlanSupport.allowsNewVlanCreation() ) {
                         testVLANIdCustom = provisionVLAN(vlanSupport, "dsnvlan", null);
                         if( stateful && vlanSupport.allowsNewSubnetCreation() ) {
                             testSubnetIdCustom = provisionSubnet(vlanSupport, testVLANIdCustom, "dsnsub", null);
                         }
                     }
+                    */
                 }
             }
             catch( Throwable ignore ) {
@@ -255,7 +259,7 @@ public class NetworkResources {
             }
             preferredDataCenterId = vlan.getProviderDataCenterId();
             if( preferredDataCenterId == null ) {
-                preferredDataCenterId = DaseinTestManager.getDefaultDataCenterId();
+                preferredDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
                 if( preferredDataCenterId == null ) {
                     //noinspection ConstantConditions
                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
