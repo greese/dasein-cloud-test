@@ -1,6 +1,6 @@
 package org.dasein.cloud.test.platform;
 
-import org.dasein.cloud.test.AbstractStatefulTestSuite;
+import org.dasein.cloud.test.AbstractStatelessTestSuite;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -9,6 +9,6 @@ import org.junit.runners.Suite;
  * @since 2013-02-19
  */
 @RunWith( Suite.class )
-@Suite.SuiteClasses( {StatelessMonitoringTests.class, StatefulMonitoringTests.class} )
-public class PlatformTestSuite extends AbstractStatefulTestSuite {
+@Suite.SuiteClasses( {StatelessMonitoringTests.class} )
+public class PlatformTestSuite extends AbstractStatelessTestSuite {
 }
