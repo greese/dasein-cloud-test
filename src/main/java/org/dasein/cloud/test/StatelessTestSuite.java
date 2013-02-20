@@ -16,5 +16,5 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ StatelessAuthenticationTests.class, StatelessDCTests.class, StatelessVMTests.class, StatelessKeypairTests.class, StatelessImageTests.class})
-public class StatelessTestSuite extends AbstractStatelessTestSuite {
+public class StatelessTestSuite {
 }

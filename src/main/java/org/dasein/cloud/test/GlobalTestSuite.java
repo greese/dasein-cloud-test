@@ -1,5 +1,7 @@
 package org.dasein.cloud.test;
 
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -11,6 +13,14 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ StatefulTestSuite.class, StatelessTestSuite.class })
-public class GlobalTestSuite extends AbstractStatefulTestSuite {
+public class GlobalTestSuite {
+    @BeforeClass
+    static public void setup() {
+        DaseinTestManager.init();
+    }
 
+    @AfterClass
+    static public void teardown() {
+        DaseinTestManager.cleanUp();
+    }
 }

@@ -69,7 +69,7 @@ public class IdentityResources {
                     return id;
                 }
             }
-            return null;
+            return findStatelessKeypair();
         }
         String id = testKeys.get(label);
 
@@ -95,7 +95,7 @@ public class IdentityResources {
         return null;
     }
 
-    public void init() {
+    public @Nullable String findStatelessKeypair() {
         IdentityServices identityServices = provider.getIdentityServices();
 
         if( identityServices != null ) {
@@ -106,7 +106,10 @@ public class IdentityResources {
                     Iterator<SSHKeypair> keypairs = keySupport.list().iterator();
 
                     if( keypairs.hasNext() ) {
-                        testKeys.put(DaseinTestManager.STATELESS, keypairs.next().getProviderKeypairId());
+                        String id = keypairs.next().getProviderKeypairId();
+
+                        testKeys.put(DaseinTestManager.STATELESS, id);
+                        return id;
                     }
                 }
             }
@@ -114,6 +117,7 @@ public class IdentityResources {
                 // ignore
             }
         }
+        return null;
     }
 
     public @Nonnull String provision(@Nonnull ShellKeySupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {

@@ -116,6 +116,97 @@ public class NetworkResources {
         provider.close();
     }
 
+    private @Nullable String findStatelessIP() {
+        NetworkServices networkServices = provider.getNetworkServices();
+
+        if( networkServices != null ) {
+            IpAddressSupport ipSupport = networkServices.getIpAddressSupport();
+
+            try {
+                if( ipSupport != null && ipSupport.isSubscribed() ) {
+                    IpAddress defaultAddress = null;
+
+                    for( IPVersion version : ipSupport.listSupportedIPVersions() ) {
+                        for( IpAddress address : ipSupport.listIpPool(version, false) ) {
+                            if( address.isAssigned() || defaultAddress == null ) {
+                                defaultAddress = address;
+                                if( defaultAddress.isAssigned() ) {
+                                    break;
+                                }
+                            }
+                        }
+                        if( defaultAddress != null && defaultAddress.isAssigned() ) {
+                            break;
+                        }
+                    }
+                    if( defaultAddress != null ) {
+                        String id = defaultAddress.getProviderIpAddressId();
+
+                        testStaticIps.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
+    private @Nullable String findStatelessVLAN() {
+        NetworkServices networkServices = provider.getNetworkServices();
+
+        if( networkServices != null ) {
+            VLANSupport vlanSupport = networkServices.getVlanSupport();
+
+            try {
+                if( vlanSupport != null && vlanSupport.isSubscribed() ) {
+                    VLAN defaultVlan = null;
+                    Subnet defaultSubnet = null;
+
+                    for( VLAN vlan : vlanSupport.listVlans() ) {
+                        if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
+                            Subnet foundSubnet = null;
+
+                            if( !vlanSupport.getSubnetSupport().equals(Requirement.NONE) ) {
+                                for( Subnet subnet : vlanSupport.listSubnets(vlan.getProviderVlanId()) ) {
+                                    if( foundSubnet == null || SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
+                                        foundSubnet = subnet;
+                                        if( SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
+                                defaultVlan = vlan;
+                                defaultSubnet = foundSubnet;
+                                if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    String id = null;
+
+                    if( defaultVlan != null ) {
+                        id =  defaultVlan.getProviderVlanId();
+                        testVLANs.put(DaseinTestManager.STATELESS, id);
+                    }
+                    if( defaultSubnet != null ) {
+                        testSubnets.put(DaseinTestManager.STATELESS, defaultSubnet.getProviderSubnetId());
+                    }
+                    return id;
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
     public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testStaticIps.entrySet() ) {
@@ -125,7 +216,7 @@ public class NetworkResources {
                     return id;
                 }
             }
-            return null;
+            return findStatelessIP();
         }
         String id = testStaticIps.get(label);
 
@@ -160,7 +251,8 @@ public class NetworkResources {
                     return id;
                 }
             }
-            return null;
+            findStatelessVLAN();
+            return testSubnets.get(DaseinTestManager.STATELESS);
         }
         String id = testSubnets.get(label);
 
@@ -204,7 +296,7 @@ public class NetworkResources {
                     return id;
                 }
             }
-            return null;
+            return findStatelessVLAN();
         }
         String id = testVLANs.get(label);
 
@@ -228,89 +320,6 @@ public class NetworkResources {
             }
         }
         return null;
-    }
-
-    public void init() {
-        NetworkServices networkServices = provider.getNetworkServices();
-
-        if( networkServices != null ) {
-            IpAddressSupport ipSupport = networkServices.getIpAddressSupport();
-
-            try {
-                if( ipSupport != null && ipSupport.isSubscribed() ) {
-                    IpAddress defaultAddress = null;
-
-                    for( IPVersion version : ipSupport.listSupportedIPVersions() ) {
-                        for( IpAddress address : ipSupport.listIpPool(version, false) ) {
-                            if( address.isAssigned() || defaultAddress == null ) {
-                                defaultAddress = address;
-                                if( defaultAddress.isAssigned() ) {
-                                    break;
-                                }
-                            }
-                        }
-                        if( defaultAddress != null && defaultAddress.isAssigned() ) {
-                            break;
-                        }
-                    }
-                    if( defaultAddress != null ) {
-                        testStaticIps.put(DaseinTestManager.STATELESS, defaultAddress.getProviderIpAddressId());
-                    }
-                }
-            }
-            catch( Throwable ignore ) {
-                // ignore
-            }
-            VLANSupport vlanSupport = networkServices.getVlanSupport();
-
-            try {
-                if( vlanSupport != null && vlanSupport.isSubscribed() ) {
-                    VLAN defaultVlan = null;
-                    Subnet defaultSubnet = null;
-
-                    for( VLAN vlan : vlanSupport.listVlans() ) {
-                        if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
-                            Subnet foundSubnet = null;
-
-                            if( !vlanSupport.getSubnetSupport().equals(Requirement.NONE) ) {
-                                for( Subnet subnet : vlanSupport.listSubnets(vlan.getProviderVlanId()) ) {
-                                    if( foundSubnet == null || SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
-                                        foundSubnet = subnet;
-                                        if( SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
-                                defaultVlan = vlan;
-                                defaultSubnet = foundSubnet;
-                                if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                    if( defaultVlan != null ) {
-                        testVLANs.put(DaseinTestManager.STATELESS, defaultVlan.getProviderVlanId());
-                    }
-                    if( defaultSubnet != null ) {
-                        testSubnets.put(DaseinTestManager.STATELESS, defaultSubnet.getProviderSubnetId());
-                    }
-                    /*
-                    if( stateful && vlanSupport.allowsNewVlanCreation() ) {
-                        testVLANIdCustom = provisionVLAN(vlanSupport, "dsnvlan", null);
-                        if( stateful && vlanSupport.allowsNewSubnetCreation() ) {
-                            testSubnetIdCustom = provisionSubnet(vlanSupport, testVLANIdCustom, "dsnsub", null);
-                        }
-                    }
-                    */
-                }
-            }
-            catch( Throwable ignore ) {
-                // ignore
-            }
-        }
     }
 
     public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version) throws CloudException, InternalException {

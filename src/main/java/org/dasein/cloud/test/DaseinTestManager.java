@@ -161,9 +161,7 @@ public class DaseinTestManager {
         CloudProvider provider = constructProvider();
 
         networkResources = new NetworkResources(provider);
-        networkResources.init();
         identityResources = new IdentityResources(provider);
-        identityResources.init();
         computeResources = new ComputeResources(provider);
         computeResources.init();
 

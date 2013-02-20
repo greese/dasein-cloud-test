@@ -13,5 +13,5 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ StatefulVMTests.class, StatefulKeypairTests.class })
-public class StatefulTestSuite extends AbstractStatefulTestSuite {
+public class StatefulTestSuite {
 }
