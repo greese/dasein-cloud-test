@@ -52,7 +52,7 @@ public class StatelessKeypairTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testKeyId = tm.getTestKeypairId();
+        testKeyId = tm.getTestKeypairId(DaseinTestManager.STATELESS, false);
     }
 
     @After

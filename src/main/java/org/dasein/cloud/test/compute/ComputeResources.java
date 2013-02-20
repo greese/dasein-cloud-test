@@ -569,7 +569,7 @@ public class ComputeResources {
             IdentityResources identity = DaseinTestManager.getIdentityResources();
 
             if( identity != null ) {
-                String keypairId = identity.getTestKeypairId();
+                String keypairId = identity.getTestKeypairId(DaseinTestManager.STATEFUL, true);
 
                 if( keypairId != null ) {
                     options.withBoostrapKey(keypairId);
@@ -580,7 +580,7 @@ public class ComputeResources {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
-                String ipId = network.getTestStaticIpId(false);
+                String ipId = network.getTestStaticIpId(label, true, null);
 
                 if( ipId != null ) {
                     options.withStaticIps(ipId);
@@ -594,8 +594,12 @@ public class ComputeResources {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
-                String networkId = network.getTestVLANId(true); // can be shared for this stuff
-                String subnetId = network.getTestSubnetId(true); // can be shared for this stuff
+                String networkId = network.getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenter);
+
+                if( networkId == null ) {
+                    networkId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenter);
+                }
+                String subnetId = network.getTestSubnetId(DaseinTestManager.STATEFUL, true, networkId, preferredDataCenter);
 
                 try {
                     if( networkId != null || subnetId != null ) {
@@ -698,7 +702,7 @@ public class ComputeResources {
                 String testVlanId = null;
 
                 if( network != null ) {
-                    testVlanId = network.getTestVLANId(true);
+                    testVlanId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
                 }
                 if( testVlanId != null ) {
                     options = VolumeCreateOptions.getNetworkInstance(testVolumeProductId, testVlanId, size, namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration Tests Volume Tests", 0);
@@ -717,7 +721,7 @@ public class ComputeResources {
                 String testVlanId = null;
 
                 if( network != null ) {
-                    testVlanId = network.getTestVLANId(true);
+                    testVlanId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
                 }
                 if( testVlanId != null ) {
                     options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis() % 10000), "Dasein Cloud Integration Tests Volume Tests");

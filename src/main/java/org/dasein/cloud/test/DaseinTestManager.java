@@ -5,6 +5,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
+import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
@@ -283,20 +284,20 @@ public class DaseinTestManager {
         return (computeResources == null ? null : computeResources.getTestImageId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestKeypairId() {
-        return (identityResources == null ? null : identityResources.getTestKeypairId());
+    public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
+        return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestStaticIpId(boolean shared) {
-        return networkResources == null ? null : networkResources.getTestStaticIpId(shared);
+    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
+        return networkResources == null ? null : networkResources.getTestStaticIpId(label, provisionIfNull, version);
     }
 
-    public @Nullable String getTestSubnetId(boolean shared) {
-        return (networkResources == null ? null : networkResources.getTestSubnetId(shared));
+    public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+        return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
     }
 
-    public @Nullable String getTestVLANId(boolean shared) {
-        return (networkResources == null ? null : networkResources.getTestVLANId(shared));
+    public @Nullable String getTestVLANId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        return (networkResources == null ? null : networkResources.getTestVLANId(label, provisionIfNull, preferredDataCenterId));
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {

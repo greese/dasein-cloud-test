@@ -62,7 +62,7 @@ public class StatefulKeypairTests {
 
                     if( support != null ) {
                         try {
-                            testKeyId = id.provision(support, "dsnkp");
+                            testKeyId = id.provision(support, "delete", "dsnkp");
                         }
                         catch( Throwable ignore ) {
                             // ignore
