@@ -13,7 +13,13 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessVMTests.class, StatefulVMTests.class, StatelessImageTests.class })
+@Suite.SuiteClasses({
+        StatefulVMTests.class,
+        StatelessVMTests.class,
+        StatefulImageTests.class,
+        StatelessImageTests.class,
+        StatelessVolumeTests.class
+})
 public class ComputeTestSuite {
     @BeforeClass
     static public void setup() {
