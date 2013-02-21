@@ -5,11 +5,17 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.SnapshotSupport;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.Volume;
 import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFilterOptions;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
+import org.dasein.cloud.compute.VolumeState;
 import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
@@ -52,6 +58,8 @@ public class StatefulVolumeTests {
     private String provisionedVolume;
     private String testSnapshotId;
     private String testVLANId;
+    private String testVMId;
+    private String testVolumeId;
 
     public StatefulVolumeTests() { }
 
@@ -59,14 +67,87 @@ public class StatefulVolumeTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
-        if( testVLANId == null ) {
-            testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+        if( name.getMethodName().equals("createNFSVolume") ) {
+            testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+            if( testVLANId == null ) {
+                testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            }
         }
-        if( name.getMethodName().equals("createFromSnapshot") ) {
+        else if( name.getMethodName().equals("createFromSnapshot") ) {
             testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATELESS, false);
             if( testSnapshotId == null ) {
                 testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATEFUL, true);
+            }
+        }
+        else if( name.getMethodName().equals("removeVolume") ) {
+            testVolumeId = tm.getTestVolumeId("remove", true, null, null);
+        }
+        else if( name.getMethodName().equals("filterVolumes") ) {
+            ComputeServices services = tm.getProvider().getComputeServices();
+
+            if( services != null ) {
+                VolumeSupport support = services.getVolumeSupport();
+
+                if( support != null ) {
+                    try {
+                        //noinspection ConstantConditions
+                        testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, null);
+                    }
+                    catch( Throwable t ) {
+                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
+                    }
+                }
+            }
+        }
+        else if( name.getMethodName().equals("attach") ) {
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+
+            if( testVolumeId != null ) {
+                try {
+                    @SuppressWarnings("ConstantConditions") Volume v = tm.getProvider().getComputeServices().getVolumeSupport().getVolume(testVolumeId);
+
+                    if( v != null && v.getProviderVirtualMachineId() != null ) {
+                        //noinspection ConstantConditions
+                        tm.getProvider().getComputeServices().getVolumeSupport().detach(testVolumeId, true);
+                        try { Thread.sleep(60000L); }
+                        catch( InterruptedException ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
+        else if( name.getMethodName().equals("detach") ) {
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+
+            if( testVolumeId != null && testVMId != null ) {
+                try {
+                    VolumeSupport support = tm.getProvider().getComputeServices().getVolumeSupport();
+                    VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                    if( vm != null ) {
+                        Volume v = support.getVolume(testVolumeId);
+                        String a = (v == null ? null : v.getProviderVirtualMachineId());
+
+                        if( a == null ) {
+                            for( String deviceId : support.listPossibleDeviceIds(vm.getPlatform()) ) {
+                                try {
+                                    support.attach(testVolumeId, testVMId, deviceId);
+                                    break;
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                            }
+                        }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
             }
         }
     }
@@ -80,6 +161,18 @@ public class StatefulVolumeTests {
                 VolumeSupport support = services.getVolumeSupport();
 
                 if( support != null ) {
+                    if( name.getMethodName().equals("attach") && testVolumeId != null ) {
+                        try {
+                            Volume v = support.getVolume(testVolumeId);
+
+                            if( v != null && v.getProviderVirtualMachineId() != null ) {
+                                support.detach(testVolumeId, true);
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
                     if( provisionedVolume != null ) {
                         try {
                             support.detach(provisionedVolume, true);
@@ -99,9 +192,60 @@ public class StatefulVolumeTests {
                 }
             }
             provisionedVolume = null;
+            testSnapshotId = null;
+            testVolumeId = null;
+            testVLANId = null;
         }
         finally {
             tm.end();
+        }
+    }
+
+    @Test
+    public void filterVolumes() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                Iterable<Volume> volumes = support.listVolumes(VolumeFilterOptions.getInstance(".*[Ff][Ii][Ll][Tt][Ee][Rr].*"));
+                boolean found = false;
+                int count = 0;
+
+                assertNotNull("Filtering must return at least an empty collections and may not be null", volumes);
+                for( Volume volume : volumes ) {
+                    count++;
+                    if( volume.getProviderVolumeId().equals(testVolumeId) ) {
+                        found = true;
+                    }
+                    tm.out("Volume", volume);
+                }
+                tm.out("Total Volume Count", count);
+                if( count < 1 && support.isSubscribed() ) {
+                    if( testVolumeId == null ) {
+                        tm.warn("No volumes were listed and thus the test may be in error");
+                    }
+                    else {
+                        fail("Should have found test volume " + testVolumeId + ", but none were found");
+                    }
+                }
+                if( testVolumeId != null ) {
+                    assertTrue("Did not find the test filter volume " + testVolumeId + " among the filtered volumes", found);
+                }
+                else if( support.isSubscribed() ) {
+                    tm.warn("No test volumes existed for filter test, so results may not be valid");
+                }
+                else {
+                    fail("Cannot test volume filtering without a test volume");
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
         }
     }
 
@@ -274,7 +418,7 @@ public class StatefulVolumeTests {
                         testSnapshotId = UUID.randomUUID().toString();
                     }
                     else {
-                        fail("No test snapshot ID even though snapshots are supported");;
+                        fail("No test snapshot ID even though snapshots are supported");
                     }
                 }
                 String productId = tm.getTestVolumeProductId();
@@ -317,6 +461,187 @@ public class StatefulVolumeTests {
                     }
                     catch( OperationNotSupportedException expected ) {
                         tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
+                    }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void attach() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                if( !support.isSubscribed() ) {
+                    tm.warn("Not subscribed to volume services, test will not run properly");
+                    return;
+                }
+                if( testVolumeId != null ) {
+                    Volume volume = support.getVolume(testVolumeId);
+
+                    assertNotNull("Test volume is null and so the test cannot be run", volume);
+
+                    tm.out("Attachment Before", volume.getProviderVirtualMachineId());
+                    assertNull("Attachment must be null before running this test", volume.getProviderVirtualMachineId());
+                    if( testVMId != null ) {
+                        @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                        assertNotNull("Virtual machine for test went away", vm);
+
+                        boolean attached = false;
+
+                        for( String device : support.listPossibleDeviceIds(vm.getPlatform()) ) {
+                            try {
+                                if( volume.getFormat().equals(VolumeFormat.NFS) ) {
+                                    try {
+                                        support.attach(testVolumeId, testVMId, device);
+                                    }
+                                    catch( OperationNotSupportedException expected ) {
+                                        tm.ok("NFS volumes cannot be attached");
+                                        return;
+                                    }
+                                }
+                                else {
+                                    support.attach(testVolumeId, testVMId, device);
+                                }
+                                attached = true;
+                                break;
+                            }
+                            catch( CloudException e ) {
+                                tm.warn("Failed to mount using " + device + ", will hopefully try again");
+                            }
+                        }
+                        assertTrue("Unable to attach using any available device", attached);
+
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            volume = support.getVolume(testVolumeId);
+
+                            assertNotNull("Volume disappeared during attachment", volume);
+                            tm.out("---> Attachment", volume.getProviderVirtualMachineId());
+                            if( volume.getProviderVirtualMachineId() != null ) {
+                                assertEquals("Volume attachment does not match target server", testVMId, volume.getProviderVirtualMachineId());
+                                return;
+                            }
+                            try { Thread.sleep(30000L); }
+                            catch( InterruptedException e ) { }
+                        }
+                        fail("System timed out verifying attachment");
+                    }
+                    else {
+                        fail("No test VM exists for this test");
+                    }
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test volume for " + name.getMethodName());
+                    }
+                    else {
+                        tm.ok("Volume service is not subscribed so this test is not entirely valid");
+                    }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void detach() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                if( !support.isSubscribed() ) {
+                    tm.warn("Not subscribed to volume services, test will not run properly");
+                    return;
+                }
+                if( testVolumeId != null ) {
+                    Volume volume = support.getVolume(testVolumeId);
+
+                    assertNotNull("Test volume is null and so the test cannot be run", volume);
+
+                    tm.out("Attachment Before", volume.getProviderVirtualMachineId());
+                    assertNotNull("Volume must be attached to something before attempting to detach it", volume.getProviderVirtualMachineId());
+                    support.detach(testVolumeId, true);
+
+                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        volume = support.getVolume(testVolumeId);
+
+                        assertNotNull("Volume disappeared during detachment", volume);
+                        tm.out("---> Attachment", volume.getProviderVirtualMachineId());
+                        if( volume.getProviderVirtualMachineId() == null ) {
+                            return;
+                        }
+                        try { Thread.sleep(30000L); }
+                        catch( InterruptedException e ) { }
+                    }
+                    fail("System timed out verifying attachment");
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test volume for " + name.getMethodName());
+                    }
+                    else {
+                        tm.ok("Volume service is not subscribed so this test is not entirely valid");
+                    }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+
+    @Test
+    public void removeVolume() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                if( testVolumeId != null ) {
+                    Volume volume = support.getVolume(testVolumeId);
+
+                    tm.out("Before", volume);
+                    assertNotNull("Test volume no longer exists, cannot test removing it", volume);
+                    tm.out("State", volume.getCurrentState());
+                    assertFalse("Test volume is deleted, cannot test removing it", VolumeState.DELETED.equals(volume.getCurrentState()));
+                    support.remove(testVolumeId);
+                    volume = support.getVolume(testVolumeId);
+                    tm.out("After", volume);
+                    tm.out("State", (volume == null ? VolumeState.DELETED : volume.getCurrentState()));
+                    assertTrue("The volume remains available", (volume == null || VolumeState.DELETED.equals(volume.getCurrentState())));
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test volume for deletion test");
+                    }
+                    else {
+                        tm.ok("Volume service is not subscribed so this test is not entirely valid");
                     }
                 }
             }

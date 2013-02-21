@@ -502,53 +502,6 @@ public class VolumeTestCase extends BaseTestCase {
     }
 
     @Test
-    public void testAttachVolume() throws InternalException, CloudException {
-        if( !getSupport().isSubscribed() ) {
-            out("Warning: Not subscribed, test will not run");
-            return;
-        }
-        if( testVm != null ) {
-            if( testVolume != null && testVolume.getFormat().equals(VolumeFormat.NFS) ) {
-                out("Cannot attach NFS volumes (OK)");
-            }
-            else {
-                boolean attached = false;
-
-                for( String device : getSupport().listPossibleDeviceIds(testVm.getPlatform()) ) {
-                    try {
-                        getSupport().attach(testVolume.getProviderVolumeId(), testVm.getProviderVirtualMachineId(), device);
-                        attached = true;
-                        break;
-                    }
-                    catch( CloudException e ) {
-                        out("WARNING: Failed to mount using " + device + ", will hopefully try again");
-                    }
-                }
-                Assert.assertTrue("Unable to attach using any available device", attached);
-
-                long timeout = System.currentTimeMillis() + getStateChangeWindow();
-
-                while( timeout > System.currentTimeMillis() ) {
-                    Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
-
-                    Assert.assertNotNull("Volume disappeared during attachment", volume);
-                    out("Attachment: " + volume.getProviderVirtualMachineId());
-                    if( volume.getProviderVirtualMachineId() != null ) {
-                        assertEquals("Volume attachment does not match target server", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
-                        return;
-                    }
-                    try { Thread.sleep(30000L); }
-                    catch( InterruptedException e ) { }
-                }
-                Assert.fail("System timed out verifying attachment");
-            }
-        }
-        else {
-            out("Virtual machine services not supported (OK)");
-        }
-    }
-
-    @Test
     public void testDetachVolume() throws InternalException, CloudException {
         if( !getSupport().isSubscribed() ) {
             out("Warning: Not subscribed, test will not run");
@@ -668,34 +621,5 @@ public class VolumeTestCase extends BaseTestCase {
         else {
             out("Virtual machine services not supported (OK)");
         }
-    }
-
-    @Test
-    public void testRemoveVolume() throws InternalException, CloudException {
-        if( !getSupport().isSubscribed() ) {
-            out("Warning: Not subscribed, test will not run");
-            return;
-        }
-        getSupport().remove(testVolume.getProviderVolumeId());
-        out("Removed: " + testVolume.getProviderVolumeId());
-        Volume volume = getSupport().getVolume(testVolume.getProviderVolumeId());
-
-        Assert.assertTrue("Test volume still exists", volume == null || VolumeState.DELETED.equals(volume.getCurrentState()));
-    }
-
-    @Test
-    public void testFilter() throws InternalException, CloudException {
-        if( !getSupport().isSubscribed() ) {
-            out("Warning: Not subscribed, test will not run");
-            return;
-        }
-        boolean found = false;
-
-        for( Volume volume : getSupport().listVolumes(VolumeFilterOptions.getInstance().attachedTo(testVm.getProviderVirtualMachineId())) ) {
-            out("Volume: " + volume.getProviderVolumeId() + " -> " + volume.getProviderVirtualMachineId());
-            Assert.assertEquals("Volume attachment returned from cloud provider does not match target virtual machine", testVm.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId());
-            found = true;
-        }
-        Assert.assertTrue("Did not find the test volume among the mounted volumes", found);
     }
 }

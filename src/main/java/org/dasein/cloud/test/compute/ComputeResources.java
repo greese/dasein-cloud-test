@@ -1,5 +1,6 @@
 package org.dasein.cloud.test.compute;
 
+import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -53,6 +54,8 @@ import java.util.Random;
  * @since 2013.02
  */
 public class ComputeResources {
+    static private final Logger logger = Logger.getLogger(ComputeResources.class);
+
     static private final Random random = new Random();
 
     private CloudProvider   provider;
@@ -100,6 +103,21 @@ public class ComputeResources {
                         }
                         catch( Throwable ignore ) {
                             // ignore
+                        }
+                    }
+                }
+            }
+
+            SnapshotSupport snapshotSupport = computeServices.getSnapshotSupport();
+
+            if( snapshotSupport != null ) {
+                for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
+                    if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                        try {
+                            snapshotSupport.remove(entry.getValue());
+                        }
+                        catch( Throwable t ) {
+                            logger.warn("Failed to deprovision snapshot " + entry.getValue() + " post-test: " + t.getMessage());
                         }
                     }
                 }

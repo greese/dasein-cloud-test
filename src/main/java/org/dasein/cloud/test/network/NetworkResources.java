@@ -1,5 +1,6 @@
 package org.dasein.cloud.test.network;
 
+import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -30,6 +31,8 @@ import java.util.Random;
  * @author George Reese
  */
 public class NetworkResources {
+    static private final Logger logger = Logger.getLogger(NetworkResources.class);
+
     static private final Random random = new Random();
 
     private CloudProvider   provider;
@@ -64,8 +67,8 @@ public class NetworkResources {
                                 try {
                                     ipSupport.releaseFromPool(entry.getValue());
                                 }
-                                catch( Throwable ignore ) {
-                                    // ignore
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -83,8 +86,8 @@ public class NetworkResources {
                                 try {
                                     vlanSupport.removeSubnet(entry.getValue());
                                 }
-                                catch( Throwable ignore ) {
-                                    // ignore
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision subnet " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -98,8 +101,8 @@ public class NetworkResources {
                                 try {
                                     vlanSupport.removeVlan(entry.getValue());
                                 }
-                                catch( Throwable ignore ) {
-                                    // ignore
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
