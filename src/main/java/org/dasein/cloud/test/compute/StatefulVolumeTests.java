@@ -4,6 +4,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.ComputeServices;
+import org.dasein.cloud.compute.Platform;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
@@ -150,6 +151,44 @@ public class StatefulVolumeTests {
                 }
             }
         }
+        else if( name.getMethodName().equals("attachToBogusVM") ) {
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+
+            if( testVolumeId != null ) {
+                try {
+                    @SuppressWarnings("ConstantConditions") Volume v = tm.getProvider().getComputeServices().getVolumeSupport().getVolume(testVolumeId);
+
+                    if( v != null && v.getProviderVirtualMachineId() != null ) {
+                        //noinspection ConstantConditions
+                        tm.getProvider().getComputeServices().getVolumeSupport().detach(testVolumeId, true);
+                        try { Thread.sleep(60000L); }
+                        catch( InterruptedException ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
+        else if( name.getMethodName().equals("detachUnattachedVolume") ) {
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+
+            if( testVolumeId != null ) {
+                try {
+                    @SuppressWarnings("ConstantConditions") Volume v = tm.getProvider().getComputeServices().getVolumeSupport().getVolume(testVolumeId);
+
+                    if( v != null && v.getProviderVirtualMachineId() != null ) {
+                        //noinspection ConstantConditions
+                        tm.getProvider().getComputeServices().getVolumeSupport().detach(testVolumeId, true);
+                        try { Thread.sleep(60000L); }
+                        catch( InterruptedException ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
     }
 
     @After
@@ -161,7 +200,7 @@ public class StatefulVolumeTests {
                 VolumeSupport support = services.getVolumeSupport();
 
                 if( support != null ) {
-                    if( name.getMethodName().equals("attach") && testVolumeId != null ) {
+                    if( testVolumeId != null ) {
                         try {
                             Volume v = support.getVolume(testVolumeId);
 
@@ -504,6 +543,7 @@ public class StatefulVolumeTests {
                                 if( volume.getFormat().equals(VolumeFormat.NFS) ) {
                                     try {
                                         support.attach(testVolumeId, testVMId, device);
+                                        fail("Attachment to NFS volume succeeded even though it should not");
                                     }
                                     catch( OperationNotSupportedException expected ) {
                                         tm.ok("NFS volumes cannot be attached");
@@ -603,6 +643,110 @@ public class StatefulVolumeTests {
                     else {
                         tm.ok("Volume service is not subscribed so this test is not entirely valid");
                     }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void attachToBogusVM() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                if( !support.isSubscribed() ) {
+                    tm.warn("Not subscribed to volume services, test will not run properly");
+                    return;
+                }
+                if( testVolumeId != null ) {
+                    Volume volume = support.getVolume(testVolumeId);
+
+                    assertNotNull("Test volume is null and so the test cannot be run", volume);
+
+                    tm.out("Attachment Before", volume.getProviderVirtualMachineId());
+                    assertNull("Attachment must be null before running this test", volume.getProviderVirtualMachineId());
+                    String id = UUID.randomUUID().toString();
+                    boolean succeeded = false;
+
+                    for( String device : support.listPossibleDeviceIds(Platform.UBUNTU) ) {
+                        if( volume.getFormat().equals(VolumeFormat.NFS) ) {
+                            try {
+                                support.attach(testVolumeId, id, device);
+                                fail("Attachment to NFS volume succeeded even though it should not");
+                            }
+                            catch( OperationNotSupportedException expected ) {
+                                tm.ok("NFS volumes cannot be attached");
+                                return;
+                            }
+                        }
+                        else {
+                            try {
+                                support.attach(testVolumeId, id, device);
+                                succeeded = true;
+                                break;
+                            }
+                            catch( CloudException expected ) {
+                                tm.ok("--> Failed with " + device);
+                            }
+                        }
+                    }
+                    assertFalse("The system reported that it successfully attached to a server that does not exist", succeeded);
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test volume for " + name.getMethodName());
+                    }
+                    else {
+                        tm.ok("Volume service is not subscribed so this test is not entirely valid");
+                    }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void detachUnattachedVolume() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                if( !support.isSubscribed() ) {
+                    tm.warn("Not subscribed to volume services, test will not run properly");
+                    return;
+                }
+                if( testVolumeId != null ) {
+                    Volume volume = support.getVolume(testVolumeId);
+
+                    assertNotNull("Test volume is null and so the test cannot be run", volume);
+
+                    tm.out("Attachment Before", volume.getProviderVirtualMachineId());
+                    assertNull("Volume must be unattached before attempting this test", volume.getProviderVirtualMachineId());
+                    try {
+                        support.detach(testVolumeId, true);
+                        fail("Detachment should have failed for an unattached volume");
+                    }
+                    catch( CloudException expected ) {
+                        tm.ok("Caught a CloudException: " + expected.getMessage());
+                    }
+                }
+                else {
+                    fail("No test volume for " + name.getMethodName());
                 }
             }
             else {

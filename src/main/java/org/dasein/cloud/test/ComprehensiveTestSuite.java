@@ -116,9 +116,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             if( provider.hasComputeServices() ) {
                 ComputeServices compute = provider.getComputeServices();
 
-                if( compute.hasVolumeSupport() ) {
-                    addTests(VolumeTestCase.class);
-                }
                 if( compute.hasSnapshotSupport() ) {
                     addTests(SnapshotTestCase.class);
                 }                
