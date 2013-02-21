@@ -4,6 +4,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.ComputeServices;
+import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VolumeCreateOptions;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.compute.VolumeProduct;
@@ -18,6 +19,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import java.util.UUID;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -47,6 +50,7 @@ public class StatefulVolumeTests {
     public final TestName name = new TestName();
 
     private String provisionedVolume;
+    private String testSnapshotId;
     private String testVLANId;
 
     public StatefulVolumeTests() { }
@@ -58,6 +62,12 @@ public class StatefulVolumeTests {
         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
         if( testVLANId == null ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+        }
+        if( name.getMethodName().equals("createFromSnapshot") ) {
+            testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATELESS, false);
+            if( testSnapshotId == null ) {
+                testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATEFUL, true);
+            }
         }
     }
 
@@ -245,4 +255,78 @@ public class StatefulVolumeTests {
             tm.ok("No compute services in this cloud");
         }
     }
+
+    @Test
+    public void createFromSnapshot() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VolumeSupport support = services.getVolumeSupport();
+
+            if( support != null ) {
+                boolean supported = true;
+
+                if( testSnapshotId == null ) {
+                    SnapshotSupport snapSupport = services.getSnapshotSupport();
+
+                    if( snapSupport == null || !snapSupport.isSubscribed() ) {
+                        supported = false;
+                        testSnapshotId = UUID.randomUUID().toString();
+                    }
+                    else {
+                        fail("No test snapshot ID even though snapshots are supported");;
+                    }
+                }
+                String productId = tm.getTestVolumeProductId();
+                VolumeCreateOptions options = null;
+
+                if( productId != null ) {
+                    Storage<Gigabyte> size = null;
+
+                    if( support.isVolumeSizeDeterminedByProduct() ) {
+                        VolumeProduct product = null;
+
+                        for( VolumeProduct prd : support.listVolumeProducts() ) {
+                            if( prd.getProviderProductId().equals(productId) ) {
+                                product = prd;
+                                break;
+                            }
+                        }
+                        if( product != null ) {
+                            size = product.getVolumeSize();
+                        }
+                    }
+                    if( size == null ) {
+                        size = support.getMinimumVolumeSize();
+                    }
+                    options = VolumeCreateOptions.getInstanceForSnapshot(productId, testSnapshotId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
+                }
+                if( options == null ) {
+                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, support.getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                }
+
+                if( support.isSubscribed() && supported ) {
+                    provisionedVolume = options.build(tm.getProvider());
+
+                    tm.out("New Volume from Snapshot", provisionedVolume);
+                }
+                else {
+                    try {
+                        provisionedVolume = options.build(tm.getProvider());
+                        fail("Volume snapshots are either not subscribed or supported, yet the operation completed");
+                    }
+                    catch( OperationNotSupportedException expected ) {
+                        tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
+                    }
+                }
+            }
+            else {
+                tm.ok("No volume support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
 }

@@ -313,6 +313,10 @@ public class DaseinTestManager {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
+        return (computeResources == null ? null : computeResources.getTestSnapshotId(label, provisionIfNull));
+    }
+
     public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
         return networkResources == null ? null : networkResources.getTestStaticIpId(label, provisionIfNull, version);
     }
