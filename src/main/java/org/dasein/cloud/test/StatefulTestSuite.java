@@ -2,6 +2,7 @@ package org.dasein.cloud.test;
 
 import org.dasein.cloud.test.compute.StatefulImageTests;
 import org.dasein.cloud.test.compute.StatefulVMTests;
+import org.dasein.cloud.test.compute.StatefulVolumeTests;
 import org.dasein.cloud.test.identity.StatefulKeypairTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -13,6 +14,11 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatefulVMTests.class, StatefulKeypairTests.class, StatefulImageTests.class })
+@Suite.SuiteClasses({
+        StatefulVMTests.class,
+        StatefulKeypairTests.class,
+        StatefulImageTests.class,
+        StatefulVolumeTests.class
+})
 public class StatefulTestSuite {
 }

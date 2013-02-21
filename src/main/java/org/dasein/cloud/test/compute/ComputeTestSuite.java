@@ -18,6 +18,7 @@ import org.junit.runners.Suite;
         StatelessVMTests.class,
         StatefulImageTests.class,
         StatelessImageTests.class,
+        StatefulVolumeTests.class,
         StatelessVolumeTests.class
 })
 public class ComputeTestSuite {
