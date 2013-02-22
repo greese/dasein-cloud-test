@@ -1,142 +1,401 @@
 package org.dasein.cloud.test.platform;
 
+import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
+import java.util.Collection;
+import java.util.Map;
+
+import static junit.framework.Assert.*;
+
 /**
- * Verifies the stateful functionality of cloud monitoring solutions like AWS CloudWatch.
+ * Verifies the stateful elements of cloud monitoring solutions like AWS CloudWatch.
  * <p>Created by Cameron Stokes: 2/19/13 2:38 PM</p>
+ *
  * @author Cameron Stokes
  * @version 2013.04 initial version
  * @since 2013.04
  */
 public class StatefulMonitoringTests {
-    // every test has a test manager class that stores the test context
-    // and provides access to shared resources (minimizing the number of cloud resources that must be provisioned)
-    static private DaseinTestManager tm;
 
-    @BeforeClass
-    static public void configure() {
-        // I always call this method configure; doesn't matter what it is called as long as it has the BeforeClass
-        // annotation. It's role is to initialize the test manager
-        tm = new DaseinTestManager(StatefulMonitoringTests.class);
+  static private final Logger logger = Logger.getLogger( StatefulMonitoringTests.class );
+
+  private static final String DASEIN_PREFIX = "dasein-alarm-";
+
+  private String provisionedAlarmName;
+
+  static private DaseinTestManager tm;
+
+  private String availableMetricName;
+  private String availableMetricNamespace;
+
+  @Rule
+  public final TestName name = new TestName();
+
+  @BeforeClass
+  static public void configure() {
+    tm = new DaseinTestManager( StatefulMonitoringTests.class );
+  }
+
+  @AfterClass
+  static public void cleanUp() {
+    if ( tm != null ) {
+      tm.close();
     }
+  }
 
-    @AfterClass
-    static public void cleanUp() {
-        // Same as for configure, except this is an AfterClass for clean up. It should close the test manager
-        // and de-provision any specially provisioned resources
-        if( tm != null ) {
-            tm.close();
-        }
+  public StatefulMonitoringTests() {
+  }
+
+  @Before
+  public void before() {
+    String methodName = name.getMethodName();
+    tm.begin( methodName );
+    setAvailableMetricProperties();
+    if ( "testListAlarms".equals( methodName ) ) {
+      addTestAlarm();
     }
-
-    // Provides access to the currently executing test name
-    @Rule
-    public final TestName name = new TestName();
-
-    // The ID for the VM to be used in a given test
-    private String testVMId;
-
-    private String testVmYouLikelyDontNeed;
-
-    public StatefulMonitoringTests() { }
-
-    @Before
-    public void before() {
-        // I always call this before, but as per the Before annotation contract, whatever this is called, it will
-        // be called before each test within this class
-        // It should minimally tell the test manager that a test is beginning
-        // Any further initialization should happen AFTER this tm.begin() call
-        tm.begin(name.getMethodName());
-
-        // Here is where you do any provisioning specific to a test and setup test resource references
-        // NOTE: You rarely need to provision your own resources except when you are doing something
-        // destructive like a termination test
-        // FOR EXAMPLE:
-        testVMId = tm.getTestVMId(false, VmState.RUNNING);
-
-        // the above call fetched a pre-provisioned VM that I can feel comfortable doing horrible things to
-        // the "false" value says that the reference is not stateless (if I had passed in true, I would
-        // have potentially gotten a reference to a VM that pre-existed the test suite execution).
-        // By specifying RUNNING as the second argument, I am telling the test manager to make sure
-        // the VM is in a running state before the call returns
-        // it will automatically figure out how to get the VM from it's current state to the desired state
-        // if I pass null OR if the VM is stateless (arg 1 == true), then no change will be attempted
-/*
-        ComputeResources compute = DaseinTestManager.getComputeResources();
-
-        if( compute != null ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
-
-            if( services != null ) {
-                VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                if( support != null ) {
-                    try {
-                        // Dasein Cloud Test Manager will automatically terminate this once all tests complete
-                        // Always prefix resource names with dsn so they can be readily identified as things that
-                        // can be killed should the clean up fail for whatever reason
-                        testVmYouLikelyDontNeed = compute.provisionVM(support, "My Special Dasein Test", "dsnmytest", null);
-                    }
-                    catch( Throwable ignore ) {
-                        // deal with the lack of VM later, because there may be good reasons for this to fail
-                        // that don't involve test failure
-                    }
-                }
-            }
-        }
-        */
+    else if ( "testListAlarmsWithFilter".equals( methodName ) ) {
+      addTestAlarm();
     }
-
-    @After
-    public void after() {
-        // NOTE: the best way to provision resources is through the test manager state methods
-        // those provisioning methods will clean up even if you fail to
-        try {
-            // This is called AFTER each test is executed. Any further closing should happen BEFORE you call tm.end()
-            // the first line nulls out our test VM reference
-            testVMId = null;
-            // if you did any special provisioning (in particular, if you provisioned something without using the
-            // test manager), you should clean it up here
-        }
-        finally {
-            tm.end();
-        }
+    else if ( "testRemoveAlarms".equals( methodName ) ) {
+      addTestAlarm();
     }
-
-    @Test
-    public void whatever() throws CloudException, InternalException {
-        if( !tm.isTestSkipped() ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
-
-            if( services != null ) {
-                //MonitoringSupport support = services.getMonitoringSupport(); or whatever you call it
-
-                //if( support != null ) {
-                // whatever
-                //else {
-                //    tm.ok(tm.getProvider().getCloudName() + " does not support monitoring");
-                //}
-            }
-            else {
-                // No compute services, so pass the test without output that says all is OK
-                tm.ok(tm.getProvider().getCloudName() + " does not support any compute services");
-            }
-        }
-        else {
-            tm.skip();
-        }
+    else if ( "testEnableAlarmActions".equals( methodName ) ) {
+      addTestAlarm();
     }
+    else if ( "testDisableAlarmActions".equals( methodName ) ) {
+      addTestAlarm();
+    }
+    else {
+      logger.debug( "No pre-test work for: " + methodName );
+    }
+  }
+
+  /**
+   * Requires {@link #setAvailableMetricProperties()} to be run first.
+   */
+  private void addTestAlarm() {
+    MonitoringSupport support = getSupport();
+    if ( support == null || provisionedAlarmName != null ) {
+      return;
+    }
+    try {
+      String alarmName = DASEIN_PREFIX + getRandomId();
+      AlarmUpdateOptions options = AlarmUpdateOptions.getInstance( alarmName,
+          availableMetricNamespace, availableMetricName,
+          "SampleCount", "GreaterThanOrEqualToThreshold", 0.0,
+          60, 1 );
+      support.updateAlarm( options );
+      provisionedAlarmName = alarmName;
+    }
+    catch ( Throwable ex ) {
+      logger.warn( ex );
+    }
+  }
+
+  private void setAvailableMetricProperties() {
+    MonitoringSupport support = getSupport();
+    if ( support == null || availableMetricName != null ) {
+      return;
+    }
+    try {
+      Collection<Metric> metrics = support.listMetrics( MetricFilterOptions.getInstance() );
+      assertTrue( "No metrics available to work with.", metrics.size() > 0 );
+
+      Metric firstMetric = metrics.iterator().next();
+      availableMetricName = firstMetric.getName();
+      availableMetricNamespace = firstMetric.getNamespace();
+    }
+    catch ( Throwable ex ) {
+      logger.warn( ex );
+    }
+  }
+
+  @After
+  public void after() {
+    try {
+      if ( provisionedAlarmName != null ) {
+        getSupport().removeAlarms( new String[] {provisionedAlarmName} );
+      }
+    }
+    catch ( Throwable ex ) {
+      logger.warn( ex );
+    }
+    provisionedAlarmName = null;
+    tm.end();
+  }
+
+  @Test
+  public void testListMetrics() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support != null ) {
+      Collection<Metric> metrics = support.listMetrics( MetricFilterOptions.getInstance() );
+      assertNotNull( metrics );
+      for ( Metric metric : metrics ) {
+        assertMetric( metric );
+      }
+    }
+    else {
+      tm.ok( "No MonitoringSupport in this cloud" );
+    }
+  }
+
+  /**
+   * Requires {@link #setAvailableMetricProperties()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testListMetricsWithFilter() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+
+    MonitoringSupport support = getSupport();
+    if ( support != null ) {
+      Collection<Metric> metrics = support.listMetrics( MetricFilterOptions
+          .getInstance()
+          .withMetricNamespace( availableMetricNamespace )
+          .withMetricName( availableMetricName )
+      );
+      assertNotNull( metrics );
+      for ( Metric metric : metrics ) {
+        assertMetric( metric );
+        if ( availableMetricNamespace != null ) {
+          assertEquals( availableMetricNamespace, metric.getNamespace() );
+        }
+        assertEquals( availableMetricName, metric.getName() );
+      }
+    }
+    else {
+      tm.ok( "No MonitoringSupport in this cloud" );
+    }
+  }
+
+  @Test
+  public void testListMetricsWithBadFilter() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+
+    MonitoringSupport support = getSupport();
+    if ( support != null ) {
+      Collection<Metric> metrics = support.listMetrics( MetricFilterOptions
+          .getInstance()
+          .withMetricName( "asdf" )
+      );
+      assertNotNull( metrics );
+      for ( Metric metric : metrics ) {
+        assertMetric( metric );
+        assertEquals( availableMetricName, metric.getName() );
+      }
+    }
+    else {
+      tm.ok( "No MonitoringSupport in this cloud" );
+    }
+  }
+
+  /**
+   * Requires {@link #addTestAlarm()} ()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testListAlarms() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support != null ) {
+      Collection<Alarm> alarms = support.listAlarms( AlarmFilterOptions.getInstance() );
+      assertNotNull( alarms );
+      for ( Alarm alarm : alarms ) {
+        assertAlarm( alarm );
+      }
+    }
+    else {
+      tm.ok( "No MonitoringSupport in this cloud" );
+    }
+  }
+
+  /**
+   * Requires {@link #setAvailableMetricProperties()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testListAlarmsWithFilter() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support != null ) {
+      Collection<Alarm> alarms = support.listAlarms( AlarmFilterOptions.getInstance()
+          .withAlarmNames( new String[] {provisionedAlarmName} )
+      );
+      assertNotNull( alarms );
+      for ( Alarm alarm : alarms ) {
+        assertAlarm( alarm );
+      }
+    }
+    else {
+      tm.ok( "No MonitoringSupport in this cloud" );
+    }
+  }
+
+  /**
+   * Requires {@link #setAvailableMetricProperties()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testAddAlarm() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support == null ) {
+      tm.ok( "No MonitoringSupport in this cloud" );
+      return;
+    }
+    try {
+      String alarmName = DASEIN_PREFIX + getRandomId();
+      AlarmUpdateOptions options = AlarmUpdateOptions.getInstance( alarmName,
+          availableMetricNamespace, availableMetricName,
+          "SampleCount", "GreaterThanOrEqualToThreshold", 0.0,
+          60, 1 );
+      support.updateAlarm( options );
+      provisionedAlarmName = alarmName;
+    }
+    catch ( OperationNotSupportedException expected ) {
+      tm.ok( "OperationNotSupportedException thrown." );
+    }
+  }
+
+  /**
+   * Requires {@link #addTestAlarm()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testRemoveAlarms() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support == null ) {
+      tm.ok( "No MonitoringSupport in this cloud" );
+      return;
+    }
+    try {
+      support.removeAlarms( new String[] {provisionedAlarmName} );
+    }
+    catch ( OperationNotSupportedException expected ) {
+      tm.ok( "OperationNotSupportedException thrown." );
+    }
+  }
+
+  /**
+   * Requires {@link #addTestAlarm()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testEnableAlarmActions() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support == null ) {
+      tm.ok( "No MonitoringSupport in this cloud" );
+      return;
+    }
+    try {
+      support.enableAlarmActions( new String[] {provisionedAlarmName} );
+    }
+    catch ( OperationNotSupportedException expected ) {
+      tm.ok( "OperationNotSupportedException thrown." );
+    }
+  }
+
+  /**
+   * Requires {@link #addTestAlarm()} to be run first.
+   *
+   * @throws CloudException
+   * @throws InternalException
+   */
+  @Test
+  public void testDisableAlarmActions() throws CloudException, InternalException {
+    assertTrue( !tm.isTestSkipped() );
+    MonitoringSupport support = getSupport();
+    if ( support == null ) {
+      tm.ok( "No MonitoringSupport in this cloud" );
+      return;
+    }
+    try {
+      support.disableAlarmActions( new String[] {provisionedAlarmName} );
+    }
+    catch ( OperationNotSupportedException expected ) {
+      tm.ok( "OperationNotSupportedException thrown." );
+    }
+  }
+
+  private long getRandomId() {
+    return System.currentTimeMillis() % 10000;
+  }
+
+  private void assertMetric( Metric metric ) {
+    assertNotNull( metric );
+    assertNotNull( metric.getName() );
+
+    if ( metric.getMetadata() != null ) {
+      for ( Map.Entry<String, String> entry : metric.getMetadata().entrySet() ) {
+        assertNotNull( entry.getKey() );
+      }
+    }
+  }
+
+  private void assertAlarm( Alarm alarm ) {
+    assertNotNull( alarm );
+    assertNotNull( alarm.getName() );
+    assertNotNull( alarm.getMetric() );
+    if ( !alarm.isFunction() ) {
+      assertNotNull( alarm.getStatistic() );
+      assertNotNull( alarm.getComparisonOperator() );
+      assertNotNull( alarm.getThreshold() );
+    }
+    assertNotNull( alarm.getProviderAlarmId() );
+    if ( alarm.getProviderOKActionIds() != null ) {
+      for ( String id : alarm.getProviderOKActionIds() ) {
+        assertNotNull( id );
+      }
+    }
+    if ( alarm.getProviderAlarmActionIds() != null ) {
+      for ( String id : alarm.getProviderAlarmActionIds() ) {
+        assertNotNull( id );
+      }
+    }
+    if ( alarm.getProviderInsufficentDataActionIds() != null ) {
+      for ( String id : alarm.getProviderInsufficentDataActionIds() ) {
+        assertNotNull( id );
+      }
+    }
+    if ( alarm.getMetricMetadata() != null ) {
+      for ( Map.Entry<String, String> entry : alarm.getMetricMetadata().entrySet() ) {
+        assertNotNull( entry.getKey() );
+      }
+    }
+  }
+
+  private MonitoringSupport getSupport() {
+    PlatformServices services = getServices();
+    return services.getMonitoringSupport();
+  }
+
+  private PlatformServices getServices() {
+    CloudProvider provider = tm.getProvider();
+    return provider.getPlatformServices();
+  }
+
 }
