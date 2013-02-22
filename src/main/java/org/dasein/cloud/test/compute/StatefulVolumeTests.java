@@ -273,7 +273,7 @@ public class StatefulVolumeTests {
                 if( testVolumeId != null ) {
                     assertTrue("Did not find the test filter volume " + testVolumeId + " among the filtered volumes", found);
                 }
-                else if( support.isSubscribed() ) {
+                else if( !support.isSubscribed() ) {
                     tm.warn("No test volumes existed for filter test, so results may not be valid");
                 }
                 else {

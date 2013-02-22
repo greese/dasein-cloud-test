@@ -891,7 +891,7 @@ public class ComputeResources {
             }
             else if( state.equals(VmState.STOPPED) ) {
                 if( currentState.equals(VmState.RUNNING) || setState(support, vm, VmState.RUNNING)) {
-                    support.stop(id);
+                    support.stop(id, true);
                 }
                 else {
                     return false;

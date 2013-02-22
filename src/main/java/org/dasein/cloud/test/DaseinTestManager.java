@@ -35,6 +35,7 @@ import java.util.TreeSet;
 public class DaseinTestManager {
     static public final String STATEFUL  = "stateful";
     static public final String STATELESS = "stateless";
+    static public final String REMOVED   = "removed";
 
     static private HashMap<String,Integer> apiAudit = new HashMap<String, Integer>();
 
@@ -162,11 +163,9 @@ public class DaseinTestManager {
     }
 
     static public void init() {
-        CloudProvider provider = constructProvider();
-
-        networkResources = new NetworkResources(provider);
-        identityResources = new IdentityResources(provider);
-        computeResources = new ComputeResources(provider);
+        networkResources = new NetworkResources(constructProvider());
+        identityResources = new IdentityResources(constructProvider());
+        computeResources = new ComputeResources(constructProvider());
         computeResources.init();
 
         String prop = System.getProperty("dasein.inclusions");
@@ -201,7 +200,16 @@ public class DaseinTestManager {
 
     static public void cleanUp() {
         APITrace.report("Clean Up");
-        computeResources.close();
+        if( computeResources != null ) {
+            computeResources.close();
+        }
+        if( networkResources != null ) {
+            networkResources.close();
+        }
+        if( identityResources != null ) {
+            identityResources.close();
+        }
+
     }
 
     private Logger                  logger;

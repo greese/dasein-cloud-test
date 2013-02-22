@@ -281,7 +281,7 @@ public class StatefulVMTests {
                     if( vm != null ) {
                         if( support.supportsStartStop(vm) ) {
                             tm.out("Before", vm.getCurrentState());
-                            support.stop(testVmId);
+                            support.stop(testVmId, true);
                             vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
                             VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
                             tm.out("After", currentState);

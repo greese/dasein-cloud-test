@@ -447,7 +447,7 @@ public class StatefulImageTests {
                     VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
 
                     assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
-                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap", "Dasein Capture Image Test");
+                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + (System.currentTimeMillis() % 10000), "Dasein Capture Image Test");
 
                     options.withMetaData("dsntestcase", "true");
 
@@ -553,7 +553,7 @@ public class StatefulImageTests {
                     if( type == null ) {
                         type = MachineImageType.VOLUME; // or not; qui sait?
                     }
-                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap", "Dasein Capture Image Test");
+                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + (System.currentTimeMillis() % 10000), "Dasein Capture Image Test");
 
                     options.withMetaData("dsntestcase", "true");
 

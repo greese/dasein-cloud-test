@@ -60,11 +60,11 @@ public class StatefulVLANTests {
             }
         }
         else if( name.getMethodName().equals("removeVLAN") ) {
-            testVLANId = tm.getTestVLANId("remove", true, null);
+            testVLANId = tm.getTestVLANId(DaseinTestManager.REMOVED, true, null);
         }
         else if( name.getMethodName().equals("removeSubnet") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-            testSubnetId = tm.getTestSubnetId("remove", true, testVLANId, null);
+            testSubnetId = tm.getTestSubnetId(DaseinTestManager.REMOVED, true, testVLANId, null);
         }
     }
 
@@ -191,7 +191,10 @@ public class StatefulVLANTests {
                     assertNull("The VLAN remains available", vlan);
                 }
                 else {
-                    if( support.isSubscribed() ) {
+                    if( !support.allowsNewVlanCreation() ) {
+                        tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
+                    }
+                    else if( support.isSubscribed() ) {
                         fail("No test VLAN for deletion test");
                     }
                     else {
@@ -231,7 +234,10 @@ public class StatefulVLANTests {
                     assertNull("The subnet remains available", subnet);
                 }
                 else {
-                    if( support.isSubscribed() ) {
+                    if( !support.allowsNewSubnetCreation() ) {
+                        tm.ok("Subnet creation/deletion is not supported in " + tm.getProvider().getCloudName());
+                    }
+                    else if( support.isSubscribed() ) {
                         fail("No test subnet for deletion test");
                     }
                     else {
