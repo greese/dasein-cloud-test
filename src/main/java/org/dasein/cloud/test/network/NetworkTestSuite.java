@@ -16,7 +16,7 @@ import org.junit.runners.Suite;
  * @since 2013.04
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessVLANTests.class,})
+@Suite.SuiteClasses({ StatefulVLANTests.class, StatelessVLANTests.class })
 public class NetworkTestSuite {
     @BeforeClass
     static public void setup() {

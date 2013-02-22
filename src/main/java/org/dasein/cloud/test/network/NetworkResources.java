@@ -88,6 +88,7 @@ public class NetworkResources {
                                 }
                                 catch( Throwable t ) {
                                     logger.warn("Failed to de-provision subnet " + entry.getValue() + " post-test: " + t.getMessage());
+                                    t.printStackTrace();
                                 }
                             }
                         }
@@ -103,6 +104,7 @@ public class NetworkResources {
                                 }
                                 catch( Throwable t ) {
                                     logger.warn("Failed to de-provision VLAN " + entry.getValue() + " post-test: " + t.getMessage());
+                                    t.printStackTrace();
                                 }
                             }
                         }
