@@ -56,6 +56,7 @@ public class StatefulMonitoringTests {
 
   @Before
   public void before() {
+    assertTrue( !tm.isTestSkipped() );
     String methodName = name.getMethodName();
     tm.begin( methodName );
     setAvailableMetricProperties();
@@ -77,6 +78,20 @@ public class StatefulMonitoringTests {
     else {
       logger.debug( "No pre-test work for: " + methodName );
     }
+  }
+
+  @After
+  public void after() {
+    try {
+      if ( provisionedAlarmName != null ) {
+        getSupport().removeAlarms( new String[] {provisionedAlarmName} );
+      }
+    }
+    catch ( Throwable ex ) {
+      logger.warn( ex );
+    }
+    provisionedAlarmName = null;
+    tm.end();
   }
 
   /**
@@ -119,23 +134,8 @@ public class StatefulMonitoringTests {
     }
   }
 
-  @After
-  public void after() {
-    try {
-      if ( provisionedAlarmName != null ) {
-        getSupport().removeAlarms( new String[] {provisionedAlarmName} );
-      }
-    }
-    catch ( Throwable ex ) {
-      logger.warn( ex );
-    }
-    provisionedAlarmName = null;
-    tm.end();
-  }
-
   @Test
   public void testListMetrics() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Metric> metrics = support.listMetrics( MetricFilterOptions.getInstance() );
@@ -157,8 +157,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testListMetricsWithFilter() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
-
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Metric> metrics = support.listMetrics( MetricFilterOptions
@@ -182,8 +180,6 @@ public class StatefulMonitoringTests {
 
   @Test
   public void testListMetricsWithBadFilter() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
-
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Metric> metrics = support.listMetrics( MetricFilterOptions
@@ -209,7 +205,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testListAlarms() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Alarm> alarms = support.listAlarms( AlarmFilterOptions.getInstance() );
@@ -231,7 +226,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testListAlarmsWithFilter() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support != null ) {
       Collection<Alarm> alarms = support.listAlarms( AlarmFilterOptions.getInstance()
@@ -255,7 +249,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testAddAlarm() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support == null ) {
       tm.ok( "No MonitoringSupport in this cloud" );
@@ -283,7 +276,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testRemoveAlarms() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support == null ) {
       tm.ok( "No MonitoringSupport in this cloud" );
@@ -305,7 +297,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testEnableAlarmActions() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support == null ) {
       tm.ok( "No MonitoringSupport in this cloud" );
@@ -327,7 +318,6 @@ public class StatefulMonitoringTests {
    */
   @Test
   public void testDisableAlarmActions() throws CloudException, InternalException {
-    assertTrue( !tm.isTestSkipped() );
     MonitoringSupport support = getSupport();
     if ( support == null ) {
       tm.ok( "No MonitoringSupport in this cloud" );
