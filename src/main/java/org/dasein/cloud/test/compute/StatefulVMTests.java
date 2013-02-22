@@ -23,6 +23,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * [Class Documentation]
@@ -83,6 +84,7 @@ public class StatefulVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("filterVMs") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
 
@@ -92,7 +94,7 @@ public class StatefulVMTests {
                 if( support != null ) {
                     try {
                         //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Filter Test", "dsnfilter", null);
+                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", null);
                     }
                     catch( Throwable t ) {
                         tm.warn("Failed to provision VM for filter test: " + t.getMessage());
@@ -101,42 +103,28 @@ public class StatefulVMTests {
             }
         }
         else if( name.getMethodName().equals("terminate") ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
-
-            if( services != null ) {
-                VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                if( support != null ) {
-                    try {
-                        //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Termination Test", "dsnterm", null);
-                    }
-                    catch( Throwable t ) {
-                        tm.warn("Failed to provision VM for termination test: " + t.getMessage());
-                    }
-                }
-            }
+            testVmId = tm.getTestVMId("terminate", null, true, null);
         }
         else if( name.getMethodName().equals("start") ) {
-                testVmId = tm.getTestVMId(false, VmState.STOPPED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
         }
         else if( name.getMethodName().equals("stop") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("pause") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("unpause") ) {
-            testVmId = tm.getTestVMId(false, VmState.PAUSED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.PAUSED, true, null);
         }
         else if( name.getMethodName().equals("suspend") ) {
-            testVmId = tm.getTestVMId(false, VmState.RUNNING);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("resume") ) {
-            testVmId = tm.getTestVMId(false, VmState.SUSPENDED);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.SUSPENDED, true, null);
         }
         else {
-            testVmId = tm.getTestVMId(false, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, null, true, null);
         }
     }
 
@@ -148,6 +136,7 @@ public class StatefulVMTests {
 
     @Test
     public void disableAnalytics() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -172,6 +161,7 @@ public class StatefulVMTests {
 
     @Test
     public void enableAnalytics() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -196,6 +186,7 @@ public class StatefulVMTests {
 
     @Test
     public void launch() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -203,7 +194,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "Dasein Test Launch", "dsnlaunch", null);
+                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "Dasein Test Launch", "dsnlaunch", null);
 
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
@@ -212,7 +203,7 @@ public class StatefulVMTests {
                 else {
                     try {
                         //noinspection ConstantConditions
-                        DaseinTestManager.getComputeResources().provisionVM(support, "Should Fail", "failure", null);
+                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
                         fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
                     }
                     catch( CloudException ok ) {
@@ -231,6 +222,7 @@ public class StatefulVMTests {
 
     @Test
     public void filterVMs() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -276,6 +268,7 @@ public class StatefulVMTests {
 
     @Test
     public void stop() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -323,6 +316,7 @@ public class StatefulVMTests {
 
     @Test
     public void start() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -370,6 +364,7 @@ public class StatefulVMTests {
 
     @Test
     public void pause() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -417,6 +412,7 @@ public class StatefulVMTests {
 
     @Test
     public void unpause() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -464,6 +460,7 @@ public class StatefulVMTests {
 
     @Test
     public void suspend() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -511,6 +508,7 @@ public class StatefulVMTests {
 
     @Test
     public void resume() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -558,6 +556,7 @@ public class StatefulVMTests {
 
     @Test
     public void terminate() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {

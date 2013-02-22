@@ -14,6 +14,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.*;
 
 /**
  * General authentication tests to verify the ability of a Dasein Cloud implementation to authenticate with the cloud
@@ -48,6 +49,7 @@ public class StatelessAuthenticationTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
 
         provider = DaseinTestManager.constructProvider();
         ProviderContext ctx = provider.getContext();
@@ -80,6 +82,7 @@ public class StatelessAuthenticationTests {
 
     @Test
     public void authenticate() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         String id = tm.getProvider().testContext();
 
         tm.out("Account" + id);
@@ -88,6 +91,7 @@ public class StatelessAuthenticationTests {
 
     @Test
     public void reconnect() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         String id = provider.testContext();
 
         //noinspection ConstantConditions
@@ -96,11 +100,13 @@ public class StatelessAuthenticationTests {
 
     @Test
     public void invalidPassword() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         assertNull("Connection succeeded with bad API secret", provider.testContext());
     }
 
     @Test
     public void invalidAccount() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         assertNull("Connection succeeded with fake account", provider.testContext());
     }
 }

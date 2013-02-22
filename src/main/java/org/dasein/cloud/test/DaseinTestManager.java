@@ -4,9 +4,12 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.VolumeFormat;
+import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
+import org.dasein.cloud.util.APITrace;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -18,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
 import java.util.Properties;
 import java.util.TreeSet;
 
@@ -29,8 +33,12 @@ import java.util.TreeSet;
  * @since 2013.04
  */
 public class DaseinTestManager {
+    static public final String STATEFUL  = "stateful";
+    static public final String STATELESS = "stateless";
+
+    static private HashMap<String,Integer> apiAudit = new HashMap<String, Integer>();
+
     static private ComputeResources  computeResources;
-    static private String            defaultDataCenterId;
     static private TreeSet<String>   exclusions;
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
@@ -141,8 +149,8 @@ public class DaseinTestManager {
         return computeResources;
     }
 
-    static public @Nullable String getDefaultDataCenterId() {
-        return defaultDataCenterId;
+    static public @Nullable String getDefaultDataCenterId(boolean stateless) {
+        return (computeResources == null ? null : computeResources.getTestDataCenterId(stateless));
     }
 
     static public @Nullable IdentityResources getIdentityResources() {
@@ -153,15 +161,13 @@ public class DaseinTestManager {
         return networkResources;
     }
 
-    static public void init(boolean stateful) {
+    static public void init() {
         CloudProvider provider = constructProvider();
 
         networkResources = new NetworkResources(provider);
-        networkResources.init(stateful);
         identityResources = new IdentityResources(provider);
-        identityResources.init(stateful);
         computeResources = new ComputeResources(provider);
-        defaultDataCenterId = computeResources.init(stateful);
+        computeResources.init();
 
         String prop = System.getProperty("dasein.inclusions");
 
@@ -189,17 +195,20 @@ public class DaseinTestManager {
                 exclusions.add(prop.toLowerCase());
             }
         }
+        APITrace.report("Init");
+        APITrace.reset();
     }
 
     static public void cleanUp() {
+        APITrace.report("Clean Up");
         computeResources.close();
     }
 
-    private Logger logger;
-    private String name;
-    private String prefix;
-    private CloudProvider provider;
-    private String suite;
+    private Logger                  logger;
+    private String                  name;
+    private String                  prefix;
+    private CloudProvider           provider;
+    private String                  suite;
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
         logger = Logger.getLogger(testClass);
@@ -210,6 +219,8 @@ public class DaseinTestManager {
 
     public void begin(@Nonnull String name) {
         this.name = name;
+        APITrace.report("Setup");
+        APITrace.reset();
         changePrefix();
         out("");
         out(">>> BEGIN ---------------------------------------------------------------------------------------------->>>");
@@ -249,8 +260,26 @@ public class DaseinTestManager {
     }
 
     public void end() {
+        String[] calls = APITrace.listApis(provider.getProviderName(), provider.getCloudName());
+
+        if( calls.length > 0 ) {
+            out("---------- API Log ----------");
+            for( String call : calls ) {
+                int count = (int)APITrace.getAPICountAcrossAccounts(provider.getProviderName(), provider.getCloudName(), call);
+
+                if( apiAudit.containsKey(call) ) {
+                    apiAudit.put(call, count + apiAudit.get(call));
+                }
+                else {
+                    apiAudit.put(call, count);
+                }
+                out("---> " + call, count);
+            }
+        }
         out("<<< END   ----------------------------------------------------------------------------------------------<<<");
         out("");
+        APITrace.report(prefix);
+        APITrace.reset();
         name = null;
         changePrefix();
     }
@@ -276,39 +305,46 @@ public class DaseinTestManager {
         return suite;
     }
 
-    public @Nullable String getTestImageId() {
-        return (computeResources == null ? null : computeResources.getTestImageId());
+    public @Nullable String getTestImageId(@Nonnull String label, boolean provisionIfNull) {
+        return (computeResources == null ? null : computeResources.getTestImageId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestKeypairId() {
-        return (identityResources == null ? null : identityResources.getTestKeypairId());
+    public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
+        return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestStaticIpId(boolean shared) {
-        return networkResources == null ? null : networkResources.getTestStaticIpId(shared);
+    public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
+        return (computeResources == null ? null : computeResources.getTestSnapshotId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestSubnetId(boolean shared) {
-        return (networkResources == null ? null : networkResources.getTestSubnetId(shared));
+    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
+        return networkResources == null ? null : networkResources.getTestStaticIpId(label, provisionIfNull, version);
     }
 
-    public @Nullable String getTestVLANId(boolean shared) {
-        return (networkResources == null ? null : networkResources.getTestVLANId(shared));
+    public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+        return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
     }
 
-    public @Nullable String getTestVMId(boolean shared, @Nullable VmState desiredState) {
+    public @Nullable String getTestVLANId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        return (networkResources == null ? null : networkResources.getTestVLANId(label, provisionIfNull, preferredDataCenterId));
+    }
+
+    public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;
         }
-        return computeResources.getTestVMId(shared, desiredState);
+        return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
     }
 
     public @Nullable String getTestVMProductId() {
         return (computeResources == null ? null : computeResources.getTestVMProductId());
     }
 
-    public @Nullable String getTestVolumeId(boolean shared) {
-        return (computeResources == null ? null : computeResources.getTestVolumeId(shared));
+    public @Nullable String getTestVolumeId(@Nonnull String label, boolean provisionIfNull, @Nullable VolumeFormat preferredFormat, @Nullable String preferredDataCenterId) {
+        if( computeResources == null ) {
+            return null;
+        }
+        return computeResources.getTestVolumeId(label, provisionIfNull, preferredFormat, preferredDataCenterId);
     }
 
     public @Nullable String getTestVolumeProductId() {
@@ -341,34 +377,40 @@ public class DaseinTestManager {
         String s = suite.toLowerCase();
         String t = (name == null ? null : name.toLowerCase());
 
-        boolean suiteIncluded = true;
-        boolean testIncluded = true;
+        Boolean suiteIncluded = null;
+        Boolean testIncluded = null;
 
         if( inclusions != null ) {
-            suiteIncluded = false;
-            testIncluded = false;
             if( inclusions.contains(s) ) {
                 suiteIncluded = true;
             }
             if( t != null && inclusions.contains(s + "." + t) ) {
                 testIncluded = true;
             }
-            if( !suiteIncluded && !testIncluded ) {
-                return false;
+            if( suiteIncluded == null && testIncluded == null ) {
+                skip();
+                return true;
             }
         }
         if( exclusions != null ) {
             if( t != null && exclusions.contains(s + "." + t) ) {
-                return !testIncluded;
+                if( testIncluded == null || !testIncluded ) {
+                    skip();
+                    return true;
+                }
+                return false; // conflict goes to not skipping
             }
             if( exclusions.contains(s) ) {
-                if( testIncluded ) {
-                    return false;
+                if( testIncluded != null && testIncluded ) {
+                    return false; // specific test inclusion overrides suite exclusion
                 }
-                // otherwise you have a conflict and the conflict is resolved by including it
+                // suite included must be true to get this far
+                if( suiteIncluded != null && suiteIncluded ) {
+                    return false; // conflict goes to skipping
+                }
             }
         }
-        return (!suiteIncluded && !testIncluded);
+        return false;
     }
 
     public void ok(@Nonnull String message) {

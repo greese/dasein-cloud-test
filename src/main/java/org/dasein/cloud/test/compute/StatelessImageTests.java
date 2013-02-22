@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * [Class Documentation]
@@ -61,7 +62,8 @@ public class StatelessImageTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        testImageId = tm.getTestImageId();
+        assumeTrue(!tm.isTestSkipped());
+        testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
     }
 
     @After
@@ -149,6 +151,7 @@ public class StatelessImageTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -220,6 +223,7 @@ public class StatelessImageTests {
 
     @Test
     public void getBogusImage() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -242,6 +246,7 @@ public class StatelessImageTests {
 
     @Test
     public void getImage() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -274,6 +279,7 @@ public class StatelessImageTests {
 
     @Test
     public void imageContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -333,6 +339,7 @@ public class StatelessImageTests {
 
     @Test
     public void listMachineImages() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -373,6 +380,7 @@ public class StatelessImageTests {
 
     @Test
     public void listKernelImages() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -416,6 +424,7 @@ public class StatelessImageTests {
 
     @Test
     public void listRamdiskImages() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -459,6 +468,7 @@ public class StatelessImageTests {
 
     @Test
     public void listMachineImageStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -496,6 +506,7 @@ public class StatelessImageTests {
 
     @Test
     public void listKernelImageStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -533,6 +544,7 @@ public class StatelessImageTests {
 
     @Test
     public void listRamdiskImageStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -570,6 +582,7 @@ public class StatelessImageTests {
 
     @Test
     public void compareImageListAndStatus() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -619,6 +632,7 @@ public class StatelessImageTests {
 
     @Test
     public void findTestUbuntuOrWindowsInPrivateLibrary() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -687,6 +701,7 @@ public class StatelessImageTests {
 
     @Test
     public void findUbuntuOrWindowsInPublicLibrary() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -751,6 +766,7 @@ public class StatelessImageTests {
     @SuppressWarnings("deprecation")
     @Test
     public void deprecation() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {

@@ -15,6 +15,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 import java.util.Locale;
 import java.util.UUID;
@@ -51,6 +52,7 @@ public class StatelessDCTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
         try {
             DataCenterServices services = tm.getProvider().getDataCenterServices();
 
@@ -72,6 +74,7 @@ public class StatelessDCTests {
 
     @Test
     public void configuration() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
         tm.out("DC Services", services);
@@ -80,6 +83,7 @@ public class StatelessDCTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
         tm.out("Term for Region", services.getProviderTermForRegion(Locale.getDefault()));
@@ -90,6 +94,7 @@ public class StatelessDCTests {
 
     @Test
     public void getBogusRegion() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Region region = services.getRegion(UUID.randomUUID().toString());
 
@@ -99,6 +104,7 @@ public class StatelessDCTests {
 
     @Test
     public void getRegion() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Region region = services.getRegion(tm.getContext().getRegionId());
 
@@ -108,6 +114,7 @@ public class StatelessDCTests {
 
     @Test
     public void regionContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Region region = services.getRegion(tm.getContext().getRegionId());
 
@@ -124,6 +131,7 @@ public class StatelessDCTests {
 
     @Test
     public void listRegions() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Iterable<Region> regions = services.listRegions();
         boolean found = false;
@@ -144,6 +152,7 @@ public class StatelessDCTests {
 
     @Test
     public void getBogusDataCenter() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         DataCenter dc = services.getDataCenter(UUID.randomUUID().toString());
 
@@ -153,6 +162,7 @@ public class StatelessDCTests {
 
     @Test
     public void getDataCenter() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         DataCenter dc = services.getDataCenter(testDataCenterId);
 
@@ -162,6 +172,7 @@ public class StatelessDCTests {
 
     @Test
     public void dataCenterContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         DataCenter dc = services.getDataCenter(testDataCenterId);
 
@@ -178,6 +189,7 @@ public class StatelessDCTests {
 
     @Test
     public void listDataCenters() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
         Iterable<DataCenter> dataCenters = services.listDataCenters(tm.getContext().getRegionId());
         boolean found = false;
@@ -198,6 +210,7 @@ public class StatelessDCTests {
 
     @Test
     public void regionIntegrity() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
         for( Region region : services.listRegions() ) {

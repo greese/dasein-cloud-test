@@ -1,5 +1,8 @@
 package org.dasein.cloud.test.cloud;
 
+import org.dasein.cloud.test.DaseinTestManager;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -13,4 +16,13 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ StatelessAuthenticationTests.class, StatelessDCTests.class })
 public class CloudTestSuite {
+    @BeforeClass
+    static public void setup() {
+        DaseinTestManager.init();
+    }
+
+    @AfterClass
+    static public void teardown() {
+        DaseinTestManager.cleanUp();
+    }
 }

@@ -100,9 +100,6 @@ public class ComprehensiveTestSuite extends TestSuite {
                 if( network.hasFirewallSupport() ) {
                     addTests(FirewallTestCase.class);
                 }
-                if( network.hasVlanSupport() ) {
-                    addTests(VLANTestCase.class);
-                }
                 if( network.hasLoadBalancerSupport() ) {
                     addTests(LoadBalancerTestCase.class);
                 }
@@ -116,12 +113,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             if( provider.hasComputeServices() ) {
                 ComputeServices compute = provider.getComputeServices();
 
-                if( compute.hasImageSupport() ) {
-                    addTests(MachineImageTestCase.class);
-                }
-                if( compute.hasVolumeSupport() ) {
-                    addTests(VolumeTestCase.class);
-                }
                 if( compute.hasSnapshotSupport() ) {
                     addTests(SnapshotTestCase.class);
                 }                

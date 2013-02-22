@@ -1,8 +1,8 @@
 package org.dasein.cloud.test.identity;
 
-import org.dasein.cloud.test.AbstractStatefulTestSuite;
-import org.dasein.cloud.test.compute.StatefulVMTests;
-import org.dasein.cloud.test.compute.StatelessVMTests;
+import org.dasein.cloud.test.DaseinTestManager;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -14,5 +14,14 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({ StatelessKeypairTests.class })
-public class IdentityTestSuite extends AbstractStatefulTestSuite {
+public class IdentityTestSuite {
+    @BeforeClass
+    static public void setup() {
+        DaseinTestManager.init();
+    }
+
+    @AfterClass
+    static public void teardown() {
+        DaseinTestManager.cleanUp();
+    }
 }

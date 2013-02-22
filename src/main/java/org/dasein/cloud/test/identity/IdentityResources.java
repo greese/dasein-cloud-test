@@ -1,6 +1,5 @@
 package org.dasein.cloud.test.identity;
 
-import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -8,24 +7,27 @@ import org.dasein.cloud.Requirement;
 import org.dasein.cloud.identity.IdentityServices;
 import org.dasein.cloud.identity.SSHKeypair;
 import org.dasein.cloud.identity.ShellKeySupport;
+import org.dasein.cloud.test.DaseinTestManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.HashMap;
 import java.util.Iterator;
-import java.util.TreeSet;
+import java.util.Map;
+import java.util.Random;
 
 /**
- * [Class Documentation]
+ * Manages all identity resources for automated provisioning and de-provisioning during integration tests.
  * <p>Created by George Reese: 2/18/13 10:16 AM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class IdentityResources {
-    static private final Logger logger = Logger.getLogger(IdentityResources.class);
+    static private final Random random = new Random();
 
+    private final HashMap<String,String> testKeys = new HashMap<String, String>();
     private CloudProvider   provider;
-    private TreeSet<String> provisionedKeys = new TreeSet<String>();
-    private String          testKeyId;
 
     public IdentityResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
@@ -39,12 +41,14 @@ public class IdentityResources {
                 ShellKeySupport keySupport = identityServices.getShellKeySupport();
 
                 if( keySupport != null ) {
-                    for( String id : provisionedKeys ) {
-                        try {
-                            keySupport.deleteKeypair(id);
-                        }
-                        catch( Throwable ignore ) {
-                            // ignore
+                    for( Map.Entry<String,String> entry : testKeys.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                keySupport.deleteKeypair(entry.getValue());
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
                         }
                     }
                 }
@@ -56,11 +60,42 @@ public class IdentityResources {
         provider.close();
     }
 
-    public @Nullable String getTestKeypairId() {
-        return testKeyId;
+    public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testKeys.entrySet() ) {
+                String id = entry.getValue();
+
+                if( id != null ) {
+                    return id;
+                }
+            }
+            return findStatelessKeypair();
+        }
+        String id = testKeys.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            IdentityServices services = provider.getIdentityServices();
+
+            if( services != null ) {
+                ShellKeySupport support = services.getShellKeySupport();
+
+                if( support != null ) {
+                    try {
+                        return provision(support, label, "dsnkp");
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
     }
 
-    public void init(boolean stateful) {
+    public @Nullable String findStatelessKeypair() {
         IdentityServices identityServices = provider.getIdentityServices();
 
         if( identityServices != null ) {
@@ -68,15 +103,13 @@ public class IdentityResources {
 
             try {
                 if( keySupport != null && keySupport.isSubscribed() ) {
-                    if( stateful ) {
-                        testKeyId = provision(keySupport, "dsnkp");
-                    }
-                    else {
-                        Iterator<SSHKeypair> keypairs = keySupport.list().iterator();
+                    Iterator<SSHKeypair> keypairs = keySupport.list().iterator();
 
-                        if( keypairs.hasNext() ) {
-                            testKeyId = keypairs.next().getProviderKeypairId();
-                        }
+                    if( keypairs.hasNext() ) {
+                        String id = keypairs.next().getProviderKeypairId();
+
+                        testKeys.put(DaseinTestManager.STATELESS, id);
+                        return id;
                     }
                 }
             }
@@ -84,9 +117,10 @@ public class IdentityResources {
                 // ignore
             }
         }
+        return null;
     }
 
-    public @Nonnull String provision(@Nonnull ShellKeySupport support, @Nonnull String namePrefix) throws CloudException, InternalException {
+    public @Nonnull String provision(@Nonnull ShellKeySupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
         String id = null;
 
         if( support.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
@@ -103,7 +137,12 @@ public class IdentityResources {
         if( id == null ) {
             throw new CloudException("No keypair was generated");
         }
-        provisionedKeys.add(id);
+        synchronized( testKeys ) {
+            while( testKeys.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testKeys.put(label, id);
+        }
         return id;
     }
 }
