@@ -6,6 +6,7 @@ import org.dasein.cloud.test.compute.StatelessImageTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.dasein.cloud.test.identity.StatelessKeypairTests;
+import org.dasein.cloud.test.network.StatelessVLANTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -21,7 +22,8 @@ import org.junit.runners.Suite;
         StatelessDCTests.class, StatelessVMTests.class,
         StatelessKeypairTests.class,
         StatelessImageTests.class,
-        StatelessVolumeTests.class
+        StatelessVolumeTests.class,
+        StatelessVLANTests.class
 })
 public class StatelessTestSuite {
 }

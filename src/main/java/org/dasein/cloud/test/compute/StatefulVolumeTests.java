@@ -33,10 +33,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
+ * Stateful integration tests verifying operations on volumes.
  * <p>Created by George Reese: 2/20/13 6:10 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class StatefulVolumeTests {
     static private DaseinTestManager tm;
