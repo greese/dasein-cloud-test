@@ -100,9 +100,6 @@ public class ComprehensiveTestSuite extends TestSuite {
                 if( network.hasFirewallSupport() ) {
                     addTests(FirewallTestCase.class);
                 }
-                if( network.hasVlanSupport() ) {
-                    addTests(VLANTestCase.class);
-                }
                 if( network.hasLoadBalancerSupport() ) {
                     addTests(LoadBalancerTestCase.class);
                 }

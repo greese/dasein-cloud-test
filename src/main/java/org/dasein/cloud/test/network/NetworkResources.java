@@ -100,6 +100,19 @@ public class NetworkResources {
                         for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                                 try {
+                                    for( Subnet subnet : vlanSupport.listSubnets(entry.getValue()) ) {
+                                        try {
+                                            vlanSupport.removeSubnet(subnet.getProviderSubnetId());
+                                        }
+                                        catch( Throwable t ) {
+                                            logger.warn("Failed to de-provision VLAN subnet " + subnet.getProviderSubnetId() + " for " + entry.getValue() + " post-test: " + t.getMessage());
+                                        }
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision VLAN subnets " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                                try {
                                     vlanSupport.removeVlan(entry.getValue());
                                 }
                                 catch( Throwable t ) {
@@ -373,10 +386,10 @@ public class NetworkResources {
         SubnetCreateOptions options;
 
         if( preferredDataCenterId == null ) {
-            options = SubnetCreateOptions.getInstance(vlanId, "192.168.1.0/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
+            options = SubnetCreateOptions.getInstance(vlanId, "192.168.1." + random.nextInt(200) + "/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
         }
         else {
-            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, "192.168.1.0/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
+            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, "192.168.1." + random.nextInt(200) + "/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
         }
         HashMap<String,Object> tags = new HashMap<String, Object>();
 

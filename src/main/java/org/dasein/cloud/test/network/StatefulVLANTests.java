@@ -4,6 +4,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
@@ -43,6 +44,7 @@ public class StatefulVLANTests {
     public final TestName name = new TestName();
 
     private String testVLANId;
+    private String testSubnetId;
 
     public StatefulVLANTests() { }
 
@@ -56,6 +58,13 @@ public class StatefulVLANTests {
                 // VLANs are a special case where we will re-use existing VLANs for adding resources
                 testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
             }
+        }
+        else if( name.getMethodName().equals("removeVLAN") ) {
+            testVLANId = tm.getTestVLANId("remove", true, null);
+        }
+        else if( name.getMethodName().equals("removeSubnet") ) {
+            testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            testSubnetId = tm.getTestSubnetId("remove", true, testVLANId, null);
         }
     }
 
@@ -84,6 +93,7 @@ public class StatefulVLANTests {
                             assertNotNull("The test VLAN does not exist", vlan);
                             String id = resources.provisionSubnet(support, "provision", testVLANId, "dsnsub", vlan.getProviderDataCenterId());
                             tm.out("New Subnet", id);
+                            assertNotNull("Could not find the subnet in the cloud after provisioning", support.getSubnet(id));
                         }
                         else {
                             try {
@@ -133,6 +143,7 @@ public class StatefulVLANTests {
                         String id = resources.provisionVLAN(support, "provision", "dnsvlan", null);
 
                         tm.out("New VLAN", id);
+                        assertNotNull("Could not find the new VLAN in the cloud after creation", support.getVlan(id));
                     }
                     else {
                         try {
@@ -146,6 +157,86 @@ public class StatefulVLANTests {
                 }
                 else {
                     fail("The network resources failed to initialize for testing");
+                }
+            }
+            else {
+                tm.ok("No VLAN support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No network services in this cloud");
+        }
+    }
+
+    @Test
+    public void removeVLAN() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            VLANSupport support = services.getVlanSupport();
+
+            if( support != null ) {
+                if( testVLANId != null ) {
+                    VLAN vlan = support.getVlan(testVLANId);
+
+                    tm.out("Before", vlan);
+                    assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
+                    tm.out("State", vlan.getCurrentState());
+                    support.removeVlan(testVLANId);
+                    try { Thread.sleep(5000L); }
+                    catch( InterruptedException ignore ) { }
+                    vlan = support.getVlan(testVLANId);
+                    tm.out("After", vlan);
+                    tm.out("State", (vlan == null ? "DELETED" : vlan.getCurrentState()));
+                    assertNull("The VLAN remains available", vlan);
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test VLAN for deletion test");
+                    }
+                    else {
+                        tm.ok("VLAN service is not subscribed so this test is not entirely valid");
+                    }
+                }
+            }
+            else {
+                tm.ok("No VLAN support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No network services in this cloud");
+        }
+    }
+
+    @Test
+    public void removeSubnet() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            VLANSupport support = services.getVlanSupport();
+
+            if( support != null ) {
+                if( testSubnetId != null ) {
+                    Subnet subnet = support.getSubnet(testSubnetId);
+
+                    tm.out("Before", subnet);
+                    assertNotNull("Test subnet no longer exists, cannot test removing it", subnet);
+                    tm.out("State", subnet.getCurrentState());
+                    support.removeSubnet(testSubnetId);
+                    try { Thread.sleep(5000L); }
+                    catch( InterruptedException ignore ) { }
+                    subnet = support.getSubnet(testSubnetId);
+                    tm.out("After", subnet);
+                    tm.out("State", (subnet == null ? "DELETED" : subnet.getCurrentState()));
+                    assertNull("The subnet remains available", subnet);
+                }
+                else {
+                    if( support.isSubscribed() ) {
+                        fail("No test subnet for deletion test");
+                    }
+                    else {
+                        tm.ok("VLAN service is not subscribed so this test is not entirely valid");
+                    }
                 }
             }
             else {
