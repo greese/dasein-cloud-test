@@ -366,8 +366,8 @@ public class StatefulMonitoringTests {
         assertNotNull( id );
       }
     }
-    if ( alarm.getProviderInsufficentDataActionIds() != null ) {
-      for ( String id : alarm.getProviderInsufficentDataActionIds() ) {
+    if ( alarm.getProviderInsufficientDataActionIds() != null ) {
+      for ( String id : alarm.getProviderInsufficientDataActionIds() ) {
         assertNotNull( id );
       }
     }
