@@ -82,7 +82,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("removeVolume") ) {
-            testVolumeId = tm.getTestVolumeId("remove", true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.REMOVED, true, null, null);
         }
         else if( name.getMethodName().equals("filterVolumes") ) {
             ComputeServices services = tm.getProvider().getComputeServices();

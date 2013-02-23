@@ -445,6 +445,9 @@ public class StatelessVLANTests {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test subnet was identified for tests due to a lack of subscription to VLAN support");
                     }
+                    else if( support.getSubnetSupport().equals(Requirement.NONE) ) {
+                        tm.ok("Subnets are not supported so there is no test for " + name.getMethodName());
+                    }
                     else {
                         fail("No test subnet was found for running the stateless test: " + name.getMethodName());
                     }
@@ -499,6 +502,9 @@ public class StatelessVLANTests {
                 else {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test subnet was identified for tests due to a lack of subscription to VLAN support");
+                    }
+                    else if( support.getSubnetSupport().equals(Requirement.NONE) ) {
+                        tm.ok("Subnets are not supported so there is no test for " + name.getMethodName());
                     }
                     else {
                         fail("No test subnet was found for running the stateless test: " + name.getMethodName());

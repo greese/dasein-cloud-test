@@ -208,9 +208,11 @@ public class ComputeResources {
         if( id == null ) {
             if( label.equals(DaseinTestManager.STATELESS) ) {
                 for( Map.Entry<String,String> entry : testMachineImages.entrySet() ) {
-                    id = entry.getValue();
-                    if( id != null ) {
-                        return id;
+                    if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                        id = entry.getValue();
+                        if( id != null ) {
+                            return id;
+                        }
                     }
                 }
                 return null;
@@ -238,10 +240,12 @@ public class ComputeResources {
     public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return null;
@@ -274,10 +278,12 @@ public class ComputeResources {
     public @Nullable String getTestVmId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return null;
@@ -320,10 +326,12 @@ public class ComputeResources {
     public @Nullable String getTestVolumeId(@Nonnull String label, boolean provisionIfNull, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return null;

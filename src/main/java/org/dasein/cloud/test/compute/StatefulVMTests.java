@@ -56,6 +56,7 @@ public class StatefulVMTests {
     private @Nullable VirtualMachine awaitState(@Nonnull VirtualMachine vm, @Nonnull VmState targetState, @Nonnegative long timeout) {
         VmState currentState = vm.getCurrentState();
         VirtualMachine v = vm;
+        int gone = 0;
 
         while( System.currentTimeMillis() < timeout ) {
             if( targetState.equals(currentState) ) {
@@ -67,12 +68,17 @@ public class StatefulVMTests {
                 //noinspection ConstantConditions
                 v = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vm.getProviderVirtualMachineId());
                 if( v == null && !targetState.equals(VmState.TERMINATED) ) {
-                    return null;
+                    gone++;
+                    if( gone > 10 ) {
+                        return null;
+                    }
                 }
                 else if( v == null ) {
                     return null;
                 }
-                currentState = v.getCurrentState();
+                else {
+                    currentState = v.getCurrentState();
+                }
             }
             catch( Throwable ignore ) {
                 // ignore
@@ -103,7 +109,7 @@ public class StatefulVMTests {
             }
         }
         else if( name.getMethodName().equals("terminate") ) {
-            testVmId = tm.getTestVMId("terminate", null, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, null, true, null);
         }
         else if( name.getMethodName().equals("start") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);

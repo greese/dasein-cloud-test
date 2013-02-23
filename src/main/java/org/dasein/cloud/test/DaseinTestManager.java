@@ -216,6 +216,7 @@ public class DaseinTestManager {
     private String                  name;
     private String                  prefix;
     private CloudProvider           provider;
+    private long                    startTimestamp;
     private String                  suite;
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
@@ -230,6 +231,7 @@ public class DaseinTestManager {
         APITrace.report("Setup");
         APITrace.reset();
         changePrefix();
+        startTimestamp = System.currentTimeMillis();
         out("");
         out(">>> BEGIN ---------------------------------------------------------------------------------------------->>>");
     }
@@ -272,6 +274,8 @@ public class DaseinTestManager {
 
         if( calls.length > 0 ) {
             out("---------- API Log ----------");
+            int total = 0;
+
             for( String call : calls ) {
                 int count = (int)APITrace.getAPICountAcrossAccounts(provider.getProviderName(), provider.getCloudName(), call);
 
@@ -282,8 +286,11 @@ public class DaseinTestManager {
                     apiAudit.put(call, count);
                 }
                 out("---> " + call, count);
+                total += count;
             }
+            out("---> Total Calls", total);
         }
+        out("Duration", (((float)(System.currentTimeMillis()-startTimestamp))/1000f) + " seconds");
         out("<<< END   ----------------------------------------------------------------------------------------------<<<");
         out("");
         APITrace.report(prefix);
