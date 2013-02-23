@@ -120,8 +120,6 @@ public class StatelessImageTests {
     }
 
     private void assertListEquals(@Nonnull String errorMessage, @Nonnull Iterable<MachineImage> expected, @Nonnull Iterable<MachineImage> actual) {
-        errorMessage = errorMessage + " Expected: " + expected + " ; Actual: " + actual;
-
         int expectedCount = 0, actualCount = 0;
 
         for( MachineImage img : expected ) {
@@ -133,7 +131,7 @@ public class StatelessImageTests {
                     break;
                 }
             }
-            assertTrue(errorMessage, found);
+            assertTrue(errorMessage + " [" + img.getProviderMachineImageId() + "]", found);
             expectedCount++;
         }
         for( MachineImage test : actual ) {
@@ -145,7 +143,7 @@ public class StatelessImageTests {
                     break;
                 }
             }
-            assertTrue(errorMessage, found);
+            assertTrue(errorMessage + " [" + test.getProviderMachineImageId() + "]", found);
             actualCount++;
         }
         assertTrue(errorMessage, expectedCount == actualCount);
