@@ -13,7 +13,8 @@ import org.junit.rules.TestName;
 import java.util.Collection;
 import java.util.Map;
 
-import static junit.framework.Assert.*;
+import static org.junit.Assert.*;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * Verifies the stateful elements of cloud monitoring solutions like AWS CloudWatch.
@@ -56,7 +57,7 @@ public class StatefulMonitoringTests {
 
   @Before
   public void before() {
-    assertTrue( !tm.isTestSkipped() );
+    assumeTrue( !tm.isTestSkipped() );
     String methodName = name.getMethodName();
     tm.begin( methodName );
     setAvailableMetricProperties();
