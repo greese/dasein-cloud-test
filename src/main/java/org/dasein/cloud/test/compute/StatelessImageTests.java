@@ -22,6 +22,7 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
@@ -131,7 +132,7 @@ public class StatelessImageTests {
                     break;
                 }
             }
-            assertTrue(errorMessage + " [" + img.getProviderMachineImageId() + "]", found);
+            assertTrue(errorMessage + " [" + img + "]", found);
             expectedCount++;
         }
         for( MachineImage test : actual ) {
@@ -143,10 +144,10 @@ public class StatelessImageTests {
                     break;
                 }
             }
-            assertTrue(errorMessage + " [" + test.getProviderMachineImageId() + "]", found);
+            assertTrue(errorMessage + " [" + test + "]", found);
             actualCount++;
         }
-        assertTrue(errorMessage, expectedCount == actualCount);
+        assertTrue(errorMessage + " [" + expectedCount + " vs " + actualCount + "]", expectedCount == actualCount);
     }
 
     @Test
@@ -783,8 +784,18 @@ public class StatelessImageTests {
                 tm.out("listMachineImagesOwnedBy(null)", "Matches listImages(ImageFilterOptions)");
                 assertListEquals("The deprecated listMachineImagesOwnedBy(me) method should match listImages(ImageFilterOptions=ImageClass.MACHINE,Account=me)", support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).withAccountNumber(tm.getContext().getAccountNumber())), support.listMachineImagesOwnedBy(tm.getContext().getAccountNumber()));
                 tm.out("listMachineImagesOwnedBy(String)", "Matches listImages(ImageFilterOptions)");
-                assertListEquals("The deprecated searchMachineImages(null,UBUNTU,null) method should match listImages(ImageFilterOptions=Platform.UBUNTU) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU)", support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.UBUNTU)), support.searchMachineImages(null, Platform.UBUNTU, null));
-                tm.out("listMachineImagesOwnedBy(String)", "Matches listImages(ImageFilterOptions)");
+                ArrayList<MachineImage> expected = new ArrayList<MachineImage>();
+
+                for( MachineImage img : support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.UBUNTU)) ) {
+                    expected.add(img);
+                }
+                for( MachineImage img : support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.UBUNTU)) ) {
+                    if( !expected.contains(img) ) {
+                        expected.add(img);
+                    }
+                }
+                assertListEquals("The deprecated searchMachineImages(null,UBUNTU,null) method should match listImages(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE)", expected, support.searchMachineImages(null, Platform.UBUNTU, null));
+                tm.out("searchMachineImages(String)", "Matches listImages(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE)");
                 boolean customSupported = support.supportsDirectImageUpload();
 
                 if( !customSupported ) {
