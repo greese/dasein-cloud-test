@@ -21,6 +21,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.TreeSet;
@@ -413,18 +414,22 @@ public class DaseinTestManager {
                     skip();
                     return true;
                 }
+                logger.debug("Executing (a) " + s + "." + t + " ->\n\t" + inclusions + "\n\t" + exclusions);
                 return false; // conflict goes to not skipping
             }
             if( exclusions.contains(s) ) {
                 if( testIncluded != null && testIncluded ) {
+                    logger.debug("Executing (b) " + s + "." + t + " ->\n\t" + inclusions + "\n\t" + exclusions);
                     return false; // specific test inclusion overrides suite exclusion
                 }
                 // suite included must be true to get this far
                 if( suiteIncluded != null && suiteIncluded ) {
+                    logger.debug("Executing (c) " + s + "." + t + " ->\n\t" + inclusions + "\n\t" + exclusions);
                     return false; // conflict goes to skipping
                 }
             }
         }
+        logger.debug("Executing " + s + "." + t + " ->\n\t" + inclusions + "\n\t" + exclusions);
         return false;
     }
 

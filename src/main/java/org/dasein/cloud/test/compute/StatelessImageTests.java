@@ -783,7 +783,7 @@ public class StatelessImageTests {
                 tm.out("listMachineImagesOwnedBy(null)", "Matches listImages(ImageFilterOptions)");
                 assertListEquals("The deprecated listMachineImagesOwnedBy(me) method should match listImages(ImageFilterOptions=ImageClass.MACHINE,Account=me)", support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).withAccountNumber(tm.getContext().getAccountNumber())), support.listMachineImagesOwnedBy(tm.getContext().getAccountNumber()));
                 tm.out("listMachineImagesOwnedBy(String)", "Matches listImages(ImageFilterOptions)");
-                assertListEquals("The deprecated searchMachineImages(null,UBUNTU,null) method should match listImages(ImageFilterOptions=Platform.UBUNTU) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU)", support.searchPublicImages(ImageFilterOptions.getInstance().onPlatform(Platform.UBUNTU)), support.searchMachineImages(null, Platform.UBUNTU, null));
+                assertListEquals("The deprecated searchMachineImages(null,UBUNTU,null) method should match listImages(ImageFilterOptions=Platform.UBUNTU) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU)", support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.UBUNTU)), support.searchMachineImages(null, Platform.UBUNTU, null));
                 tm.out("listMachineImagesOwnedBy(String)", "Matches listImages(ImageFilterOptions)");
                 boolean customSupported = support.supportsDirectImageUpload();
 
