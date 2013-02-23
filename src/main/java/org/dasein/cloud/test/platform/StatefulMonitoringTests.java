@@ -57,10 +57,10 @@ public class StatefulMonitoringTests {
 
   @Before
   public void before() {
-    assumeTrue( !tm.isTestSkipped() );
-    String methodName = name.getMethodName();
-    tm.begin( methodName );
-    setAvailableMetricProperties();
+      String methodName = name.getMethodName();
+      tm.begin( methodName );
+      assumeTrue( !tm.isTestSkipped() );
+      setAvailableMetricProperties();
     if ( "testListAlarms".equals( methodName ) ) {
       addTestAlarm();
     }
