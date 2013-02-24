@@ -3,6 +3,12 @@ package org.dasein.cloud.test.network;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
+import org.dasein.cloud.compute.ComputeServices;
+import org.dasein.cloud.compute.VMLaunchOptions;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.Direction;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallRule;
@@ -11,7 +17,10 @@ import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Permission;
 import org.dasein.cloud.network.Protocol;
 import org.dasein.cloud.network.RuleTarget;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.compute.ComputeResources;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -20,6 +29,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import java.util.Arrays;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -64,6 +74,26 @@ public class StatefulFirewallTests {
 
         if( name.getMethodName().equals("createVLANFirewall") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+        }
+        else if( name.getMethodName().equals("launchVM") ) {
+            ComputeServices services = tm.getProvider().getComputeServices();
+            VirtualMachineSupport support;
+
+            try {
+                support = (services == null ? null : services.getVirtualMachineSupport());
+                boolean vlan = (support != null && support.identifyVlanRequirement().equals(Requirement.REQUIRED));
+
+                if( vlan ) {
+                    testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                    testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
+                }
+                else {
+                    testFirewallId = tm.getTestGeneralFirewallId(DaseinTestManager.STATEFUL, true);
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
         }
         else if( name.getMethodName().equals("removeFirewall") ) {
             testFirewallId = tm.getTestAnyFirewallId(DaseinTestManager.REMOVED, true);
@@ -447,6 +477,110 @@ public class StatefulFirewallTests {
         }
         else {
             tm.ok("No network services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVM() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+        VirtualMachineSupport support;
+
+        if( services != null ) {
+            support = services.getVirtualMachineSupport();
+            if( support != null ) {
+            }
+            else {
+                tm.ok("No virtual machine support in " + tm.getProvider().getCloudName());
+                return;
+            }
+        }
+        else {
+            tm.ok("No compute services in " + tm.getProvider().getCloudName());
+            return;
+        }
+        boolean inVlan = support.identifyVlanRequirement().equals(Requirement.REQUIRED);
+        String testSubnetId = null;
+
+        if( inVlan && testVLANId == null ) {
+            fail("No test VLAN exists to test launching a VM behind a firewall");
+        }
+        else if( inVlan ) {
+            testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+        }
+        ComputeResources compute = DaseinTestManager.getComputeResources();
+
+        if( compute != null ) {
+            String productId = tm.getTestVMProductId();
+
+            assertNotNull("Unable to identify a VM product for test launch", productId);
+            String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+            assertNotNull("Unable to identify a test image for test launch", imageId);
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+
+            if( testFirewallId != null ) {
+                options.behindFirewalls(testFirewallId);
+                if( testSubnetId != null ) {
+                    @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
+
+                    assertNotNull("Subnet went away before test could be executed", subnet);
+                    String dataCenterId = subnet.getProviderDataCenterId();
+
+                    if( dataCenterId == null ) {
+                        for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                            dataCenterId = dc.getProviderDataCenterId();
+                        }
+                    }
+                    assertNotNull("Could not identify a data center for VM launch", dataCenterId);
+                    options.inDataCenter(dataCenterId);
+                    options.inVlan(null, dataCenterId, testSubnetId);
+                }
+                else if( testVLANId != null ) {
+                    @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
+
+                    assertNotNull("VLAN went away before test could be executed", vlan);
+                    String dataCenterId = vlan.getProviderDataCenterId();
+
+                    if( dataCenterId == null ) {
+                        for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                            dataCenterId = dc.getProviderDataCenterId();
+                        }
+                    }
+                    assertNotNull("Could not identify a data center for VM launch", dataCenterId);
+                    options.inDataCenter(dataCenterId);
+                    options.inVlan(null, dataCenterId, testVLANId);
+                }
+            }
+            else {
+                NetworkServices net = tm.getProvider().getNetworkServices();
+                FirewallSupport fw = (net == null ? null : net.getFirewallSupport());
+
+                if( fw != null && fw.isSubscribed()  ) {
+                    if( fw.supportsFirewallCreation(inVlan) ) {
+                        fail("No test firewall was established for testing");
+                    }
+                    else {
+                        tm.warn("Unable to test the ability to launch a VM behind a firewall due to lack of ability to create firewalls, test is invalid");
+                    }
+                }
+                else {
+                    tm.ok("Launching behind firewalls is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+                }
+                return;
+            }
+
+            String vmId = compute.provisionVM(support, "fwLaunch", options, options.getDataCenterId());
+
+            tm.out("Virtual Machine", vmId);
+            assertNotNull("No error received launching VM behind firewall, but there was no virtual machine", vmId);
+
+            VirtualMachine vm = support.getVirtualMachine(vmId);
+
+            assertNotNull("Launched VM does not exist", vm);
+            tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
+            String[] fwIds = vm.getProviderFirewallIds();
+
+            assertTrue("The firewall IDs do not match", fwIds.length == 1 && fwIds[0].equals(testFirewallId));
         }
     }
 }
