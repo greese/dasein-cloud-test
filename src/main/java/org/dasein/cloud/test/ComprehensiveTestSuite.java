@@ -64,8 +64,7 @@ public class ComprehensiveTestSuite extends TestSuite {
             System.out.println("Inclusions=" + Arrays.toString(inclusions));
             System.out.println("Exclusions=" + Arrays.toString(exclusions));
             providerClass = classOfProvider;
-            addTests(MinimumFunctionalityTestCase.class);
-                        
+
             CloudProvider provider = providerClass.newInstance();
             
             provider.connect(BaseTestCase.getTestContext(providerClass));
