@@ -70,7 +70,13 @@ public class StatefulVLANTests {
 
     @After
     public void after() {
-        tm.end();
+        try {
+            testVLANId = null;
+            testSubnetId = null;
+        }
+        finally {
+            tm.end();
+        }
     }
 
     @Test

@@ -18,6 +18,7 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulVLANTests.class,
+        StatefulFirewallTests.class,
         StatelessVLANTests.class,
         StatelessFirewallTests.class
 })

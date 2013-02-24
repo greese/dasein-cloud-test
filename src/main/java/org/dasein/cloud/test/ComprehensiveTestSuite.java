@@ -96,10 +96,7 @@ public class ComprehensiveTestSuite extends TestSuite {
             }
             if( provider.hasNetworkServices() ) {
                 NetworkServices network = provider.getNetworkServices();
-                
-                if( network.hasFirewallSupport() ) {
-                    addTests(FirewallTestCase.class);
-                }
+
                 if( network.hasLoadBalancerSupport() ) {
                     addTests(LoadBalancerTestCase.class);
                 }

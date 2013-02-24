@@ -88,6 +88,44 @@ public class NetworkResources {
                         // ignore
                     }
                 }
+                FirewallSupport firewallSupport = networkServices.getFirewallSupport();
+
+                if( firewallSupport != null ) {
+                    try {
+                        for( Map.Entry<String,String> entry : testGeneralFirewalls.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                try {
+                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
+
+                                    if( f != null ) {
+                                        firewallSupport.delete(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+
+                        for( Map.Entry<String,String> entry : testVLANFirewalls.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                try {
+                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
+
+                                    if( f != null ) {
+                                        firewallSupport.delete(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
                 VLANSupport vlanSupport = networkServices.getVlanSupport();
 
                 if( vlanSupport != null ) {
@@ -143,44 +181,8 @@ public class NetworkResources {
                         // ignore
                     }
                 }
-                FirewallSupport firewallSupport = networkServices.getFirewallSupport();
 
-                if( firewallSupport != null ) {
-                    try {
-                        for( Map.Entry<String,String> entry : testGeneralFirewalls.entrySet() ) {
-                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
-                                try {
-                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
 
-                                    if( f != null ) {
-                                        firewallSupport.delete(entry.getValue());
-                                    }
-                                }
-                                catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
-                                }
-                            }
-                        }
-
-                        for( Map.Entry<String,String> entry : testVLANFirewalls.entrySet() ) {
-                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
-                                try {
-                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
-
-                                    if( f != null ) {
-                                        firewallSupport.delete(entry.getValue());
-                                    }
-                                }
-                                catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
-                                }
-                            }
-                        }
-                    }
-                    catch( Throwable ignore ) {
-                        // ignore
-                    }
-                }
             }
         }
         catch( Throwable ignore ) {

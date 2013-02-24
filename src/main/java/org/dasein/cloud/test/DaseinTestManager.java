@@ -6,7 +6,9 @@ import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.network.Firewall;
+import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
@@ -320,6 +322,29 @@ public class DaseinTestManager {
 
     public @Nonnull String getSuite() {
         return suite;
+    }
+
+    public @Nullable String getTestAnyFirewallId(@Nonnull String label, boolean provisionIfNull) {
+        NetworkServices services = provider.getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    if( support.supportsFirewallCreation(false) ) {
+                        return getTestGeneralFirewallId(label, provisionIfNull);
+                    }
+                    else if( support.supportsFirewallCreation(true) ) {
+                        return getTestVLANFirewallId(DaseinTestManager.REMOVED, true, null);
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
     }
 
     public @Nullable String getTestGeneralFirewallId(@Nonnull String label, boolean provisionIfNull) {
