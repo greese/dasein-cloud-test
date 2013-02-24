@@ -624,37 +624,15 @@ public class ComputeResources {
 
     }
 
-    /**
-     * Provisions a virtual machine and returns the ID of the new virtual machine. This method tracks the newly provisioned
-     * virtual machine and will tear it down at the end of the test suite.
-     * @param support the virtual machine support object used to provision the VM
-     * @param label the label to store the VM under for re-use
-     * @param namePrefix a prefix for the friendly name of the VM
-     * @param hostPrefix a prefix for the host name of the VM
-     * @param preferredDataCenter the data center, if any is preferred, in which the VM should be provisioned
-     * @return the ID for the new VM
-     * @throws CloudException an error occurred with the cloud provider in provisioning the VM
-     * @throws InternalException an error occurred within Dasein Cloud provisioning the VM
-     */
-    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter) throws CloudException, InternalException {
-        String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
-
-        if( testImageId == null ) {
-            throw new CloudException("No test image exists for provisioning a virtual machine");
-        }
-        long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
-        String host = hostPrefix + (now%10000);
-
-        VMLaunchOptions options = VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud");
+    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull VMLaunchOptions options, @Nullable String preferredDataCenter) throws CloudException, InternalException {
 
         if( preferredDataCenter != null ) {
             options.inDataCenter(preferredDataCenter);
         }
-        if( Requirement.REQUIRED.equals(support.identifyPasswordRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapUser() == null && Requirement.REQUIRED.equals(support.identifyPasswordRequirement(testImagePlatform)) ) {
             options.withBootstrapUser("dasein", "x" + random.nextInt(100000) + System.currentTimeMillis());
         }
-        if( Requirement.REQUIRED.equals(support.identifyShellKeyRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapKey() == null && Requirement.REQUIRED.equals(support.identifyShellKeyRequirement(testImagePlatform)) ) {
             IdentityResources identity = DaseinTestManager.getIdentityResources();
 
             if( identity != null ) {
@@ -665,7 +643,7 @@ public class ComputeResources {
                 }
             }
         }
-        if( Requirement.REQUIRED.equals(support.identifyStaticIPRequirement()) ) {
+        if( options.getStaticIpIds().length < 1 && Requirement.REQUIRED.equals(support.identifyStaticIPRequirement()) ) {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
@@ -676,10 +654,10 @@ public class ComputeResources {
                 }
             }
         }
-        if( Requirement.REQUIRED.equals(support.identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
+        if( options.getRootVolumeProductId() == null && Requirement.REQUIRED.equals(support.identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
             options.withRootVolumeProduct(testVolumeProductId);
         }
-        if( Requirement.REQUIRED.equals(support.identifyVlanRequirement()) ) {
+        if( options.getVlanId() == null && Requirement.REQUIRED.equals(support.identifyVlanRequirement()) ) {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
@@ -742,6 +720,31 @@ public class ComputeResources {
             testVMs.put(label, id);
         }
         return id;
+    }
+
+    /**
+     * Provisions a virtual machine and returns the ID of the new virtual machine. This method tracks the newly provisioned
+     * virtual machine and will tear it down at the end of the test suite.
+     * @param support the virtual machine support object used to provision the VM
+     * @param label the label to store the VM under for re-use
+     * @param namePrefix a prefix for the friendly name of the VM
+     * @param hostPrefix a prefix for the host name of the VM
+     * @param preferredDataCenter the data center, if any is preferred, in which the VM should be provisioned
+     * @return the ID for the new VM
+     * @throws CloudException an error occurred with the cloud provider in provisioning the VM
+     * @throws InternalException an error occurred within Dasein Cloud provisioning the VM
+     */
+    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter) throws CloudException, InternalException {
+        String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
+
+        if( testImageId == null ) {
+            throw new CloudException("No test image exists for provisioning a virtual machine");
+        }
+        long now = System.currentTimeMillis();
+        String name = namePrefix + " " + now;
+        String host = hostPrefix + (now%10000);
+
+        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud"), preferredDataCenter);
     }
 
     public @Nonnull String provisionVolume(@Nonnull VolumeSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
