@@ -6,6 +6,7 @@ import org.dasein.cloud.test.compute.StatelessImageTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.dasein.cloud.test.identity.StatelessKeypairTests;
+import org.dasein.cloud.test.network.StatelessFirewallTests;
 import org.dasein.cloud.test.network.StatelessVLANTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
@@ -19,11 +20,13 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatelessAuthenticationTests.class,
-        StatelessDCTests.class, StatelessVMTests.class,
+        StatelessDCTests.class,
+        StatelessVMTests.class,
         StatelessKeypairTests.class,
         StatelessImageTests.class,
         StatelessVolumeTests.class,
-        StatelessVLANTests.class
+        StatelessVLANTests.class,
+        StatelessFirewallTests.class
 })
 public class StatelessTestSuite {
 }
