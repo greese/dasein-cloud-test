@@ -6,6 +6,9 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.dc.DataCenter;
+import org.dasein.cloud.network.Firewall;
+import org.dasein.cloud.network.FirewallCreateOptions;
+import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
@@ -37,9 +40,11 @@ public class NetworkResources {
 
     private CloudProvider   provider;
 
-    private final HashMap<String,String> testStaticIps = new HashMap<String, String>();
-    private final HashMap<String,String> testSubnets   = new HashMap<String, String>();
-    private final HashMap<String,String> testVLANs     = new HashMap<String, String>();
+    private final HashMap<String,String> testGeneralFirewalls = new HashMap<String, String>();
+    private final HashMap<String,String> testStaticIps        = new HashMap<String, String>();
+    private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
+    private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
+    private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
 
     public NetworkResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
@@ -138,12 +143,105 @@ public class NetworkResources {
                         // ignore
                     }
                 }
+                FirewallSupport firewallSupport = networkServices.getFirewallSupport();
+
+                if( firewallSupport != null ) {
+                    try {
+                        for( Map.Entry<String,String> entry : testGeneralFirewalls.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                try {
+                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
+
+                                    if( f != null ) {
+                                        firewallSupport.delete(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+
+                        for( Map.Entry<String,String> entry : testVLANFirewalls.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                try {
+                                    Firewall f = firewallSupport.getFirewall(entry.getValue());
+
+                                    if( f != null ) {
+                                        firewallSupport.delete(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
             }
         }
         catch( Throwable ignore ) {
             // ignore
         }
         provider.close();
+    }
+
+    private @Nullable String findStatelessFirewall(boolean inVlan) {
+        NetworkServices networkServices = provider.getNetworkServices();
+
+        if( networkServices != null ) {
+            FirewallSupport support = networkServices.getFirewallSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Firewall defaultFirewall = null;
+
+                    for( Firewall firewall : support.list() ) {
+                        if( (firewall.getProviderVlanId() != null) == inVlan ) {
+                            if( firewall.isActive() && firewall.isAvailable() ) {
+                                String id = firewall.getProviderFirewallId();
+
+                                if( id != null && support.getRules(id).iterator().hasNext() ) {
+                                    if( inVlan ) {
+                                        testVLANFirewalls.put(DaseinTestManager.STATELESS, id);
+                                    }
+                                    else {
+                                        testGeneralFirewalls.put(DaseinTestManager.STATELESS, id);
+                                    }
+                                    return firewall.getProviderFirewallId();
+                                }
+                            }
+                            if( defaultFirewall == null ) {
+                                defaultFirewall = firewall;
+                            }
+                            else if( (firewall.isActive() && firewall.isAvailable()) && (!defaultFirewall.isActive() || !defaultFirewall.isAvailable()) ) {
+                                defaultFirewall = firewall;
+                            }
+                        }
+                    }
+                    if( defaultFirewall != null ) {
+                        String id = defaultFirewall.getProviderFirewallId();
+
+                        if( id != null ) {
+                            if( inVlan ) {
+                                testVLANFirewalls.put(DaseinTestManager.STATELESS, id);
+                            }
+                            else {
+                                testGeneralFirewalls.put(DaseinTestManager.STATELESS, id);
+                            }
+                        }
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
     }
 
     private @Nullable String findStatelessIP() {
@@ -211,7 +309,7 @@ public class NetworkResources {
                                     }
                                 }
                             }
-                            else if( defaultVlan == null ) {
+                            if( defaultVlan == null ) {
                                 defaultVlan = vlan;
                             }
                             if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
@@ -233,6 +331,45 @@ public class NetworkResources {
             }
             catch( Throwable ignore ) {
                 // ignore
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String getTestFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId) {
+        HashMap<String,String> map = (vlanId == null ? testGeneralFirewalls : testVLANFirewalls);
+
+        if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : map.entrySet() ) {
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessFirewall(vlanId != null);
+        }
+        String id = map.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            NetworkServices services = provider.getNetworkServices();
+
+            if( services != null ) {
+                FirewallSupport support = services.getFirewallSupport();
+
+                if( support != null ) {
+                    try {
+                        return provisionFirewall(label, vlanId);
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
             }
         }
         return null;
@@ -378,6 +515,39 @@ public class NetworkResources {
                 label = label + random.nextInt(9);
             }
             testStaticIps.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionFirewall(@Nonnull String label, @Nullable String vlanId) throws CloudException, InternalException {
+        String tmp = String.valueOf(random.nextInt(10000));
+        FirewallCreateOptions options;
+        String name = "dsnfw" + tmp;
+        String description = "Dasein Cloud Integration Test Firewall";
+
+        if( vlanId == null ) {
+            options = FirewallCreateOptions.getInstance(name, description);
+        }
+        else {
+            options = FirewallCreateOptions.getInstance(vlanId, name, description);
+        }
+        String id = options.build(provider, false);
+
+        if( vlanId == null ) {
+            synchronized( testGeneralFirewalls ) {
+                while( testGeneralFirewalls.containsKey(label) ) {
+                    label = label + random.nextInt(9);
+                }
+                testGeneralFirewalls.put(label, id);
+            }
+        }
+        else {
+            synchronized( testVLANFirewalls ) {
+                while( testVLANFirewalls.containsKey(label) ) {
+                    label = label + random.nextInt(9);
+                }
+                testVLANFirewalls.put(label, id);
+            }
         }
         return id;
     }

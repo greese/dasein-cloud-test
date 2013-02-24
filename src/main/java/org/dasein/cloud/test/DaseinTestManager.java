@@ -5,6 +5,7 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
+import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
@@ -321,6 +322,10 @@ public class DaseinTestManager {
         return suite;
     }
 
+    public @Nullable String getTestGeneralFirewallId(@Nonnull String label, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestFirewallId(label, provisionIfNull, null));
+    }
+
     public @Nullable String getTestImageId(@Nonnull String label, boolean provisionIfNull) {
         return (computeResources == null ? null : computeResources.getTestImageId(label, provisionIfNull));
     }
@@ -339,6 +344,38 @@ public class DaseinTestManager {
 
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
         return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
+    }
+
+    public @Nullable String getTestVLANFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
+        if( inVlanId == null ) {
+            if( label.equals(DaseinTestManager.STATELESS) ) {
+                inVlanId = getTestVLANId(DaseinTestManager.STATELESS, false, null);
+            }
+            else {
+                inVlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            }
+            if( inVlanId == null ) {
+                return null;
+            }
+        }
+        String id = (networkResources == null ? null : networkResources.getTestFirewallId(label, provisionIfNull, inVlanId));
+
+        if( id != null ) {
+            try {
+                @SuppressWarnings("ConstantConditions") Firewall firewall = provider.getNetworkServices().getFirewallSupport().getFirewall(id);
+
+                if( firewall == null ) {
+                    return null;
+                }
+                if( !inVlanId.equals(firewall.getProviderVlanId()) ) {
+                    return getTestVLANFirewallId(label + "a", provisionIfNull, inVlanId);
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return id;
     }
 
     public @Nullable String getTestVLANId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
@@ -468,12 +505,12 @@ public class DaseinTestManager {
     public void out(@Nonnull String key, @Nullable String value) {
         StringBuilder str = new StringBuilder();
 
-        if( key.length() > 31 ) {
-            str.append(key.substring(0, 31)).append(": ");
+        if( key.length() > 36 ) {
+            str.append(key.substring(0, 36)).append(": ");
         }
         else {
             str.append(key).append(": ");
-            while( str.length() < 33 ) {
+            while( str.length() < 38 ) {
                 str.append(" ");
             }
         }
