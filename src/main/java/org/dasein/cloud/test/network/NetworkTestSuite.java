@@ -20,7 +20,8 @@ import org.junit.runners.Suite;
         StatefulVLANTests.class,
         StatefulFirewallTests.class,
         StatelessVLANTests.class,
-        StatelessFirewallTests.class
+        StatelessFirewallTests.class,
+        StatelessStaticIPTests.class
 })
 public class NetworkTestSuite {
     @BeforeClass
