@@ -118,6 +118,9 @@ public class StatelessStaticIPTests {
         if( address.isAssigned() ) {
             assertTrue("Address indicates that it is assigned, but does not reflect what it is assigned to", address.getProviderLoadBalancerId() != null || address.getServerId() != null || address.getProviderNetworkInterfaceId() != null);
         }
+        else {
+            assertTrue("The address indicates that it is unassigned, but it shows itself as being attached to something", address.getProviderLoadBalancerId() == null && address.getServerId() == null && address.getProviderNetworkInterfaceId() == null);
+        }
         assertNotNull("The raw address for the IP address may not be null", address.getRawAddress());
         //noinspection deprecation
         assertEquals("The deprecated getAddress() does not match the new getRawAddress().getIpAddress()", address.getRawAddress().getIpAddress(), address.getAddress());
