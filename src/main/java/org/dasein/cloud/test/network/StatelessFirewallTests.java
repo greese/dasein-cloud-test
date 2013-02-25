@@ -521,7 +521,7 @@ public class StatelessFirewallTests {
                 tm.out("Matches");
             }
             else {
-                tm.ok("No VLAN support in this cloud");
+                tm.ok("No firewall support in this cloud");
             }
         }
         else {

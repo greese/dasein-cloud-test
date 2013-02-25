@@ -41,7 +41,8 @@ public class NetworkResources {
     private CloudProvider   provider;
 
     private final HashMap<String,String> testGeneralFirewalls = new HashMap<String, String>();
-    private final HashMap<String,String> testStaticIps        = new HashMap<String, String>();
+    private final HashMap<String,String> testStaticIps4       = new HashMap<String, String>();
+    private final HashMap<String,String> testStaticIps6       = new HashMap<String, String>();
     private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
     private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
     private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
@@ -59,7 +60,36 @@ public class NetworkResources {
 
                 if( ipSupport != null ) {
                     try {
-                        for( Map.Entry<String,String> entry : testStaticIps.entrySet() ) {
+                        for( Map.Entry<String,String> entry : testStaticIps4.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                IpAddress addr = ipSupport.getIpAddress(entry.getValue());
+
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromServer(entry.getValue());
+                                    }
+                                    try { Thread.sleep(3000L); }
+                                    catch( InterruptedException ignore ) { }
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromPool(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try {
+                        for( Map.Entry<String,String> entry : testStaticIps6.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                                 IpAddress addr = ipSupport.getIpAddress(entry.getValue());
 
@@ -246,7 +276,7 @@ public class NetworkResources {
         return null;
     }
 
-    private @Nullable String findStatelessIP() {
+    private @Nullable String findStatelessIP(IPVersion version) {
         NetworkServices networkServices = provider.getNetworkServices();
 
         if( networkServices != null ) {
@@ -256,23 +286,23 @@ public class NetworkResources {
                 if( ipSupport != null && ipSupport.isSubscribed() ) {
                     IpAddress defaultAddress = null;
 
-                    for( IPVersion version : ipSupport.listSupportedIPVersions() ) {
-                        for( IpAddress address : ipSupport.listIpPool(version, false) ) {
-                            if( address.isAssigned() || defaultAddress == null ) {
-                                defaultAddress = address;
-                                if( defaultAddress.isAssigned() ) {
-                                    break;
-                                }
+                    for( IpAddress address : ipSupport.listIpPool(version, false) ) {
+                        if( address.isAssigned() || defaultAddress == null ) {
+                            defaultAddress = address;
+                            if( defaultAddress.isAssigned() ) {
+                                break;
                             }
-                        }
-                        if( defaultAddress != null && defaultAddress.isAssigned() ) {
-                            break;
                         }
                     }
                     if( defaultAddress != null ) {
                         String id = defaultAddress.getProviderIpAddressId();
 
-                        testStaticIps.put(DaseinTestManager.STATELESS, id);
+                        if( version.equals(IPVersion.IPV4) ) {
+                            testStaticIps4.put(DaseinTestManager.STATELESS, id);
+                        }
+                        else {
+                            testStaticIps6.put(DaseinTestManager.STATELESS, id);
+                        }
                         return id;
                     }
                 }
@@ -378,8 +408,31 @@ public class NetworkResources {
     }
 
     public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
+        if( version == null ) {
+            NetworkServices services = provider.getNetworkServices();
+            IpAddressSupport support = (services == null ? null : services.getIpAddressSupport());
+
+            if( support == null ) {
+                return null;
+            }
+            try {
+                for( IPVersion v : support.listSupportedIPVersions() ) {
+                    String id = getTestStaticIpId(label, provisionIfNull, v);
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+                return null;
+            }
+            catch( Throwable ignore ) {
+                return null;
+            }
+        }
+        Map<String,String> map = (version.equals(IPVersion.IPV4) ? testStaticIps4 : testStaticIps6);
+
         if( label.equals(DaseinTestManager.STATELESS) ) {
-            for( Map.Entry<String,String> entry : testStaticIps.entrySet() ) {
+            for( Map.Entry<String,String> entry : map.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
@@ -388,9 +441,9 @@ public class NetworkResources {
                     }
                 }
             }
-            return findStatelessIP();
+            return findStatelessIP(version);
         }
-        String id = testStaticIps.get(label);
+        String id = map.get(label);
 
         if( id != null ) {
             return id;
@@ -510,13 +563,15 @@ public class NetworkResources {
         if( version == null ) {
             throw new CloudException("No IP version is requestable");
         }
+        Map<String,String> map = (version.equals(IPVersion.IPV4) ? testStaticIps4 : testStaticIps6);
         String id = support.request(version);
 
-        synchronized( testStaticIps ) {
-            while( testStaticIps.containsKey(label) ) {
+        //noinspection SynchronizationOnLocalVariableOrMethodParameter
+        synchronized( map ) {
+            while( map.containsKey(label) ) {
                 label = label + random.nextInt(9);
             }
-            testStaticIps.put(label, id);
+            map.put(label, id);
         }
         return id;
     }
