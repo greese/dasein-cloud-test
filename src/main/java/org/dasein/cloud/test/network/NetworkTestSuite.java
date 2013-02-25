@@ -19,6 +19,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
         StatefulVLANTests.class,
         StatefulFirewallTests.class,
+        StatefulStaticIPTests.class,
         StatelessVLANTests.class,
         StatelessFirewallTests.class,
         StatelessStaticIPTests.class

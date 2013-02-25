@@ -643,20 +643,6 @@ public class ComputeResources {
                 }
             }
         }
-        if( options.getStaticIpIds().length < 1 && Requirement.REQUIRED.equals(support.identifyStaticIPRequirement()) ) {
-            NetworkResources network = DaseinTestManager.getNetworkResources();
-
-            if( network != null ) {
-                String ipId = network.getTestStaticIpId(label, true, null);
-
-                if( ipId != null ) {
-                    options.withStaticIps(ipId);
-                }
-            }
-        }
-        if( options.getRootVolumeProductId() == null && Requirement.REQUIRED.equals(support.identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
-            options.withRootVolumeProduct(testVolumeProductId);
-        }
         if( options.getVlanId() == null && Requirement.REQUIRED.equals(support.identifyVlanRequirement()) ) {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
@@ -708,6 +694,26 @@ public class ComputeResources {
                     // ignore the fiasco
                 }
             }
+        }
+        if( options.getStaticIpIds().length < 1 && Requirement.REQUIRED.equals(support.identifyStaticIPRequirement()) ) {
+            NetworkResources network = DaseinTestManager.getNetworkResources();
+
+            if( network != null ) {
+                String ipId;
+
+                if( options.getVlanId() != null ) {
+                    ipId = network.getTestStaticIpId(label, true, null, true, options.getVlanId());
+                }
+                else {
+                    ipId = network.getTestStaticIpId(label, true, null, false, null);
+                }
+                if( ipId != null ) {
+                    options.withStaticIps(ipId);
+                }
+            }
+        }
+        if( options.getRootVolumeProductId() == null && Requirement.REQUIRED.equals(support.identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
+            options.withRootVolumeProduct(testVolumeProductId);
         }
         options.withMetaData("dsntestcase", "true");
 

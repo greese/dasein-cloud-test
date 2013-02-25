@@ -363,8 +363,8 @@ public class DaseinTestManager {
         return (computeResources == null ? null : computeResources.getTestSnapshotId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
-        return networkResources == null ? null : networkResources.getTestStaticIpId(label, provisionIfNull, version);
+    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version, boolean forVLAN, @Nullable String vlanId) {
+        return networkResources == null ? null : networkResources.getTestStaticIpId(label, provisionIfNull, version, forVLAN, vlanId);
     }
 
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {

@@ -93,10 +93,16 @@ public class StatelessStaticIPTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().contains("IPv6") ) {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6);
+            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6, false, null);
+            if( testIpAddress == null ) {
+                tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6, true, null);
+            }
         }
         else {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4);
+            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4, false, null);
+            if( testIpAddress == null ) {
+                tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4, true, null);
+            }
         }
     }
 

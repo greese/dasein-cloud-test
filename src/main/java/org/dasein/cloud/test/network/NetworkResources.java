@@ -41,8 +41,10 @@ public class NetworkResources {
     private CloudProvider   provider;
 
     private final HashMap<String,String> testGeneralFirewalls = new HashMap<String, String>();
-    private final HashMap<String,String> testStaticIps4       = new HashMap<String, String>();
-    private final HashMap<String,String> testStaticIps6       = new HashMap<String, String>();
+    private final HashMap<String,String> testIps4Free         = new HashMap<String, String>();
+    private final HashMap<String,String> testIps6Free         = new HashMap<String, String>();
+    private final HashMap<String,String> testIps4VLAN         = new HashMap<String, String>();
+    private final HashMap<String,String> testIps6VLAN         = new HashMap<String, String>();
     private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
     private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
     private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
@@ -60,7 +62,7 @@ public class NetworkResources {
 
                 if( ipSupport != null ) {
                     try {
-                        for( Map.Entry<String,String> entry : testStaticIps4.entrySet() ) {
+                        for( Map.Entry<String,String> entry : testIps4Free.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                                 IpAddress addr = ipSupport.getIpAddress(entry.getValue());
 
@@ -89,7 +91,65 @@ public class NetworkResources {
                         // ignore
                     }
                     try {
-                        for( Map.Entry<String,String> entry : testStaticIps6.entrySet() ) {
+                        for( Map.Entry<String,String> entry : testIps6Free.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                IpAddress addr = ipSupport.getIpAddress(entry.getValue());
+
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromServer(entry.getValue());
+                                    }
+                                    try { Thread.sleep(3000L); }
+                                    catch( InterruptedException ignore ) { }
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromPool(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try {
+                        for( Map.Entry<String,String> entry : testIps4VLAN.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                IpAddress addr = ipSupport.getIpAddress(entry.getValue());
+
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromServer(entry.getValue());
+                                    }
+                                    try { Thread.sleep(3000L); }
+                                    catch( InterruptedException ignore ) { }
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                                try {
+                                    if( addr != null ) {
+                                        ipSupport.releaseFromPool(entry.getValue());
+                                    }
+                                }
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try {
+                        for( Map.Entry<String,String> entry : testIps6VLAN.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                                 IpAddress addr = ipSupport.getIpAddress(entry.getValue());
 
@@ -276,7 +336,7 @@ public class NetworkResources {
         return null;
     }
 
-    private @Nullable String findStatelessIP(IPVersion version) {
+    private @Nullable String findStatelessIP(IPVersion version, boolean vlan) {
         NetworkServices networkServices = provider.getNetworkServices();
 
         if( networkServices != null ) {
@@ -287,7 +347,7 @@ public class NetworkResources {
                     IpAddress defaultAddress = null;
 
                     for( IpAddress address : ipSupport.listIpPool(version, false) ) {
-                        if( address.isAssigned() || defaultAddress == null ) {
+                        if( (address.isAssigned() || defaultAddress == null) && (vlan == (address.getProviderVlanId() != null)) ) {
                             defaultAddress = address;
                             if( defaultAddress.isAssigned() ) {
                                 break;
@@ -297,11 +357,21 @@ public class NetworkResources {
                     if( defaultAddress != null ) {
                         String id = defaultAddress.getProviderIpAddressId();
 
-                        if( version.equals(IPVersion.IPV4) ) {
-                            testStaticIps4.put(DaseinTestManager.STATELESS, id);
+                        if( vlan ) {
+                            if( version.equals(IPVersion.IPV4) ) {
+                                testIps4VLAN.put(DaseinTestManager.STATELESS, id);
+                            }
+                            else {
+                                testIps6VLAN.put(DaseinTestManager.STATELESS, id);
+                            }
                         }
                         else {
-                            testStaticIps6.put(DaseinTestManager.STATELESS, id);
+                            if( version.equals(IPVersion.IPV4) ) {
+                                testIps4Free.put(DaseinTestManager.STATELESS, id);
+                            }
+                            else {
+                                testIps6Free.put(DaseinTestManager.STATELESS, id);
+                            }
                         }
                         return id;
                     }
@@ -407,7 +477,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version) {
+    public @Nullable String getTestStaticIpId(@Nonnull String label, boolean provisionIfNull, @Nullable IPVersion version, boolean inVlan, @Nullable String vlanId) {
         if( version == null ) {
             NetworkServices services = provider.getNetworkServices();
             IpAddressSupport support = (services == null ? null : services.getIpAddressSupport());
@@ -417,7 +487,7 @@ public class NetworkResources {
             }
             try {
                 for( IPVersion v : support.listSupportedIPVersions() ) {
-                    String id = getTestStaticIpId(label, provisionIfNull, v);
+                    String id = getTestStaticIpId(label, provisionIfNull, v, inVlan, vlanId);
 
                     if( id != null ) {
                         return id;
@@ -429,8 +499,14 @@ public class NetworkResources {
                 return null;
             }
         }
-        Map<String,String> map = (version.equals(IPVersion.IPV4) ? testStaticIps4 : testStaticIps6);
+        Map<String,String> map;
 
+        if( inVlan ) {
+            map = (version.equals(IPVersion.IPV4) ? testIps4VLAN : testIps6VLAN);
+        }
+        else {
+            map = (version.equals(IPVersion.IPV4) ? testIps4Free : testIps6Free);
+        }
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : map.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
@@ -441,7 +517,7 @@ public class NetworkResources {
                     }
                 }
             }
-            return findStatelessIP(version);
+            return findStatelessIP(version, inVlan);
         }
         String id = map.get(label);
 
@@ -456,7 +532,15 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        return provisionAddress(support, label, version);
+                        if( inVlan ) {
+                            if( vlanId == null ) {
+                                vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                            }
+                            return provisionAddress(support, label, version, vlanId);
+                        }
+                        else {
+                            return provisionAddress(support, label, version, null);
+                        }
                     }
                     catch( Throwable ignore ) {
                         return null;
@@ -551,7 +635,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version) throws CloudException, InternalException {
+    public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version, @Nullable String vlanId) throws CloudException, InternalException {
         if( version == null ) {
             for( IPVersion v : support.listSupportedIPVersions() ) {
                 if( support.isRequestable(v) ) {
@@ -563,9 +647,27 @@ public class NetworkResources {
         if( version == null ) {
             throw new CloudException("No IP version is requestable");
         }
-        Map<String,String> map = (version.equals(IPVersion.IPV4) ? testStaticIps4 : testStaticIps6);
-        String id = support.request(version);
+        Map<String,String> map;
 
+        if( vlanId == null ) {
+            map = (version.equals(IPVersion.IPV4) ? testIps4Free : testIps6Free);
+        }
+        else {
+            map = (version.equals(IPVersion.IPV4) ? testIps4VLAN : testIps6VLAN);
+        }
+        String id;
+
+        if( vlanId == null ) {
+            id = support.request(version);
+        }
+        else {
+            if( support.identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
+                id = support.requestForVLAN(version);
+            }
+            else {
+                id = support.requestForVLAN(version, vlanId);
+            }
+        }
         //noinspection SynchronizationOnLocalVariableOrMethodParameter
         synchronized( map ) {
             while( map.containsKey(label) ) {
