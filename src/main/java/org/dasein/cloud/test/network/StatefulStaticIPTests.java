@@ -84,12 +84,9 @@ public class StatefulStaticIPTests {
             }
         }
         if( name.getMethodName().equals("releaseFromPool") ) {
-            System.out.println("Provisioning for release test");
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
-            System.out.println("Got: " + testIpAddress);
             if( testIpAddress == null ) {
                 testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, true, null);
-                System.out.println("Got: " + testIpAddress);
             }
         }
         else if( name.getMethodName().startsWith("assignPost") || name.getMethodName().startsWith("forward") || name.getMethodName().equals("releaseFromServer") ) {

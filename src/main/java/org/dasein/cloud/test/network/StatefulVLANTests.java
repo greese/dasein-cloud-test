@@ -59,6 +59,7 @@ public class StatefulVLANTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+
         if( name.getMethodName().equals("provisionSubnet") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
             if( testVLANId == null ) {
