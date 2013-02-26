@@ -258,6 +258,9 @@ public class NetworkResources {
                                     VLAN v = vlanSupport.getVlan(entry.getValue());
 
                                     if( v != null ) {
+                                        if( vlanSupport.isConnectedViaInternetGateway(v.getProviderVlanId()) ) {
+                                            vlanSupport.removeInternetGateway(v.getProviderVlanId());
+                                        }
                                         vlanSupport.removeVlan(entry.getValue());
                                     }
                                 }

@@ -14,6 +14,7 @@ import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.junit.After;
@@ -66,6 +67,22 @@ public class StatefulStaticIPTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+        if( testVlanId != null ) {
+            NetworkServices services = tm.getProvider().getNetworkServices();
+
+            if( services != null ) {
+                VLANSupport support = services.getVlanSupport();
+
+                try {
+                    if( support != null && support.supportsInternetGatewayCreation() && !support.isConnectedViaInternetGateway(testVlanId) ) {
+                        support.createInternetGateway(testVlanId);
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
         if( name.getMethodName().equals("releaseFromPool") ) {
             System.out.println("Provisioning for release test");
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
