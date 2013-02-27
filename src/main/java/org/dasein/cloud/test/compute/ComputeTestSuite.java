@@ -17,6 +17,7 @@ import org.junit.runners.Suite;
         StatefulVMTests.class,
         StatefulImageTests.class,
         StatefulVolumeTests.class,
+        StatefulSnapshotTests.class,
         StatelessVMTests.class,
         StatelessImageTests.class,
         StatelessVolumeTests.class,

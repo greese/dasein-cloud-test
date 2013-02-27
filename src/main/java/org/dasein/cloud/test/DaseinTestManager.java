@@ -13,6 +13,7 @@ import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
 import org.dasein.cloud.util.APITrace;
+import org.dasein.util.CalendarWrapper;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -24,8 +25,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.TreeSet;
 
@@ -48,6 +49,8 @@ public class DaseinTestManager {
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
     static private TreeSet<String>   inclusions;
+
+    static private long testStart;
 
     static public @Nonnull CloudProvider constructProvider() {
         String cname = System.getProperty("providerClass");
@@ -167,6 +170,7 @@ public class DaseinTestManager {
     }
 
     static public void init() {
+        testStart = System.currentTimeMillis();
         networkResources = new NetworkResources(constructProvider());
         identityResources = new IdentityResources(constructProvider());
         computeResources = new ComputeResources(constructProvider());
@@ -203,6 +207,8 @@ public class DaseinTestManager {
     }
 
     static public void cleanUp() {
+        Logger logger = Logger.getLogger(DaseinTestManager.class);
+
         APITrace.report("Clean Up");
         if( computeResources != null ) {
             computeResources.close();
@@ -213,7 +219,21 @@ public class DaseinTestManager {
         if( identityResources != null ) {
             identityResources.close();
         }
+        long duration = System.currentTimeMillis() - testStart;
+        int minutes = (int)(duration/ CalendarWrapper.MINUTE);
+        float seconds = ((float)(duration%CalendarWrapper.MINUTE))/1000f;
+        logger.info("");
+        logger.info("All Tests Complete ------------------------------------------------------------------------------");
+        logger.info("---------- API Log ----------");
+        int total = 0;
 
+        for( Map.Entry<String,Integer> entry : apiAudit.entrySet() ) {
+            logger.info("---> " + entry.getKey() + ": " + entry.getValue());
+            total += entry.getValue();
+        }
+        logger.info("---> Total Calls: " + total);
+        logger.info("Duration:         " + minutes + " minutes " + seconds + " seconds");
+        logger.info("-------------------------------------------------------------------------------------------------");
     }
 
     private Logger                  logger;
@@ -303,10 +323,6 @@ public class DaseinTestManager {
         changePrefix();
     }
 
-    public void error(@Nonnull String message) {
-        logger.error(prefix + " ERROR: " + message);
-    }
-
     public @Nonnull ProviderContext getContext() {
         ProviderContext ctx = provider.getContext();
 
@@ -318,10 +334,6 @@ public class DaseinTestManager {
 
     public @Nullable String getName() {
         return name;
-    }
-
-    public @Nonnull String getSuite() {
-        return suite;
     }
 
     public @Nullable String getTestAnyFirewallId(@Nonnull String label, boolean provisionIfNull) {

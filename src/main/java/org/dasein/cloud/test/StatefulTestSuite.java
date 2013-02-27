@@ -1,6 +1,7 @@
 package org.dasein.cloud.test;
 
 import org.dasein.cloud.test.compute.StatefulImageTests;
+import org.dasein.cloud.test.compute.StatefulSnapshotTests;
 import org.dasein.cloud.test.compute.StatefulVMTests;
 import org.dasein.cloud.test.compute.StatefulVolumeTests;
 import org.dasein.cloud.test.identity.StatefulKeypairTests;
@@ -23,6 +24,7 @@ import org.junit.runners.Suite;
         StatefulKeypairTests.class,
         StatefulImageTests.class,
         StatefulVolumeTests.class,
+        StatefulSnapshotTests.class,
         StatefulVLANTests.class,
         StatefulMonitoringTests.class,
         StatefulFirewallTests.class,

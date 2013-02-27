@@ -103,13 +103,6 @@ public class ComprehensiveTestSuite extends TestSuite {
                     addTests(DNSTestCase.class);
                 }
             }
-            if( provider.hasComputeServices() ) {
-                ComputeServices compute = provider.getComputeServices();
-
-                if( compute.hasSnapshotSupport() ) {
-                    addTests(SnapshotTestCase.class);
-                }                
-            }
         }
         catch( Throwable t ) {
             throw new TestConfigurationException(t);

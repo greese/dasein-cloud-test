@@ -32,10 +32,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
+ * Tests validating the implementation of stateful image/template management features for Dasein Cloud.
  * <p>Created by George Reese: 2/19/13 2:35 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class StatefulImageTests {
     static private final Random random = new Random();
