@@ -38,7 +38,7 @@ public class StatefulSnapshotTests {
 
     @BeforeClass
     static public void configure() {
-        tm = new DaseinTestManager(StatelessSnapshotTests.class);
+        tm = new DaseinTestManager(StatefulSnapshotTests.class);
     }
 
     @AfterClass
@@ -133,7 +133,7 @@ public class StatefulSnapshotTests {
                 }
             }
         }
-        else if( name.getMethodName().equals("filterSnapshot") ) {
+        else if( name.getMethodName().equals("filterSnapshots") ) {
             if( support != null ) {
                 try {
                     testSnapshotId = DaseinTestManager.getComputeResources().provisionSnapshot(support, "filter", "dsnfilter", null);
