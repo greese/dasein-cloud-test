@@ -17,6 +17,7 @@ import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
+import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -87,6 +88,29 @@ public class StatefulStaticIPTests {
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
             if( testIpAddress == null ) {
                 testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, true, null);
+            }
+        }
+        else if( name.getMethodName().equals("releaseFromVirtualMachine") ) {
+            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddress == null ) {
+                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            }
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            if( testVMId != null ) {
+                NetworkServices services = tm.getProvider().getNetworkServices();
+
+                if( services != null ) {
+                    IpAddressSupport support = services.getIpAddressSupport();
+
+                    if( support != null ) {
+                        try {
+                            support.assign(testIpAddress, testVMId);
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                }
             }
         }
         else if( name.getMethodName().startsWith("assignPost") || name.getMethodName().startsWith("forward") || name.getMethodName().equals("releaseFromServer") ) {
@@ -334,20 +358,38 @@ public class StatefulStaticIPTests {
         }
         if( support.isAssignablePostLaunch(version) ) {
             @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = tm.getProvider().getComputeServices().getVirtualMachineSupport();
+            IpAddress address = support.getIpAddress(testIpAddress);
 
+            assertNotNull("The test IP address has gone away", address);
             assertNotNull("No virtual machine support exists in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName(), vmSupport);
+
             VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
 
             assertNotNull("The test virtual machine disappeared before the test could run", vm);
-            tm.out("Before Assignment", vm.getProviderAssignedIpAddressId());
+            tm.out("VM Before", vm.getProviderAssignedIpAddressId());
+            tm.out("Address Before", address.getServerId());
             assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddress.equals(vm.getProviderAssignedIpAddressId()));
             support.assign(testIpAddress, testVMId);
-            try { Thread.sleep(3000L); }
-            catch( InterruptedException ignore ) { }
-            vm = vmSupport.getVirtualMachine(testVMId);
-            assertNotNull("Virtual machine disappeared post-assignment", vm);
-            tm.out("After Assignment", vm.getProviderAssignedIpAddressId());
+
+            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
+
+            while( System.currentTimeMillis() < timeout ) {
+                try { vm = vmSupport.getVirtualMachine(testVMId); }
+                catch( Throwable ignore ) { }
+                assertNotNull("Virtual machine disappeared post-assignment", vm);
+                try { address = support.getIpAddress(testIpAddress); }
+                catch( Throwable ignore ) { }
+                assertNotNull("IP address disappeared post-assignment", address);
+                if( address.getServerId() != null && vm.getProviderAssignedIpAddressId() != null ) {
+                    break;
+                }
+                try { Thread.sleep(10000L); }
+                catch( InterruptedException ignore ) { }
+            }
+            tm.out("VM After", vm.getProviderAssignedIpAddressId());
+            tm.out("Address After", address.getServerId());
             assertEquals("The IP address assigned to the virtual machine does not match the test IP address", testIpAddress, vm.getProviderAssignedIpAddressId());
+            assertEquals("The virtual machine associated with the IP address does not match the test VM", testVMId, address.getServerId());
         }
         else {
             try {
@@ -379,6 +421,7 @@ public class StatefulStaticIPTests {
     public void assignPostLaunchIPv6inVLAN() throws CloudException, InternalException {
         assignPostLaunch(IPVersion.IPV6);
     }
+
     @Test
     public void releaseFromPool() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -409,6 +452,79 @@ public class StatefulStaticIPTests {
             address = support.getIpAddress(testIpAddress);
             tm.out("Result", address);
             assertNull("The test IP address " + testIpAddress + " still exists in the IP address pool", address);
+        }
+    }
+
+    @Test
+    public void releaseFromVirtualMachine() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        IpAddressSupport support = services.getIpAddressSupport();
+
+        if( support == null ) {
+            tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testIpAddress == null ) {
+            if( !support.isRequestable(IPVersion.IPV4) && !support.isRequestable(IPVersion.IPV6) ) {
+                tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            }
+            else {
+                fail("There is no test IP address to use in verifying the ability to release addresses from a virtual machine");
+            }
+        }
+        else {
+
+            IpAddress address = support.getIpAddress(testIpAddress);
+
+            assertNotNull("Test IP addresss " + address + " does not exist", address);
+
+            if( address.getServerId() != null ) {
+                @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = tm.getProvider().getComputeServices().getVirtualMachineSupport();
+
+                assertNotNull("No virtual machine support", vmSupport);
+
+                VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+
+                assertNotNull("Test virtual machine does not exist", vm);
+
+                tm.out("VM Before", vm.getProviderAssignedIpAddressId());
+                tm.out("Address Before", address.getServerId());
+
+                support.releaseFromServer(testIpAddress);
+
+                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
+
+                while( System.currentTimeMillis() < timeout ) {
+                    try { vm = vmSupport.getVirtualMachine(testVMId); }
+                    catch( Throwable ignore ) { }
+                    assertNotNull("Virtual machine disappeared post-assignment", vm);
+                    try { address = support.getIpAddress(testIpAddress); }
+                    catch( Throwable ignore ) { }
+                    assertNotNull("IP address disappeared post-assignment", address);
+                    if( address.getServerId() == null && vm.getProviderAssignedIpAddressId() == null ) {
+                        break;
+                    }
+                    try { Thread.sleep(10000L); }
+                    catch( InterruptedException ignore ) { }
+                }
+                tm.out("VM After", vm.getProviderAssignedIpAddressId());
+                tm.out("Address After", address.getServerId());
+                assertNull("The IP address assigned to the virtual machine is still set", vm.getProviderAssignedIpAddressId());
+                assertNull("The virtual machine associated with the IP address is still set", address.getServerId());
+            }
+            else {
+                if( !support.isAssignablePostLaunch(address.getVersion()) ) {
+                    tm.ok("Dynamic IP address assignment is not supported");
+                }
+                else {
+                    fail("IP address is not assigned to a virtual machine and thus this test cannot run");
+                }
+            }
         }
     }
 }

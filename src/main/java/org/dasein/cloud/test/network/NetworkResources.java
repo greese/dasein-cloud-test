@@ -216,6 +216,8 @@ public class NetworkResources {
                         // ignore
                     }
                 }
+                try { Thread.sleep(10000L); }
+                catch( InterruptedException ignore ) { }
                 VLANSupport vlanSupport = networkServices.getVlanSupport();
 
                 if( vlanSupport != null ) {
@@ -231,8 +233,21 @@ public class NetworkResources {
                                 }
                                 catch( Throwable t ) {
                                     logger.warn("Failed to de-provision subnet " + entry.getValue() + " post-test: " + t.getMessage());
+                                    try { Thread.sleep(30000L); }
+                                    catch( InterruptedException ignore ) { }
+                                    try {
+                                        Subnet s = vlanSupport.getSubnet(entry.getValue());
+
+                                        if( s != null ) {
+                                            vlanSupport.removeSubnet(entry.getValue());
+                                        }
+                                    }
+                                    catch( Throwable t2 ) {
+                                        logger.warn("Failed to de-provision subnet again " + entry.getValue() + " post-test: " + t2.getMessage());
+                                    }
                                 }
                             }
+
                         }
                     }
                     catch( Throwable ignore ) {
@@ -241,6 +256,18 @@ public class NetworkResources {
                     try {
                         for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                VLAN v = vlanSupport.getVlan(entry.getValue());
+
+                                if( v != null ) {
+                                    try {
+                                        if( vlanSupport.isConnectedViaInternetGateway(v.getProviderVlanId()) ) {
+                                            vlanSupport.removeInternetGateway(v.getProviderVlanId());
+                                        }
+                                    }
+                                    catch( Throwable t ) {
+                                        logger.warn("Failed to remove internet gateway for " + v + ":" + t.getMessage());
+                                    }
+                                }
                                 try {
                                     for( Subnet subnet : vlanSupport.listSubnets(entry.getValue()) ) {
                                         try {
@@ -255,8 +282,6 @@ public class NetworkResources {
                                     logger.warn("Failed to de-provision VLAN subnets " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                                 try {
-                                    VLAN v = vlanSupport.getVlan(entry.getValue());
-
                                     if( v != null ) {
                                         if( vlanSupport.isConnectedViaInternetGateway(v.getProviderVlanId()) ) {
                                             vlanSupport.removeInternetGateway(v.getProviderVlanId());

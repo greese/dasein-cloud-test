@@ -251,6 +251,7 @@ public class StatelessVLANTests {
                     tm.out("Domain Name", network.getDomainName());
                     tm.out("DNS Servers", Arrays.toString(network.getDnsServers()));
                     tm.out("NTP Servers", Arrays.toString(network.getNtpServers()));
+                    tm.out("Internet Gateway", support.isConnectedViaInternetGateway(testVLANId));
 
                     Map<String,String> tags = network.getTags();
 
