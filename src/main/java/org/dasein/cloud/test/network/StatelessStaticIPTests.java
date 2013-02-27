@@ -6,6 +6,7 @@ import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
+import org.dasein.cloud.network.IpForwardingRule;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
@@ -449,5 +450,49 @@ public class StatelessStaticIPTests {
     @Test
     public void compareIPv6ListAndStatus() throws CloudException, InternalException {
         compareStatus(IPVersion.IPV6);
+    }
+
+    private void listRules(@Nonnull IPVersion version) throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        IpAddressSupport support = services.getIpAddressSupport();
+
+        if( support == null ) {
+            tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<IpForwardingRule> rules = support.listRules(testIpAddress);
+        int count = 0;
+
+        for( IpForwardingRule rule : rules ) {
+            count++;
+            tm.out("Rule", rule);
+        }
+        tm.out("Total Rule Count", count);
+        if( count < 1 ) {
+            if( support.isForwarding(version) ) {
+                tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
+            }
+            else {
+                tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
+            }
+        }
+        else if( !support.isForwarding(version) ) {
+            fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
+        }
+    }
+
+    @Test
+    public void listIPv4ForwardingRules() throws CloudException, InternalException {
+        listRules(IPVersion.IPV4);
+    }
+
+    @Test
+    public void listIPv6ForwardingRules() throws CloudException, InternalException {
+        listRules(IPVersion.IPV6);
     }
 }

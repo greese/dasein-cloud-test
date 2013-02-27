@@ -11,7 +11,9 @@ import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
+import org.dasein.cloud.network.IpForwardingRule;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Protocol;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
@@ -28,6 +30,7 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -40,6 +43,8 @@ import static org.junit.Assume.assumeTrue;
  * @author George Reese
  */
 public class StatefulStaticIPTests {
+    static private final Random random = new Random();
+
     static private DaseinTestManager tm;
 
     @BeforeClass
@@ -58,6 +63,7 @@ public class StatefulStaticIPTests {
     public final TestName name = new TestName();
 
     private String testIpAddress;
+    private String testRuleId;
     private String testVlanId;
     private String testVMId;
 
@@ -88,6 +94,38 @@ public class StatefulStaticIPTests {
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
             if( testIpAddress == null ) {
                 testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, true, null);
+            }
+        }
+        else if( name.getMethodName().startsWith("forward") ) {
+            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddress == null ) {
+                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            }
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+        }
+        else if( name.getMethodName().startsWith("stopForward") ) {
+            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddress == null ) {
+                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            }
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            if( testIpAddress != null && testVMId != null ) {
+                NetworkServices services = tm.getProvider().getNetworkServices();
+
+                if( services != null ) {
+                    IpAddressSupport support = services.getIpAddressSupport();
+
+                    try {
+                        IPVersion version = (name.getMethodName().contains("IPv6") ? IPVersion.IPV6 : IPVersion.IPV4);
+
+                        if( support != null && support.isForwarding(version) ) {
+                            testRuleId = support.forward(testIpAddress, 8000, Protocol.TCP, 9000, testVMId);
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
             }
         }
         else if( name.getMethodName().equals("releaseFromVirtualMachine") ) {
@@ -227,13 +265,22 @@ public class StatefulStaticIPTests {
         try {
             testVlanId = null;
             testVMId = null;
-            if( testIpAddress != null ) {
-                NetworkServices services = tm.getProvider().getNetworkServices();
 
-                if( services != null ) {
-                    IpAddressSupport support = services.getIpAddressSupport();
+            NetworkServices services = tm.getProvider().getNetworkServices();
 
-                    if( support != null ) {
+            if( services != null ) {
+                IpAddressSupport support = services.getIpAddressSupport();
+
+                if( support != null ) {
+                    if( testRuleId != null ) {
+                        try {
+                            support.stopForward(testRuleId);
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    if( testIpAddress != null ) {
                         try {
                             support.releaseFromServer(testIpAddress);
                         }
@@ -242,8 +289,9 @@ public class StatefulStaticIPTests {
                         }
                     }
                 }
-                testIpAddress = null;
             }
+            testIpAddress = null;
+            testRuleId = null;
         }
         finally {
             tm.end();
@@ -526,5 +574,130 @@ public class StatefulStaticIPTests {
                 }
             }
         }
+    }
+
+    private void forward(@Nonnull IPVersion version) throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        IpAddressSupport support = services.getIpAddressSupport();
+
+        if( support == null ) {
+            tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        if( support.isForwarding(version) ) {
+            if( testIpAddress != null ) {
+                assertNotNull("Test VM is null", testVMId);
+
+                int ext = 8000 + random.nextInt(1000);
+                int prv = 9000 + random.nextInt(1000);
+                testRuleId = support.forward(testIpAddress, ext, Protocol.TCP, prv, testVMId);
+
+                tm.out("New Rule", testRuleId);
+                assertNotNull("Forwarding must provide a rule ID", testRuleId);
+
+                boolean found = false;
+
+                for( IpForwardingRule rule : support.listRules(testIpAddress) ) {
+                    if( testRuleId.equals(rule.getProviderRuleId()) ) {
+                        assertTrue("Matching rule does not match address", testIpAddress.equals(rule.getAddressId()));
+                        assertTrue("Matching rule does not match virtual machine", testVMId.equals(rule.getServerId()));
+                        assertTrue("Public ports do not match", rule.getPublicPort() == ext);
+                        assertTrue("Private ports do not match", rule.getPrivatePort() == prv);
+                        assertTrue("Protocols do not match", Protocol.TCP.equals(rule.getProtocol()));
+                        found = true;
+                    }
+                }
+                assertTrue("Did not find the newly created rule", found);
+            }
+            else {
+                if( !support.isRequestable(version) ) {
+                    tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
+                }
+                else {
+                    fail("No test IP address was established for this test");
+                }
+            }
+        }
+        else {
+            tm.ok("IP address forwarding is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void forwardIPv4() throws CloudException, InternalException {
+        forward(IPVersion.IPV4);
+    }
+
+    @Test
+    public void forwardIPv6() throws CloudException, InternalException {
+        forward(IPVersion.IPV6);
+    }
+
+    private void stopForward(IPVersion version) throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        IpAddressSupport support = services.getIpAddressSupport();
+
+        if( support == null ) {
+            tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        if( support.isForwarding(version) ) {
+            if( testRuleId != null ) {
+                support.stopForward(testRuleId);
+                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
+                boolean exists = true;
+
+                while( timeout > System.currentTimeMillis() ) {
+                    boolean found = false;
+
+                    for( IpForwardingRule rule : support.listRules(testIpAddress) ) {
+                        if( testRuleId.equals(rule.getProviderRuleId()) ) {
+                            found = true;
+                        }
+                    }
+                    exists = found;
+                    if( !exists ) {
+                        break;
+                    }
+                    try { Thread.sleep(10000L); }
+                    catch( InterruptedException ignore ) { }
+                }
+                tm.out("Rule Exists", exists);
+                assertNotNull("The target rule still exists among the forwarding rules", exists);
+            }
+            else {
+                if( !support.isRequestable(version) ) {
+                    tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
+                }
+                else {
+                    fail("No test IP address was established for this test");
+                }
+            }
+        }
+        else {
+            tm.ok("IP address forwarding is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void stopForwardIPv4() throws CloudException, InternalException {
+        stopForward(IPVersion.IPV4);
+    }
+
+    @Test
+    public void stopForwardIPv6() throws CloudException, InternalException {
+        stopForward(IPVersion.IPV6);
     }
 }

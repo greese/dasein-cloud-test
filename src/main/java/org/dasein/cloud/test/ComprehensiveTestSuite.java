@@ -102,9 +102,6 @@ public class ComprehensiveTestSuite extends TestSuite {
                 if( network.hasDnsSupport() ) {
                     addTests(DNSTestCase.class);
                 }
-                if( network.hasIpAddressSupport() ) {
-                    addTests(IpAddressTestCase.class);
-                }
             }
             if( provider.hasComputeServices() ) {
                 ComputeServices compute = provider.getComputeServices();
