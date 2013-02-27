@@ -50,6 +50,8 @@ public class DaseinTestManager {
     static private NetworkResources  networkResources;
     static private TreeSet<String>   inclusions;
 
+    static private int  skipCount;
+    static private int  testCount;
     static private long testStart;
 
     static public @Nonnull CloudProvider constructProvider() {
@@ -228,13 +230,33 @@ public class DaseinTestManager {
         int total = 0;
 
         for( Map.Entry<String,Integer> entry : apiAudit.entrySet() ) {
-            logger.info("---> " + entry.getKey() + ": " + entry.getValue());
+            out(logger, null, "---> " + entry.getKey(), String.valueOf(entry.getValue()));
             total += entry.getValue();
         }
-        logger.info("---> Total Calls: " + total);
-        logger.info("Duration:         " + minutes + " minutes " + seconds + " seconds");
+        out(logger, null, "---> Total Calls", String.valueOf(total));
+        logger.info("");
+        out(logger, null, "Tests", String.valueOf(testCount));
+        out(logger, null, "Skipped", String.valueOf(skipCount));
+        out(logger, null, "Run", String.valueOf(testCount - skipCount));
+        out(logger, null, "Duration", minutes + " minutes " + seconds + " seconds");
         logger.info("-------------------------------------------------------------------------------------------------");
     }
+
+    static private void out(@Nonnull Logger logger, @Nullable String prefix, @Nonnull String key, @Nullable String value) {
+        StringBuilder str = new StringBuilder();
+
+        if( key.length() > 36 ) {
+            str.append(key.substring(0, 36)).append(": ");
+        }
+        else {
+            str.append(key).append(": ");
+            while( str.length() < 38 ) {
+                str.append(" ");
+            }
+        }
+        logger.info( prefix + str.toString() + value);
+    }
+
 
     private Logger                  logger;
     private String                  name;
@@ -256,6 +278,7 @@ public class DaseinTestManager {
         APITrace.reset();
         changePrefix();
         startTimestamp = System.currentTimeMillis();
+        testCount++;
         out("");
         out(">>> BEGIN ---------------------------------------------------------------------------------------------->>>");
     }
@@ -369,6 +392,10 @@ public class DaseinTestManager {
 
     public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
+    }
+
+    public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
+        return (networkResources == null ? null : networkResources.getTestNetworkFirewallId(label, provisionIfNull, inVlanId));
     }
 
     public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
@@ -536,21 +563,11 @@ public class DaseinTestManager {
     }
 
     public void out(@Nonnull String key, @Nullable String value) {
-        StringBuilder str = new StringBuilder();
-
-        if( key.length() > 36 ) {
-            str.append(key.substring(0, 36)).append(": ");
-        }
-        else {
-            str.append(key).append(": ");
-            while( str.length() < 38 ) {
-                str.append(" ");
-            }
-        }
-        out( str.toString() + value);
+        out(logger, prefix, key, value);
     }
 
     public void skip() {
+        skipCount++;
         out("SKIPPING");
     }
 
