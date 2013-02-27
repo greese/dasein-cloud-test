@@ -37,13 +37,16 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
+ * Tests verifying the various stateful capabilities of static IP support in Dasein Cloud.
  * <p>Created by George Reese: 2/23/13 10:22 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class StatefulStaticIPTests {
     static private final Random random = new Random();
+
+    // TODO: add a test for assigning at launch
 
     static private DaseinTestManager tm;
 

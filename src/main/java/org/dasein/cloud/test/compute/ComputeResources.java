@@ -16,7 +16,9 @@ import org.dasein.cloud.compute.MachineImageState;
 import org.dasein.cloud.compute.MachineImageSupport;
 import org.dasein.cloud.compute.MachineImageType;
 import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.Snapshot;
 import org.dasein.cloud.compute.SnapshotCreateOptions;
+import org.dasein.cloud.compute.SnapshotState;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -152,6 +154,42 @@ public class ComputeResources {
         provider.close();
     }
 
+    private @Nullable String findStatelessSnapshot() {
+        ComputeServices computeServices = provider.getComputeServices();
+
+        if( computeServices != null ) {
+            SnapshotSupport support = computeServices.getSnapshotSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Snapshot defaultSnapshot = null;
+
+                    for( Snapshot snapshot : support.listSnapshots() ) {
+                        if( snapshot.getCurrentState().equals(SnapshotState.AVAILABLE) ) {
+                            defaultSnapshot = snapshot;
+                            break;
+                        }
+                        if( defaultSnapshot == null ) {
+                            defaultSnapshot = snapshot;
+                        }
+                    }
+                    if( defaultSnapshot != null ) {
+                        String id = defaultSnapshot.getProviderSnapshotId();
+
+                        if( id != null ) {
+                            testSnapshots.put(DaseinTestManager.STATELESS, id);
+                        }
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
     public @Nullable String getTestDataCenterId(boolean stateless) {
         if( testDataCenterId != null ) {
             return testDataCenterId;
@@ -248,7 +286,7 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
+            return findStatelessSnapshot();
         }
         String id = testSnapshots.get(label);
 

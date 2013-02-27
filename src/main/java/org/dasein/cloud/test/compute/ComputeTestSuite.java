@@ -15,11 +15,12 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulVMTests.class,
-        StatelessVMTests.class,
         StatefulImageTests.class,
-        StatelessImageTests.class,
         StatefulVolumeTests.class,
-        StatelessVolumeTests.class
+        StatelessVMTests.class,
+        StatelessImageTests.class,
+        StatelessVolumeTests.class,
+        StatelessSnapshotTests.class
 })
 public class ComputeTestSuite {
     @BeforeClass

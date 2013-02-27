@@ -3,6 +3,7 @@ package org.dasein.cloud.test;
 import org.dasein.cloud.test.cloud.StatelessAuthenticationTests;
 import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.dasein.cloud.test.compute.StatelessImageTests;
+import org.dasein.cloud.test.compute.StatelessSnapshotTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.dasein.cloud.test.identity.StatelessKeypairTests;
@@ -26,6 +27,7 @@ import org.junit.runners.Suite;
         StatelessKeypairTests.class,
         StatelessImageTests.class,
         StatelessVolumeTests.class,
+        StatelessSnapshotTests.class,
         StatelessVLANTests.class,
         StatelessFirewallTests.class,
         StatelessStaticIPTests.class
