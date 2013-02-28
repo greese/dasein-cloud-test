@@ -14,6 +14,8 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+        StatefulKeypairTests.class,
+        StatefulIAMTests.class,
         StatelessKeypairTests.class,
         StatelessIAMTests.class
 })

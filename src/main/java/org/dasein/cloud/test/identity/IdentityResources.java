@@ -121,10 +121,12 @@ public class IdentityResources {
     public @Nullable String getTestGroupId(@Nonnull String label, boolean provisionIfNull) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testGroups.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return findStatelessGroup();
@@ -156,10 +158,12 @@ public class IdentityResources {
     public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testKeys.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return findStatelessKeypair();
@@ -191,10 +195,12 @@ public class IdentityResources {
     public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String groupToJoin) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testUsers.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return findStatelessUser(groupToJoin);

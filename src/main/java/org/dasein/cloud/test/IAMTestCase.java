@@ -107,36 +107,6 @@ public class IAMTestCase extends BaseTestCase {
             // ignore
         }
     }
-
-    @Test
-    public void testCreateGroup() throws InternalException, CloudException {
-        begin();
-        groupToDelete = getSupport().createGroup("DSN Test" + System.currentTimeMillis(), "/dsntest", false);
-        assertNotNull("No cloud group was created", groupToDelete);
-        out("ID:       " + groupToDelete.getProviderGroupId());
-        out("Owner ID: " + groupToDelete.getProviderOwnerId());
-        out("Name:     " + groupToDelete.getName());
-        out("Path:     " + groupToDelete.getPath());
-        assertNotNull("ID cannot be null", groupToDelete.getProviderGroupId());
-        assertNotNull("Owner cannot be null", groupToDelete.getProviderOwnerId());
-        assertNotNull("Name must not be null", groupToDelete.getName());
-        end();
-    }
-
-    @Test
-    public void testRemoveGroup() throws InternalException, CloudException {
-        begin();
-        String groupId = groupToDelete.getProviderGroupId();
-        
-        groupToDelete = null;
-        getSupport().removeGroup(groupId);
-        for( CloudGroup group : getSupport().listGroups(null) ) {
-            if( groupId.equals(group.getProviderGroupId()) ) {
-                fail("Found group that was supposed to be deleted");
-            }
-        }
-        end();
-    }
     
     @Test
     public void testCreateGroupPermission() throws InternalException, CloudException {
@@ -160,77 +130,4 @@ public class IAMTestCase extends BaseTestCase {
         assertTrue("Unable to find new group permission", found);
         end();
     }
-    
-    @Test
-    public void testCreateUser() throws InternalException, CloudException {
-        begin();
-        userToDelete = getSupport().createUser("dsn" + System.currentTimeMillis(), "/dsntest");
-        assertNotNull("No cloud user was created", userToDelete);
-        out("ID:       " + userToDelete.getProviderUserId());
-        out("Owner ID: " + userToDelete.getProviderOwnerId());
-        out("UserName: " + userToDelete.getUserName());
-        out("Path:     " + userToDelete.getPath());
-        assertNotNull("ID cannot be null", userToDelete.getProviderUserId());
-        assertNotNull("Owner cannot be null", userToDelete.getProviderOwnerId());
-        assertNotNull("User name must not be null", userToDelete.getUserName());
-        end();
-    }
-    
-    @Test
-    public void testJoinGroup() throws InternalException, CloudException {
-        begin();
-        getSupport().addUserToGroups(userToDelete.getProviderUserId(), groupToDelete.getProviderGroupId());
-        
-        boolean groupFound = false, userFound = false;
-        
-        for( CloudGroup group : getSupport().listGroupsForUser(userToDelete.getProviderUserId()) ) {
-            if( group.equals(groupToDelete) ) {
-                groupFound = true;
-            }
-        }
-        for( CloudUser user : getSupport().listUsersInGroup(groupToDelete.getProviderGroupId()) ) {
-            if( user.equals(userToDelete) ) {
-                userFound = true;
-            }
-        }
-        assertTrue("Group was not among user's groups", groupFound);
-        assertTrue("User was not found in group", userFound);
-        end();
-    }
-
-    @Test
-    public void testRemoveUser() throws InternalException, CloudException {
-        begin();
-        String userId = userToDelete.getProviderUserId();
-
-        userToDelete = null;
-        getSupport().removeUser(userId);
-        for( CloudUser user : getSupport().listUsersInPath(null) ) {
-            if( userId.equals(user.getProviderUserId()) ) {
-                fail("Found user that was supposed to be deleted");
-            }
-        }
-        end();
-    }
-
-    @Test
-    public void testRemoveUserFromGroup() throws InternalException, CloudException {
-        begin();
-        getSupport().removeUserFromGroup(userToDelete.getProviderUserId(), groupToDelete.getProviderGroupId());
-        boolean groupFound = false, userFound = false;
-
-        for( CloudGroup group : getSupport().listGroupsForUser(userToDelete.getProviderUserId()) ) {
-            if( group.equals(groupToDelete) ) {
-                groupFound = true;
-            }
-        }
-        for( CloudUser user : getSupport().listUsersInGroup(groupToDelete.getProviderGroupId()) ) {
-            if( user.equals(userToDelete) ) {
-                userFound = true;
-            }
-        }
-        assertTrue("Group was among user's groups", !groupFound);
-        assertTrue("User was found in group", !userFound);
-        end();
-    }    
 }

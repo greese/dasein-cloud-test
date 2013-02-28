@@ -4,6 +4,7 @@ import org.dasein.cloud.test.compute.StatefulImageTests;
 import org.dasein.cloud.test.compute.StatefulSnapshotTests;
 import org.dasein.cloud.test.compute.StatefulVMTests;
 import org.dasein.cloud.test.compute.StatefulVolumeTests;
+import org.dasein.cloud.test.identity.StatefulIAMTests;
 import org.dasein.cloud.test.identity.StatefulKeypairTests;
 import org.dasein.cloud.test.network.StatefulFirewallTests;
 import org.dasein.cloud.test.network.StatefulNetworkFirewallTests;
@@ -32,7 +33,8 @@ import org.junit.runners.Suite;
         StatefulFirewallTests.class,
         StatefulStaticIPTests.class,
         StatefulNetworkFirewallTests.class,
-        StatefulRDBMSTests.class
+        StatefulRDBMSTests.class,
+        StatefulIAMTests.class
 })
 public class StatefulTestSuite {
 }
