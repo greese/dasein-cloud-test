@@ -82,9 +82,6 @@ public class ComprehensiveTestSuite extends TestSuite {
                 if( platform.hasCDNSupport() ) {
                     addTests(CDNTestCase.class);
                 }
-                if( platform.hasRelationalDatabaseSupport() ) {
-                    addTests(RelationalDatabaseTestCase.class);
-                }
             }
             if( provider.hasStorageServices() ) {
                 StorageServices storage = provider.getStorageServices();

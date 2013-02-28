@@ -100,7 +100,7 @@ public class PlatformResources {
 
                 if( rdbmsSupport != null ) {
                     try {
-                        return provisionRDBMS(rdbmsSupport, label, "dsnkp", engine);
+                        return provisionRDBMS(rdbmsSupport, label, "dsnrdbms", engine);
                     }
                     catch( Throwable ignore ) {
                         // ignore
