@@ -10,6 +10,7 @@ import org.dasein.cloud.network.NetworkFirewallSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Permission;
 import org.dasein.cloud.network.RuleTargetType;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -31,10 +32,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
+ * Tests to validate compatibility with stateless Dasein Cloud operations for network firewalls/ACLs.
  * <p>Created by George Reese: 2/27/13 9:59 AM</p>
- *
  * @author George Reese
+ * @version 2013.04
+ * @since 2013.04
  */
 public class StatelessNetworkFirewallTests {
     static private DaseinTestManager tm;

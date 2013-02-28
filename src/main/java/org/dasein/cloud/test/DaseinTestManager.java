@@ -226,7 +226,7 @@ public class DaseinTestManager {
         float seconds = ((float)(duration%CalendarWrapper.MINUTE))/1000f;
         logger.info("");
         logger.info("All Tests Complete ------------------------------------------------------------------------------");
-        logger.info("---------- API Log ----------");
+        logger.info("--------------- API Log ---------------");
         int total = 0;
 
         for( Map.Entry<String,Integer> entry : apiAudit.entrySet() ) {
@@ -235,6 +235,12 @@ public class DaseinTestManager {
         }
         out(logger, null, "---> Total Calls", String.valueOf(total));
         logger.info("");
+        logger.info("----------- Provisioning Log ----------");
+        if( computeResources != null ) {
+            computeResources.report();
+        }
+        logger.info("");
+        logger.info("--------------- Results ---------------");
         out(logger, null, "Tests", String.valueOf(testCount));
         out(logger, null, "Skipped", String.valueOf(skipCount));
         out(logger, null, "Run", String.valueOf(testCount - skipCount));
@@ -242,7 +248,7 @@ public class DaseinTestManager {
         logger.info("-------------------------------------------------------------------------------------------------");
     }
 
-    static private void out(@Nonnull Logger logger, @Nullable String prefix, @Nonnull String key, @Nullable String value) {
+    static public void out(@Nonnull Logger logger, @Nullable String prefix, @Nonnull String key, @Nullable String value) {
         StringBuilder str = new StringBuilder();
 
         if( key.length() > 36 ) {
@@ -254,7 +260,12 @@ public class DaseinTestManager {
                 str.append(" ");
             }
         }
-        logger.info( prefix + str.toString() + value);
+        if( prefix == null ) {
+            logger.info(str.toString() + value);
+        }
+        else {
+            logger.info( prefix + str.toString() + value);
+        }
     }
 
 

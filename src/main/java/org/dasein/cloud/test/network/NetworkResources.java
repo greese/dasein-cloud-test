@@ -5,6 +5,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallCreateOptions;
@@ -14,6 +15,7 @@ import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.NetworkFirewallSupport;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Networkable;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.SubnetCreateOptions;
 import org.dasein.cloud.network.SubnetState;
@@ -57,6 +59,8 @@ public class NetworkResources {
 
     public void close() {
         try {
+            try { Thread.sleep(10000L); }
+            catch( InterruptedException ignore ) { }
             NetworkServices networkServices = provider.getNetworkServices();
 
             if( networkServices != null ) {
@@ -180,6 +184,33 @@ public class NetworkResources {
                         // ignore
                     }
                 }
+
+                VLANSupport vlanSupport = networkServices.getVlanSupport();
+
+                if( vlanSupport != null ) {
+                    try {
+                        for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                VLAN v = vlanSupport.getVlan(entry.getValue());
+
+                                if( v != null ) {
+                                    try {
+                                        if( vlanSupport.isConnectedViaInternetGateway(v.getProviderVlanId()) ) {
+                                            vlanSupport.removeInternetGateway(v.getProviderVlanId());
+                                        }
+                                    }
+                                    catch( Throwable t ) {
+                                        logger.warn("Failed to remove internet gateway for " + v + ":" + t.getMessage());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+
                 NetworkFirewallSupport nfSupport = networkServices.getNetworkFirewallSupport();
 
                 if( nfSupport != null ) {
@@ -203,6 +234,7 @@ public class NetworkResources {
                         // ignore
                     }
                 }
+
                 FirewallSupport firewallSupport = networkServices.getFirewallSupport();
 
                 if( firewallSupport != null ) {
@@ -241,9 +273,6 @@ public class NetworkResources {
                         // ignore
                     }
                 }
-                try { Thread.sleep(10000L); }
-                catch( InterruptedException ignore ) { }
-                VLANSupport vlanSupport = networkServices.getVlanSupport();
 
                 if( vlanSupport != null ) {
                     try {
@@ -278,6 +307,7 @@ public class NetworkResources {
                     catch( Throwable ignore ) {
                         // ignore
                     }
+
                     try {
                         for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
@@ -291,6 +321,18 @@ public class NetworkResources {
                                     }
                                     catch( Throwable t ) {
                                         logger.warn("Failed to remove internet gateway for " + v + ":" + t.getMessage());
+                                    }
+                                }
+                                for( Firewall fw : nfSupport.listFirewalls() ) {
+                                    if( fw.getProviderVlanId().equals(entry.getValue()) ) {
+                                        try { nfSupport.removeFirewall(fw.getProviderFirewallId()); }
+                                        catch( Throwable ignore ) { }
+                                    }
+                                }
+                                for( Firewall fw : firewallSupport.list() ) {
+                                    if( entry.getValue().equals(fw.getProviderFirewallId()) ) {
+                                        try { firewallSupport.delete(fw.getProviderFirewallId()); }
+                                        catch( Throwable ignore ) { }
                                     }
                                 }
                                 try {
@@ -841,13 +883,6 @@ public class NetworkResources {
     }
 
     public @Nonnull String provisionNetworkFirewall(@Nonnull String label, @Nullable String vlanId) throws CloudException, InternalException {
-        String tmp = String.valueOf(random.nextInt(10000));
-        FirewallCreateOptions options;
-        String name = "dsnnetfw" + tmp;
-        String description = "Dasein Cloud Integration Test NetworkFirewall";
-
-        options = FirewallCreateOptions.getInstance(vlanId, name, description);
-
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -858,6 +893,20 @@ public class NetworkResources {
         if( support == null ) {
             throw new CloudException("This cloud does not support network firewalls");
         }
+
+        if( vlanId == null ) {
+            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            if( vlanId == null ) {
+                throw new CloudException("No VLAN ID could be found");
+            }
+        }
+
+        String tmp = String.valueOf(random.nextInt(10000));
+        String name = "dsnnetfw" + tmp;
+        String description = "Dasein Cloud Integration Test NetworkFirewall";
+
+        FirewallCreateOptions options = FirewallCreateOptions.getInstance(vlanId, name, description);
+
         String id = support.createFirewall(options);
 
         synchronized( testNetworkFirewalls ) {

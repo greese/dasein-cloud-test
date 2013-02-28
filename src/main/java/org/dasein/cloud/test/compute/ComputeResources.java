@@ -76,6 +76,40 @@ public class ComputeResources {
         this.provider = provider;
     }
 
+    public void report() {
+        boolean header = false;
+
+        testMachineImages.remove(DaseinTestManager.STATELESS);
+        if( !testMachineImages.isEmpty() ) {
+            logger.info("Provisioned Compute Resources:");
+            header = true;
+            DaseinTestManager.out(logger, null, "---> Machine Images", testMachineImages.size() + " " + testMachineImages);
+        }
+        testSnapshots.remove(DaseinTestManager.STATELESS);
+        if( !testSnapshots.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Compute Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Snapshots", testSnapshots.size() + " " + testSnapshots);
+        }
+        testVMs.remove(DaseinTestManager.STATELESS);
+        if( !testVMs.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Compute Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Virtual Machines", testVMs.size() + " " + testVMs);
+        }
+        testVolumes.remove(DaseinTestManager.STATELESS);
+        if( !testVolumes.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Compute Resources:");
+            }
+            DaseinTestManager.out(logger, null, "---> Volumes", testVolumes.size() + " " + testVolumes);
+        }
+    }
+
     public void close() {
         ComputeServices computeServices = provider.getComputeServices();
 
@@ -637,7 +671,7 @@ public class ComputeResources {
         throw new CloudException("No mechanism exists for provisioning images from a virtual machine");
     }
 
-    public @Nonnull String provisionSnapshot(@Nonnull SnapshotSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String volumeId) throws CloudException, InternalException {
+    public @Nonnull String provisionSnapshot(@SuppressWarnings("UnusedParameters") @Nonnull SnapshotSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String volumeId) throws CloudException, InternalException {
         SnapshotCreateOptions options;
 
         if( volumeId == null ) {
