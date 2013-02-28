@@ -139,7 +139,7 @@ public class StatefulSnapshotTests {
                     testSnapshotId = DaseinTestManager.getComputeResources().provisionSnapshot(support, "filter", "dsnfilter", null);
                 }
                 catch( Throwable t ) {
-                    tm.warn("Failed to provision VM for filter test: " + t.getMessage());
+                    tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
                 }
             }
         }

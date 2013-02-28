@@ -16,6 +16,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.Assume.assumeTrue;
 
@@ -79,7 +80,7 @@ public class StatefulRDBMSTests {
         PlatformResources p = DaseinTestManager.getPlatformResources();
 
         if( p != null ) {
-            String id = p.provisionRDBMS(support, "provision", "dsnrdbms", null);
+            String id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", null);
 
             tm.out("New Database", id);
             assertNotNull("No database was created by this test", id);
@@ -110,7 +111,9 @@ public class StatefulRDBMSTests {
             tm.out("Before", db.getCurrentState());
             support.removeDatabase(testDatabaseId);
             db = support.getDatabase(testDatabaseId);
-            tm.out("After", db == null ? DatabaseState.DELETED : db.getCurrentState());
+            DatabaseState s = (db == null ? DatabaseState.DELETED : db.getCurrentState());
+            tm.out("After", s);
+            assertTrue("Database state must be one of DELETING or DELETED (or no database found)", s.equals(DatabaseState.DELETED) || s.equals(DatabaseState.DELETING));
         }
         else {
             if( support.isSubscribed() ) {

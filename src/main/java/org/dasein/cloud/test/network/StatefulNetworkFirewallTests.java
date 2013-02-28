@@ -266,7 +266,7 @@ public class StatefulNetworkFirewallTests {
         if( net != null ) {
             if( support.supportsNetworkFirewallCreation() ) {
                 if( testVLANId != null ) {
-                    String id = net.provisionNetworkFirewall("provision", testVLANId);
+                    String id = net.provisionNetworkFirewall("provisionKeypair", testVLANId);
 
                     tm.out("New Network Firewall", id);
                     assertNotNull("No network firewall was created by this test", id);

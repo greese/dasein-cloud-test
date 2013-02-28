@@ -96,7 +96,7 @@ public class StatefulVolumeTests {
                         testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, null);
                     }
                     catch( Throwable t ) {
-                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
                     }
                 }
             }

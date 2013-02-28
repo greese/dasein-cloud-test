@@ -417,6 +417,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestFirewallId(label, provisionIfNull, null));
     }
 
+    public @Nullable String getTestGroupId(@Nonnull String label, boolean provisionIfNull) {
+        return (identityResources == null ? null : identityResources.getTestGroupId(label, provisionIfNull));
+    }
+
     public @Nullable String getTestImageId(@Nonnull String label, boolean provisionIfNull) {
         return (computeResources == null ? null : computeResources.getTestImageId(label, provisionIfNull));
     }
@@ -443,6 +447,10 @@ public class DaseinTestManager {
 
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
         return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
+    }
+
+    public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredGroupId) {
+        return (identityResources == null ? null : identityResources.getTestUserId(label, provisionIfNull, preferredGroupId));
     }
 
     public @Nullable String getTestVLANFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {

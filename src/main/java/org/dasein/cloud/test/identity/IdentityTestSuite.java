@@ -13,7 +13,10 @@ import org.junit.runners.Suite;
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatelessKeypairTests.class })
+@Suite.SuiteClasses({
+        StatelessKeypairTests.class,
+        StatelessIAMTests.class
+})
 public class IdentityTestSuite {
     @BeforeClass
     static public void setup() {

@@ -5,6 +5,9 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.identity.CloudGroup;
+import org.dasein.cloud.identity.CloudUser;
+import org.dasein.cloud.identity.IdentityAndAccessSupport;
 import org.dasein.cloud.identity.IdentityServices;
 import org.dasein.cloud.identity.SSHKeypair;
 import org.dasein.cloud.identity.ShellKeySupport;
@@ -29,7 +32,9 @@ public class IdentityResources {
 
     static private final Random random = new Random();
 
-    private final HashMap<String,String> testKeys = new HashMap<String, String>();
+    private final HashMap<String,String> testGroups = new HashMap<String, String>();
+    private final HashMap<String,String> testKeys   = new HashMap<String, String>();
+    private final HashMap<String,String> testUsers  = new HashMap<String, String>();
     private CloudProvider   provider;
 
     public IdentityResources(@Nonnull CloudProvider provider) {
@@ -55,6 +60,30 @@ public class IdentityResources {
                         }
                     }
                 }
+                IdentityAndAccessSupport iamSupport = identityServices.getIdentityAndAccessSupport();
+
+                if( iamSupport != null ) {
+                    for( Map.Entry<String,String> entry : testUsers.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                iamSupport.removeUser(entry.getValue());
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                        }
+                    }
+                    for( Map.Entry<String,String> entry : testGroups.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                iamSupport.removeGroup(entry.getValue());
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
             }
         }
         catch( Throwable ignore ) {
@@ -64,14 +93,64 @@ public class IdentityResources {
     }
 
     public void report() {
-        //boolean header = false;
+        boolean header = false;
 
         testKeys.remove(DaseinTestManager.STATELESS);
         if( !testKeys.isEmpty() ) {
             logger.info("Provisioned Identity Resources:");
-            //header = true;
+            header = true;
             DaseinTestManager.out(logger, null, "---> SSH Keypairs", testKeys.size() + " " + testKeys);
         }
+        testGroups.remove(DaseinTestManager.STATELESS);
+        if( !testGroups.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Identity Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Groups", testGroups.size() + " " + testGroups);
+        }
+        testUsers.remove(DaseinTestManager.STATELESS);
+        if( !testUsers.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Identity Resources:");
+            }
+            DaseinTestManager.out(logger, null, "---> Users", testUsers.size() + " " + testUsers);
+        }
+    }
+
+    public @Nullable String getTestGroupId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testGroups.entrySet() ) {
+                String id = entry.getValue();
+
+                if( id != null ) {
+                    return id;
+                }
+            }
+            return findStatelessGroup();
+        }
+        String id = testGroups.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            IdentityServices services = provider.getIdentityServices();
+
+            if( services != null ) {
+                IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+                if( support != null ) {
+                    try {
+                        return provisionGroup(support, label, "dsngroup");
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {
@@ -98,12 +177,85 @@ public class IdentityResources {
 
                 if( support != null ) {
                     try {
-                        return provision(support, label, "dsnkp");
+                        return provisionKeypair(support, label, "dsnkp");
                     }
                     catch( Throwable ignore ) {
                         // ignore
                     }
                 }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String groupToJoin) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testUsers.entrySet() ) {
+                String id = entry.getValue();
+
+                if( id != null ) {
+                    return id;
+                }
+            }
+            return findStatelessUser(groupToJoin);
+        }
+        String id = testUsers.get(label);
+
+        if( id != null ) {
+
+            if( groupToJoin != null ) {
+                IdentityServices services = provider.getIdentityServices();
+
+                if( services != null ) {
+                    IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+                    if( support != null ) {
+                        try { support.addUserToGroups(id, groupToJoin); }
+                        catch( Throwable ignore ) { }
+                    }
+                }
+            }
+            return id;
+        }
+        if( provisionIfNull ) {
+            IdentityServices services = provider.getIdentityServices();
+
+            if( services != null ) {
+                IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+                if( support != null ) {
+                    try {
+                        return provisionUser(support, label, "dsnuser", groupToJoin);
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String findStatelessGroup() {
+        IdentityServices services = provider.getIdentityServices();
+
+        if( services != null ) {
+            IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Iterator<CloudGroup> groups = support.listGroups(null).iterator();
+
+                    if( groups.hasNext() ) {
+                        String id = groups.next().getProviderGroupId();
+
+                        testGroups.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
             }
         }
         return null;
@@ -134,7 +286,57 @@ public class IdentityResources {
         return null;
     }
 
-    public @Nonnull String provision(@Nonnull ShellKeySupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+    public @Nullable String findStatelessUser(@Nullable String preferredGroupId) {
+        IdentityServices services = provider.getIdentityServices();
+
+        if( services != null ) {
+            IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Iterator<CloudUser> users;
+
+                    if( preferredGroupId != null ) {
+                        users = support.listUsersInGroup(preferredGroupId).iterator();
+                        if( users.hasNext() ) {
+                            String id = users.next().getProviderUserId();
+
+                            testUsers.put(DaseinTestManager.STATELESS, id);
+                            return id;
+                        }
+                    }
+                    users = support.listUsersInPath(null).iterator();
+                    if( users.hasNext() ) {
+                        String id = users.next().getProviderUserId();
+
+                        testUsers.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
+    public @Nonnull String provisionGroup(@Nonnull IdentityAndAccessSupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+        String id = support.createGroup(namePrefix + " " + System.currentTimeMillis(), "/dsntest", false).getProviderGroupId();
+
+        if( id == null ) {
+            throw new CloudException("No group was created");
+        }
+        synchronized( testGroups ) {
+            while( testGroups.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testGroups.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionKeypair(@Nonnull ShellKeySupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
         String id = null;
 
         if( support.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
@@ -156,6 +358,21 @@ public class IdentityResources {
                 label = label + random.nextInt(9);
             }
             testKeys.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionUser(@Nonnull IdentityAndAccessSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String ... preferredGroups) throws CloudException, InternalException {
+        String id = support.createUser(namePrefix + (System.currentTimeMillis()%10000), "/dsntest", preferredGroups == null ? new String[0] : preferredGroups).getProviderUserId();
+
+        if( id == null ) {
+            throw new CloudException("No user was created");
+        }
+        synchronized( testUsers ) {
+            while( testUsers.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testUsers.put(label, id);
         }
         return id;
     }

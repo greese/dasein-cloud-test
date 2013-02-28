@@ -163,13 +163,13 @@ public class StatefulVLANTests {
                             VLAN vlan = support.getVlan(testVLANId);
 
                             assertNotNull("The test VLAN does not exist", vlan);
-                            String id = resources.provisionSubnet(support, "provision", testVLANId, "dsnsub", vlan.getProviderDataCenterId());
+                            String id = resources.provisionSubnet(support, "provisionKeypair", testVLANId, "dsnsub", vlan.getProviderDataCenterId());
                             tm.out("New Subnet", id);
                             assertNotNull("Could not find the subnet in the cloud after provisioning", support.getSubnet(id));
                         }
                         else {
                             try {
-                                resources.provisionSubnet(support, "provision", testVLANId, "dsnsubfail", null);
+                                resources.provisionSubnet(support, "provisionKeypair", testVLANId, "dsnsubfail", null);
                                 fail("Subnet provisioning completed even though it isn't supported");
                             }
                             catch( OperationNotSupportedException expected ) {
@@ -212,14 +212,14 @@ public class StatefulVLANTests {
 
                 if( resources != null ) {
                     if( supported ) {
-                        String id = resources.provisionVLAN(support, "provision", "dnsvlan", null);
+                        String id = resources.provisionVLAN(support, "provisionKeypair", "dnsvlan", null);
 
                         tm.out("New VLAN", id);
                         assertNotNull("Could not find the new VLAN in the cloud after creation", support.getVlan(id));
                     }
                     else {
                         try {
-                            resources.provisionVLAN(support, "provision", "dnsvlan", null);
+                            resources.provisionVLAN(support, "provisionKeypair", "dnsvlan", null);
                             fail("VLAN provisioning completed even though it isn't supported");
                         }
                         catch( OperationNotSupportedException expected ) {

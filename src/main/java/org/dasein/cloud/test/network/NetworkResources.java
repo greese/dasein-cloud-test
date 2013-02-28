@@ -298,7 +298,7 @@ public class NetworkResources {
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -322,7 +322,7 @@ public class NetworkResources {
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -337,7 +337,7 @@ public class NetworkResources {
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -359,7 +359,7 @@ public class NetworkResources {
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision subnet " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair subnet " + entry.getValue() + " post-test: " + t.getMessage());
                                     try { Thread.sleep(30000L); }
                                     catch( InterruptedException ignore ) { }
                                     try {
@@ -370,7 +370,7 @@ public class NetworkResources {
                                         }
                                     }
                                     catch( Throwable t2 ) {
-                                        logger.warn("Failed to de-provision subnet again " + entry.getValue() + " post-test: " + t2.getMessage());
+                                        logger.warn("Failed to de-provisionKeypair subnet again " + entry.getValue() + " post-test: " + t2.getMessage());
                                     }
                                 }
                             }
@@ -414,12 +414,12 @@ public class NetworkResources {
                                             vlanSupport.removeSubnet(subnet.getProviderSubnetId());
                                         }
                                         catch( Throwable t ) {
-                                            logger.warn("Failed to de-provision VLAN subnet " + subnet.getProviderSubnetId() + " for " + entry.getValue() + " post-test: " + t.getMessage());
+                                            logger.warn("Failed to de-provisionKeypair VLAN subnet " + subnet.getProviderSubnetId() + " for " + entry.getValue() + " post-test: " + t.getMessage());
                                         }
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision VLAN subnets " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair VLAN subnets " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                                 try {
                                     if( v != null ) {
@@ -430,7 +430,7 @@ public class NetworkResources {
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provision VLAN " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provisionKeypair VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }

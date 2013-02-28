@@ -319,7 +319,7 @@ public class StatefulStaticIPTests {
         assertNotNull("Testing failed to initialize properly as there are no network resources", network);
         if( !support.isSubscribed() ) {
             try {
-                network.provisionAddress(support, "provision", version, null);
+                network.provisionAddress(support, "provisionKeypair", version, null);
                 fail("The account is supposedly not subscribed to IP address support, but a request operation completed");
             }
             catch( CloudException expected ) {
@@ -330,10 +330,10 @@ public class StatefulStaticIPTests {
             String addressId;
 
             if( !forVLAN ) {
-                addressId = network.provisionAddress(support, "provision", version, null);
+                addressId = network.provisionAddress(support, "provisionKeypair", version, null);
             }
             else {
-                addressId = network.provisionAddress(support, "provision", version, testVlanId);
+                addressId = network.provisionAddress(support, "provisionKeypair", version, testVlanId);
             }
             tm.out("New " + version + " Address", addressId);
             assertNotNull("Requesting a new IP address may not result in a null address ID", addressId);
@@ -341,10 +341,10 @@ public class StatefulStaticIPTests {
         else {
             try {
                 if( !forVLAN ) {
-                    network.provisionAddress(support, "provision", version, null);
+                    network.provisionAddress(support, "provisionKeypair", version, null);
                 }
                 else {
-                    network.provisionAddress(support, "provision", version, UUID.randomUUID().toString());
+                    network.provisionAddress(support, "provisionKeypair", version, UUID.randomUUID().toString());
                 }
                 fail("Requesting addresses of " + version + " is supposedly not supported, but the operation completed");
             }
@@ -392,7 +392,7 @@ public class StatefulStaticIPTests {
                 tm.ok("No IP address subscription exists for this account in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
             else if( !support.isRequestable(version) ) {
-                tm.warn("Unable to provision new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test cannot be run");
+                tm.warn("Unable to provisionKeypair new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test cannot be run");
             }
             else {
                 if( name.getMethodName().contains("VLAN") && !support.supportsVLANAddresses(version) ) {

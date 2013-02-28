@@ -625,7 +625,7 @@ public class ComputeResources {
             vmSupport = services.getVirtualMachineSupport();
         }
         if( vmSupport == null ) {
-            throw new CloudException("Unable to provision a machine image because Dasein Cloud is showing no VM support");
+            throw new CloudException("Unable to provisionKeypair a machine image because Dasein Cloud is showing no VM support");
         }
         if( vmId == null ) {
             vmId = getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
@@ -803,7 +803,7 @@ public class ComputeResources {
     /**
      * Provisions a virtual machine and returns the ID of the new virtual machine. This method tracks the newly provisioned
      * virtual machine and will tear it down at the end of the test suite.
-     * @param support the virtual machine support object used to provision the VM
+     * @param support the virtual machine support object used to provisionKeypair the VM
      * @param label the label to store the VM under for re-use
      * @param namePrefix a prefix for the friendly name of the VM
      * @param hostPrefix a prefix for the host name of the VM

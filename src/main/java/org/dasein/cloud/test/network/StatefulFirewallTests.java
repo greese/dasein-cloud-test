@@ -282,7 +282,7 @@ public class StatefulFirewallTests {
 
                 if( net != null ) {
                     if( support.supportsFirewallCreation(false) ) {
-                        String id = net.provisionFirewall("provision", null);
+                        String id = net.provisionFirewall("provisionKeypair", null);
 
                         tm.out("New Firewall", id);
                         assertNotNull("No firewall was created by this test", id);
@@ -323,7 +323,7 @@ public class StatefulFirewallTests {
                 if( net != null ) {
                     if( support.supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
-                            String id = net.provisionFirewall("provision", testVLANId);
+                            String id = net.provisionFirewall("provisionKeypair", testVLANId);
 
                             tm.out("New VLAN Firewall", id);
                             assertNotNull("No VLAN firewall was created by this test", id);

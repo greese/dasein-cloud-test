@@ -109,13 +109,6 @@ public class IAMTestCase extends BaseTestCase {
     }
 
     @Test
-    public void testSubscription() throws CloudException, InternalException {
-        begin();
-        assertTrue("Account not subscribed for this feature, not testable", getSupport().isSubscribed());
-        end();
-    }
-    
-    @Test
     public void testCreateGroup() throws InternalException, CloudException {
         begin();
         groupToDelete = getSupport().createGroup("DSN Test" + System.currentTimeMillis(), "/dsntest", false);
@@ -127,39 +120,6 @@ public class IAMTestCase extends BaseTestCase {
         assertNotNull("ID cannot be null", groupToDelete.getProviderGroupId());
         assertNotNull("Owner cannot be null", groupToDelete.getProviderOwnerId());
         assertNotNull("Name must not be null", groupToDelete.getName());
-        end();
-    }
-    
-    @Test
-    public void testListGroups() throws InternalException, CloudException {
-        begin();
-        for( CloudGroup group : getSupport().listGroups(null) ) {
-            out("Group: " + group);
-        }
-        end();
-    }
-
-    @Test
-    public void testGroupContent() throws InternalException, CloudException {
-        begin();
-        CloudGroup group = getSupport().getGroup(groupToDelete.getProviderGroupId());
-        
-        assertNotNull("Test group was not found", group);
-        out("ID:       " + groupToDelete.getProviderGroupId());
-        out("Owner ID: " + groupToDelete.getProviderOwnerId());
-        out("Name:     " + groupToDelete.getName());
-        out("Path:     " + groupToDelete.getPath());
-        assertEquals("Groups do not match", groupToDelete, group);
-        end();
-    }
-
-    @Test
-    public void testGetBogusGroup() throws InternalException, CloudException {
-        begin();
-        UUID uuid = UUID.randomUUID();
-        CloudGroup group = getSupport().getGroup(uuid.toString());
-
-        assertNull("Bogus group exists", group);
         end();
     }
 
@@ -174,15 +134,6 @@ public class IAMTestCase extends BaseTestCase {
             if( groupId.equals(group.getProviderGroupId()) ) {
                 fail("Found group that was supposed to be deleted");
             }
-        }
-        end();
-    }
-
-    @Test
-    public void testListGroupPermissions() throws InternalException, CloudException {
-        begin();
-        for( CloudPolicy policy : getSupport().listPoliciesForGroup(groupToDelete.getProviderGroupId()) ) {
-            out("Policy: " + policy);
         }
         end();
     }
@@ -224,15 +175,6 @@ public class IAMTestCase extends BaseTestCase {
         assertNotNull("User name must not be null", userToDelete.getUserName());
         end();
     }
-
-    @Test
-    public void testListUsers() throws InternalException, CloudException {
-        begin();
-        for( CloudUser user : getSupport().listUsersInPath(null) ) {
-            out("User: " + user);
-        }
-        end();
-    }
     
     @Test
     public void testJoinGroup() throws InternalException, CloudException {
@@ -253,50 +195,6 @@ public class IAMTestCase extends BaseTestCase {
         }
         assertTrue("Group was not among user's groups", groupFound);
         assertTrue("User was not found in group", userFound);
-        end();
-    }
-
-    @Test
-    public void testListUsersInGroup() throws InternalException, CloudException {
-        begin();
-        for( CloudUser user : getSupport().listUsersInGroup(groupToDelete.getProviderGroupId()) ) {
-            out("User: " + user);
-        }
-        end();
-    }
-
-    @Test
-    public void testListGroupsForUser() throws InternalException, CloudException {
-        begin();
-        for( CloudGroup group : getSupport().listGroupsForUser(userToDelete.getProviderUserId()) ) {
-            out("Group: " + group);
-        }
-        end();
-    }
-    
-    @Test
-    public void testUserContent() throws InternalException, CloudException {
-        begin();
-        CloudUser user = getSupport().getUser(userToDelete.getProviderUserId());
-        
-        assertNotNull("Cloud user does not exist", user);
-        out("ID:       " + user.getProviderUserId());
-        out("Owner ID: " + user.getProviderOwnerId());
-        out("UserName: " + user.getUserName());
-        out("Path:     " + user.getPath());
-        assertNotNull("ID cannot be null", user.getProviderUserId());
-        assertNotNull("Owner cannot be null", user.getProviderOwnerId());
-        assertNotNull("User name must not be null", user.getUserName());
-        end();
-    }
-
-    @Test
-    public void testGetBogusUser() throws InternalException, CloudException {
-        begin();
-        UUID uuid = UUID.randomUUID();
-        CloudUser user = getSupport().getUser(uuid.toString());
-        
-        assertNull("Bogus user exists", user);
         end();
     }
 
