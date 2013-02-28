@@ -27,8 +27,6 @@ import java.util.Arrays;
 import junit.framework.TestSuite;
 
 import org.dasein.cloud.CloudProvider;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.identity.IdentityServices;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.storage.StorageServices;
@@ -69,13 +67,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             
             provider.connect(BaseTestCase.getTestContext(providerClass));
 
-            if( provider.hasIdentityServices() ) {
-                IdentityServices identity = provider.getIdentityServices();
-                
-                if( identity.hasIdentityAndAccessSupport() ) {
-                    addTests(IAMTestCase.class);
-                }
-            }
             if( provider.hasPlatformServices() ) {
                 PlatformServices platform = provider.getPlatformServices();
                 
