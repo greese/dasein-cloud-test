@@ -11,7 +11,11 @@ import org.junit.runners.Suite;
  * @since 2013-02-19
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({StatefulMonitoringTests.class})
+@Suite.SuiteClasses({
+        StatefulMonitoringTests.class,
+        StatefulRDBMSTests.class,
+        StatelessRDBMSTests.class
+})
 public class PlatformTestSuite {
   @BeforeClass
   static public void setup() {

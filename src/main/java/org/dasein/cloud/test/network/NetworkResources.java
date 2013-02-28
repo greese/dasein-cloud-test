@@ -5,7 +5,6 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallCreateOptions;
@@ -15,7 +14,6 @@ import org.dasein.cloud.network.IpAddress;
 import org.dasein.cloud.network.IpAddressSupport;
 import org.dasein.cloud.network.NetworkFirewallSupport;
 import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Networkable;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.SubnetCreateOptions;
 import org.dasein.cloud.network.SubnetState;
@@ -31,10 +29,11 @@ import java.util.Map;
 import java.util.Random;
 
 /**
- * [Class Documentation]
+ * Caching of and access to network resources used in the various test cases.
  * <p>Created by George Reese: 2/18/13 10:48 AM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class NetworkResources {
     static private final Logger logger = Logger.getLogger(NetworkResources.class);
@@ -55,6 +54,80 @@ public class NetworkResources {
 
     public NetworkResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
+    }
+
+    public void report() {
+        boolean header = false;
+
+        testGeneralFirewalls.remove(DaseinTestManager.STATELESS);
+        if( !testGeneralFirewalls.isEmpty() ) {
+            logger.info("Provisioned Network Resources:");
+            header = true;
+            DaseinTestManager.out(logger, null, "---> Firewalls (Standard)", testGeneralFirewalls.size() + " " + testGeneralFirewalls);
+        }
+        testVLANFirewalls.remove(DaseinTestManager.STATELESS);
+        if( !testVLANFirewalls.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Firewalls (VLAN)", testVLANFirewalls.size() + " " + testVLANFirewalls);
+        }
+        testNetworkFirewalls.remove(DaseinTestManager.STATELESS);
+        if( !testNetworkFirewalls.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Network Firewalls", testNetworkFirewalls.size() + " " + testNetworkFirewalls);
+        }
+        testIps4Free.remove(DaseinTestManager.STATELESS);
+        if( !testIps4Free.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Static IPs (Standard/IPv4)", testIps4Free.size() + " " + testIps4Free);
+        }
+        testIps6Free.remove(DaseinTestManager.STATELESS);
+        if( !testIps6Free.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Static IPs (Standard/IPv6)", testIps6Free.size() + " " + testIps6Free);
+        }
+        testIps4VLAN.remove(DaseinTestManager.STATELESS);
+        if( !testIps4VLAN.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Static IPs (VLAN/IPv4)", testIps4VLAN.size() + " " + testIps4VLAN);
+        }
+        testIps6VLAN.remove(DaseinTestManager.STATELESS);
+        if( !testIps6VLAN.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Static IPs (VLAN/IPv6)", testIps6VLAN.size() + " " + testIps6VLAN);
+        }
+        testSubnets.remove(DaseinTestManager.STATELESS);
+        if( !testSubnets.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+                header = true;
+            }
+            DaseinTestManager.out(logger, null, "---> Subnets", testSubnets.size() + " " + testSubnets);
+        }
+        testVLANs.remove(DaseinTestManager.STATELESS);
+        if( !testVLANs.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+            }
+            DaseinTestManager.out(logger, null, "---> VLANs", testVLANs.size() + " " + testVLANs);
+        }
     }
 
     public void close() {

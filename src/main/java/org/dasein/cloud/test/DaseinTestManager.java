@@ -9,9 +9,11 @@ import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
+import org.dasein.cloud.test.platform.PlatformResources;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
 import org.json.JSONException;
@@ -48,6 +50,7 @@ public class DaseinTestManager {
     static private TreeSet<String>   exclusions;
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
+    static private PlatformResources platformResources;
     static private TreeSet<String>   inclusions;
 
     static private int  skipCount;
@@ -171,8 +174,13 @@ public class DaseinTestManager {
         return networkResources;
     }
 
+    static public @Nullable PlatformResources getPlatformResources() {
+        return platformResources;
+    }
+
     static public void init() {
         testStart = System.currentTimeMillis();
+        platformResources = new PlatformResources(constructProvider());
         networkResources = new NetworkResources(constructProvider());
         identityResources = new IdentityResources(constructProvider());
         computeResources = new ComputeResources(constructProvider());
@@ -221,6 +229,9 @@ public class DaseinTestManager {
         if( identityResources != null ) {
             identityResources.close();
         }
+        if( platformResources != null ) {
+            platformResources.close();
+        }
         long duration = System.currentTimeMillis() - testStart;
         int minutes = (int)(duration/ CalendarWrapper.MINUTE);
         float seconds = ((float)(duration%CalendarWrapper.MINUTE))/1000f;
@@ -238,6 +249,15 @@ public class DaseinTestManager {
         logger.info("----------- Provisioning Log ----------");
         if( computeResources != null ) {
             computeResources.report();
+        }
+        if( identityResources != null ) {
+            identityResources.report();
+        }
+        if( networkResources != null ) {
+            networkResources.report();
+        }
+        if( platformResources != null ) {
+            platformResources.report();
         }
         logger.info("");
         logger.info("--------------- Results ---------------");
@@ -407,6 +427,10 @@ public class DaseinTestManager {
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
         return (networkResources == null ? null : networkResources.getTestNetworkFirewallId(label, provisionIfNull, inVlanId));
+    }
+
+    public @Nullable String getTestRDBMSId(@Nonnull String label, boolean provisionIfNull, @Nullable DatabaseEngine engine) {
+        return (platformResources == null ? null : platformResources.getTestRDBMSId(label, provisionIfNull, engine));
     }
 
     public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {

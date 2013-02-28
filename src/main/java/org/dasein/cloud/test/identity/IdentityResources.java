@@ -1,5 +1,6 @@
 package org.dasein.cloud.test.identity;
 
+import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -24,6 +25,8 @@ import java.util.Random;
  * @since 2013.04
  */
 public class IdentityResources {
+    static private final Logger logger = Logger.getLogger(IdentityResources.class);
+
     static private final Random random = new Random();
 
     private final HashMap<String,String> testKeys = new HashMap<String, String>();
@@ -58,6 +61,17 @@ public class IdentityResources {
             // ignore
         }
         provider.close();
+    }
+
+    public void report() {
+        //boolean header = false;
+
+        testKeys.remove(DaseinTestManager.STATELESS);
+        if( !testKeys.isEmpty() ) {
+            logger.info("Provisioned Identity Resources:");
+            //header = true;
+            DaseinTestManager.out(logger, null, "---> SSH Keypairs", testKeys.size() + " " + testKeys);
+        }
     }
 
     public @Nullable String getTestKeypairId(@Nonnull String label, boolean provisionIfNull) {

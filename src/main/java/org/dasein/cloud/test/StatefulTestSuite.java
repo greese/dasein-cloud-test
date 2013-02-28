@@ -10,6 +10,7 @@ import org.dasein.cloud.test.network.StatefulNetworkFirewallTests;
 import org.dasein.cloud.test.network.StatefulStaticIPTests;
 import org.dasein.cloud.test.platform.StatefulMonitoringTests;
 import org.dasein.cloud.test.network.StatefulVLANTests;
+import org.dasein.cloud.test.platform.StatefulRDBMSTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -30,7 +31,8 @@ import org.junit.runners.Suite;
         StatefulMonitoringTests.class,
         StatefulFirewallTests.class,
         StatefulStaticIPTests.class,
-        StatefulNetworkFirewallTests.class
+        StatefulNetworkFirewallTests.class,
+        StatefulRDBMSTests.class
 })
 public class StatefulTestSuite {
 }
