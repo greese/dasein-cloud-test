@@ -117,18 +117,6 @@ public class RelationalDatabaseTestCase extends BaseTestCase {
     }
 
     @Test
-    public void testCreateDatabase() throws InternalException, CloudException {
-        begin();
-        DatabaseProduct product = provider.getPlatformServices().getRelationalDatabaseSupport().getDatabaseProducts(testEngines.iterator().next()).iterator().next();
-
-        testDatabaseId = provider.getPlatformServices().getRelationalDatabaseSupport().createFromScratch("dsn" + System.currentTimeMillis(), product, product.getEngine().getVersion(), "dasein", getRandomPassword(), 3306);
-
-        assertNotNull("Database was not created", testDatabaseId);
-        assertNotNull("Unable to find new database in the cloud", provider.getPlatformServices().getRelationalDatabaseSupport().getDatabase(testDatabaseId));
-        end();
-    }
-
-    @Test
     public void testRemoveDatabase() throws InternalException, CloudException {
         begin();
 

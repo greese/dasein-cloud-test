@@ -30,10 +30,11 @@ import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
+ * Tests for validating stateless functionality in support of relational databases in Dasein Cloud.
  * <p>Created by George Reese: 2/27/13 7:15 PM</p>
- *
  * @author George Reese
+ * @version 2013.04 initial version
+ * @since 2013.04
  */
 public class StatelessRDBMSTests {
     static private DaseinTestManager tm;
