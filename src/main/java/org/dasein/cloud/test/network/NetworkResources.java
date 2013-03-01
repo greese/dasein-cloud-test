@@ -6,6 +6,10 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.dc.DataCenter;
+import org.dasein.cloud.network.DNSRecord;
+import org.dasein.cloud.network.DNSRecordType;
+import org.dasein.cloud.network.DNSSupport;
+import org.dasein.cloud.network.DNSZone;
 import org.dasein.cloud.network.Firewall;
 import org.dasein.cloud.network.FirewallCreateOptions;
 import org.dasein.cloud.network.FirewallSupport;
@@ -51,6 +55,7 @@ public class NetworkResources {
     private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
     private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
     private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
+    private final HashMap<String,String> testZones            = new HashMap<String, String>();
 
     public NetworkResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
@@ -125,8 +130,16 @@ public class NetworkResources {
         if( !testVLANs.isEmpty() ) {
             if( !header ) {
                 logger.info("Provisioned Network Resources:");
+                header = true;
             }
             DaseinTestManager.out(logger, null, "---> VLANs", testVLANs.size() + " " + testVLANs);
+        }
+        testZones.remove(DaseinTestManager.STATELESS);
+        if( !testZones.isEmpty() ) {
+             if( !header ) {
+                 logger.info("Provisioned Network Resources:");
+             }
+            DaseinTestManager.out(logger, null, "---> DNS Zones", testZones.size() + " " + testZones);
         }
     }
 
@@ -137,6 +150,30 @@ public class NetworkResources {
             NetworkServices networkServices = provider.getNetworkServices();
 
             if( networkServices != null ) {
+                DNSSupport dnsSupport = networkServices.getDnsSupport();
+
+                if( dnsSupport != null ) {
+                    try {
+                        for( Map.Entry<String,String> entry : testZones.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                DNSZone zone = dnsSupport.getDnsZone(entry.getValue());
+
+                                try {
+                                    if( zone != null ) {
+                                        dnsSupport.deleteDnsZone(zone.getProviderDnsZoneId());
+                                    }
+                                }
+                                catch( Throwable ignore ) {
+                                    // ignore
+                                }
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+
                 IpAddressSupport ipSupport = networkServices.getIpAddressSupport();
 
                 if( ipSupport != null ) {
@@ -447,6 +484,50 @@ public class NetworkResources {
             // ignore
         }
         provider.close();
+    }
+
+    private @Nullable String findStatelessDNSZone() {
+        NetworkServices networkServices = provider.getNetworkServices();
+
+        if( networkServices != null ) {
+            DNSSupport support = networkServices.getDnsSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    DNSZone defaultZone = null;
+
+                    for( DNSZone zone : support.listDnsZones() ) {
+                        boolean hasRecord = false;
+
+                        for( DNSRecordType type : DNSRecordType.values() ) {
+                            Iterable<DNSRecord> records = support.listDnsRecords(zone.getProviderDnsZoneId(), type, null);
+
+                            if( records.iterator().hasNext() ) {
+                                hasRecord = true;
+                                break;
+                            }
+                        }
+                        defaultZone = zone;
+                        if( hasRecord ) {
+                            break;
+                        }
+                    }
+                    if( defaultZone != null ) {
+                        String id = defaultZone.getProviderDnsZoneId();
+
+                        if( id != null ) {
+                            testZones.put(DaseinTestManager.STATELESS, id);
+                        }
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+                ignore.printStackTrace();
+            }
+        }
+        return null;
     }
 
     private @Nullable String findStatelessFirewall(boolean inVlan) {
@@ -879,6 +960,43 @@ public class NetworkResources {
         return null;
     }
 
+    public @Nullable String getTestZoneId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testZones.entrySet() ) {
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessDNSZone();
+        }
+        String id = testZones.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            NetworkServices services = provider.getNetworkServices();
+
+            if( services != null ) {
+                DNSSupport support = services.getDnsSupport();
+
+                if( support != null ) {
+                    try {
+                        return provisionDNSZone(support, label, "dasein", "org");
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version, @Nullable String vlanId) throws CloudException, InternalException {
         if( version == null ) {
             for( IPVersion v : support.listSupportedIPVersions() ) {
@@ -1051,6 +1169,19 @@ public class NetworkResources {
                 label = label + random.nextInt(9);
             }
             testVLANs.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionDNSZone(@Nonnull DNSSupport support, @Nonnull String label, @Nonnull String domainPrefix, @Nonnull String tld) throws CloudException, InternalException {
+        String name = domainPrefix + (System.currentTimeMillis()%10000) + "." + tld;
+        String id = support.createDnsZone(name, name, "Dasein Cloud Test Zone");
+
+        synchronized( testZones ) {
+            while( testZones.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testZones.put(label, id);
         }
         return id;
     }

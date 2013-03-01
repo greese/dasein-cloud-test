@@ -511,6 +511,10 @@ public class DaseinTestManager {
         return (computeResources == null ? null : computeResources.getTestVolumeProductId());
     }
 
+    public @Nullable String getTestZoneId(@Nonnull String label, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestZoneId(label, provisionIfNull));
+    }
+
     public @Nonnull CloudProvider getProvider() {
         return provider;
     }
