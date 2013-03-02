@@ -88,17 +88,6 @@ public class DNSTestCase extends BaseTestCase {
             // ignore
         }
     }
-
-    @Test
-    public void testCreateZone() throws CloudException, InternalException {
-        begin();
-        DNSSupport support = cloud.getNetworkServices().getDnsSupport();
-
-        zoneToRemove = support.createDnsZone("daseintest.org", "Dasein Test Domain", "Dasein Test Domain");
-        assertNotNull("No zone was created", zoneToRemove);
-        out(zoneToRemove);
-        end();
-    }
     
     @Test
     public void testAddRecord() throws CloudException, InternalException {
@@ -150,21 +139,6 @@ public class DNSTestCase extends BaseTestCase {
             // ignore
         }
         assertNull("Record still exists in zone", recordToRemove);
-        end();
-    }
-    
-    @Test
-    public void testRemoveZone() throws CloudException, InternalException {
-        begin();
-        DNSSupport support = cloud.getNetworkServices().getDnsSupport();
-
-        support.deleteDnsZone(zoneToRemove);
-        try { Thread.sleep(5000L); }
-        catch( InterruptedException e ) { }
-        DNSZone z = support.getDnsZone(zoneToRemove);
-        
-        assertNull("The zone in " + zoneToRemove + " still exists.", z);
-        zoneToRemove = null;
         end();
     }
 }

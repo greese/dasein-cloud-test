@@ -21,6 +21,7 @@ import org.junit.runners.Suite;
         StatefulFirewallTests.class,
         StatefulStaticIPTests.class,
         StatefulNetworkFirewallTests.class,
+        StatefulDNSTests.class,
         StatelessVLANTests.class,
         StatelessFirewallTests.class,
         StatelessStaticIPTests.class,
