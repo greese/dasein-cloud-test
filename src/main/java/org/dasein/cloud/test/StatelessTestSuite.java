@@ -13,7 +13,9 @@ import org.dasein.cloud.test.network.StatelessFirewallTests;
 import org.dasein.cloud.test.network.StatelessNetworkFirewallTests;
 import org.dasein.cloud.test.network.StatelessStaticIPTests;
 import org.dasein.cloud.test.network.StatelessVLANTests;
+import org.dasein.cloud.test.platform.StatelessCDNTests;
 import org.dasein.cloud.test.platform.StatelessRDBMSTests;
+import org.dasein.cloud.test.storage.StatelessObjectStoreTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -25,6 +27,7 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+        StatelessObjectStoreTests.class,
         StatelessAuthenticationTests.class,
         StatelessDCTests.class,
         StatelessVMTests.class,
@@ -38,7 +41,8 @@ import org.junit.runners.Suite;
         StatelessNetworkFirewallTests.class,
         StatelessRDBMSTests.class,
         StatelessIAMTests.class,
-        StatelessDNSTests.class
+        StatelessDNSTests.class,
+        StatelessCDNTests.class
 })
 public class StatelessTestSuite {
 }

@@ -168,6 +168,9 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
+                    }
                     else {
                         fail("No test image exists for the getImage test");
                     }
@@ -228,6 +231,9 @@ public class StatefulImageTests {
                 else {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
+                    }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
                         fail("No test image exists for the " + name.getMethodName() + " test");
@@ -290,6 +296,10 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
+                    }
+
                     else {
                         fail("No test image exists for the " + name.getMethodName() + " test");
                     }
@@ -333,6 +343,9 @@ public class StatefulImageTests {
                 else {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
+                    }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
                         fail("No test image exists for the " + name.getMethodName() + " test");
@@ -378,6 +391,9 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
+                    }
                     else {
                         fail("No test image exists for the " + name.getMethodName() + " test");
                     }
@@ -419,6 +435,9 @@ public class StatefulImageTests {
                 else {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
+                    }
+                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                        tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
                         fail("No test image exists for the " + name.getMethodName() + " test");

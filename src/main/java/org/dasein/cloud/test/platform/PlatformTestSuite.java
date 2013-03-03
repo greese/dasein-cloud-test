@@ -14,7 +14,9 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
         StatefulMonitoringTests.class,
         StatefulRDBMSTests.class,
-        StatelessRDBMSTests.class
+        StatefulCDNTests.class,
+        StatelessRDBMSTests.class,
+        StatelessCDNTests.class
 })
 public class PlatformTestSuite {
   @BeforeClass

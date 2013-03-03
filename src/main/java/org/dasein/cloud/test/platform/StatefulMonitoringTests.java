@@ -84,6 +84,7 @@ public class StatefulMonitoringTests {
   @After
   public void after() {
     try {
+
       if ( provisionedAlarmName != null ) {
         getSupport().removeAlarms( new String[] {provisionedAlarmName} );
       }
@@ -380,8 +381,12 @@ public class StatefulMonitoringTests {
   }
 
   private MonitoringSupport getSupport() {
-    PlatformServices services = getServices();
-    return services.getMonitoringSupport();
+      PlatformServices services = getServices();
+
+      if( services != null ) {
+          return services.getMonitoringSupport();
+      }
+      return null;
   }
 
   private PlatformServices getServices() {
