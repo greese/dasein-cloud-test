@@ -74,21 +74,11 @@ public class ComprehensiveTestSuite extends TestSuite {
                     addTests(CDNTestCase.class);
                 }
             }
-            if( provider.hasStorageServices() ) {
-                StorageServices storage = provider.getStorageServices();
-                
-                if( storage.hasBlobStoreSupport() ) {
-                    addTests(BlobStoreTestCase.class);
-                }
-            }
             if( provider.hasNetworkServices() ) {
                 NetworkServices network = provider.getNetworkServices();
 
                 if( network.hasLoadBalancerSupport() ) {
                     addTests(LoadBalancerTestCase.class);
-                }
-                if( network.hasDnsSupport() ) {
-                    addTests(DNSTestCase.class);
                 }
             }
         }

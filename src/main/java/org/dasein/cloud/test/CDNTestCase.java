@@ -111,24 +111,6 @@ public class CDNTestCase extends BaseTestCase {
     }
 
     @Test
-    public void testSubscription() throws CloudException, InternalException {
-        begin();
-        CDNSupport services = provider.getPlatformServices().getCDNSupport();
-
-        assertTrue("Account must be subscribed in order to run unit tests", services.isSubscribed());
-        end();
-    }
-
-    @Test
-    public void testMetaData() throws CloudException, InternalException {
-        begin();
-        CDNSupport services = provider.getPlatformServices().getCDNSupport();
-
-        assertNotNull("Must provider a provider name", services.getProviderTermForDistribution(Locale.getDefault()));
-        end();
-    }
-    
-    @Test
     public void testCreateDistribution() throws InternalException, CloudException {
         begin();
         String id = provider.getPlatformServices().getCDNSupport().create(testDirectory, "CDN Test", true, System.currentTimeMillis() + ".dasein.org");

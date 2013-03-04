@@ -10,10 +10,12 @@ import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.platform.DatabaseEngine;
+import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
 import org.dasein.cloud.test.platform.PlatformResources;
+import org.dasein.cloud.test.storage.StorageResources;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
 import org.json.JSONException;
@@ -51,6 +53,8 @@ public class DaseinTestManager {
     static private IdentityResources identityResources;
     static private NetworkResources  networkResources;
     static private PlatformResources platformResources;
+    static private StorageResources  storageResources;
+
     static private TreeSet<String>   inclusions;
 
     static private int  skipCount;
@@ -178,8 +182,13 @@ public class DaseinTestManager {
         return platformResources;
     }
 
+    static public @Nullable StorageResources getStorageResources() {
+        return storageResources;
+    }
+
     static public void init() {
         testStart = System.currentTimeMillis();
+        storageResources = new StorageResources(constructProvider());
         platformResources = new PlatformResources(constructProvider());
         networkResources = new NetworkResources(constructProvider());
         identityResources = new IdentityResources(constructProvider());
@@ -232,6 +241,9 @@ public class DaseinTestManager {
         if( platformResources != null ) {
             platformResources.close();
         }
+        if( storageResources != null ) {
+            storageResources.close();
+        }
         long duration = System.currentTimeMillis() - testStart;
         int minutes = (int)(duration/ CalendarWrapper.MINUTE);
         float seconds = ((float)(duration%CalendarWrapper.MINUTE))/1000f;
@@ -258,6 +270,9 @@ public class DaseinTestManager {
         }
         if( platformResources != null ) {
             platformResources.report();
+        }
+        if( storageResources != null ) {
+            storageResources.report();
         }
         logger.info("");
         logger.info("--------------- Results ---------------");
@@ -413,6 +428,15 @@ public class DaseinTestManager {
         return null;
     }
 
+    public @Nullable Blob getTestBucket(@Nonnull String label, boolean root, boolean provisionIfNull) {
+        if( root ) {
+            return (storageResources == null ? null : storageResources.getTestRootBucket(label, provisionIfNull, null));
+        }
+        else {
+            return (storageResources == null ? null : storageResources.getTestChildBucket(label, provisionIfNull, null, null));
+        }
+    }
+
     public @Nullable String getTestGeneralFirewallId(@Nonnull String label, boolean provisionIfNull) {
         return (networkResources == null ? null : networkResources.getTestFirewallId(label, provisionIfNull, null));
     }
@@ -431,6 +455,15 @@ public class DaseinTestManager {
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
         return (networkResources == null ? null : networkResources.getTestNetworkFirewallId(label, provisionIfNull, inVlanId));
+    }
+
+    public @Nullable Blob getTestObject(@Nonnull String label, boolean root, boolean provisionIfNull) {
+        if( root ) {
+            return (storageResources == null ? null : storageResources.getTestRootObject(label, provisionIfNull, null));
+        }
+        else {
+            return (storageResources == null ? null : storageResources.getTestChildObject(label, provisionIfNull, null, null));
+        }
     }
 
     public @Nullable String getTestRDBMSId(@Nonnull String label, boolean provisionIfNull, @Nullable DatabaseEngine engine) {

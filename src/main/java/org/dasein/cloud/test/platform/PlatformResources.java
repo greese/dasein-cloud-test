@@ -79,10 +79,12 @@ public class PlatformResources {
     public @Nullable String getTestRDBMSId(@Nonnull String label, boolean provisionIfNull, @Nullable DatabaseEngine engine) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testRDBMS.entrySet() ) {
-                String id = entry.getValue();
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
 
-                if( id != null ) {
-                    return id;
+                    if( id != null ) {
+                        return id;
+                    }
                 }
             }
             return findStatelessRDBMS();

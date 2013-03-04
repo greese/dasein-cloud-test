@@ -72,4 +72,33 @@ public class StatelessCDNTests {
         tm.out("Term for CDN Distribution", support.getProviderTermForDistribution(Locale.getDefault()));
     }
 
+    @Test
+    public void getBogusDistribution() throws CloudException, InternalException {
+
+    }
+
+    @Test
+    public void getDistribution() throws CloudException, InternalException {
+
+    }
+
+    @Test
+    public void distributionContent() throws CloudException, InternalException {
+
+    }
+
+    @Test
+    public void listDistributions() throws CloudException, InternalException {
+
+    }
+
+    @Test
+    public void listDistributionStatus() throws CloudException, InternalException {
+
+    }
+
+    @Test
+    public void compareDistributionListAndStatus() throws CloudException, InternalException {
+
+    }
 }

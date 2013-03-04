@@ -53,4 +53,57 @@ public class StatefulCDNTests {
     public void after() {
         tm.end();
     }
+
+    @Test
+    public void createDistribution() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        CDNSupport support = services.getCDNSupport();
+
+        if( support == null ) {
+            tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        // TODO: provision
+        //support.create(origin, name, true, aliases);
+    }
+
+    @Test
+    public void updateDistribution() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        CDNSupport support = services.getCDNSupport();
+
+        if( support == null ) {
+            tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        // TODO: update and maybe split into multiple tests
+    }
+
+    @Test
+    public void removeDistribution() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        CDNSupport support = services.getCDNSupport();
+
+        if( support == null ) {
+            tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        // TODO: delete
+    }
 }
