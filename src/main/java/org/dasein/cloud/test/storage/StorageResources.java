@@ -107,18 +107,7 @@ public class StorageResources {
                     for( Map.Entry<String,Blob> entry : testRootBuckets.entrySet() ) {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
-                                String bucket = entry.getValue().getBucketName();
-
-                                if( bucket == null ) {
-                                    bucket = entry.getValue().getObjectName();
-                                    if( bucket == null ) {
-                                        continue; // not possible
-                                    }
-                                }
-                                else {
-                                    bucket = bucket + "/" + entry.getValue().getObjectName();
-                                }
-                                support.removeBucket(bucket);
+                                support.removeBucket(entry.getValue().getBucketName());
                             }
                             catch( Throwable ignore ) {
                                 // ignore
@@ -322,7 +311,7 @@ public class StorageResources {
                             if( parent == null ) {
                                 return null;
                             }
-                            parentBucket = parent.getObjectName();
+                            parentBucket = parent.getBucketName();
                             if( parentBucket == null ) {
                                 return null;
                             }
@@ -464,7 +453,6 @@ public class StorageResources {
 
     public @Nonnull Blob provisionRootBucket(@Nonnull BlobStoreSupport support, @Nonnull String label, @Nonnull String namePrefix, boolean useName, boolean findFreeName) throws CloudException, InternalException {
         String name = (useName ? namePrefix : (namePrefix + random.nextInt(10000)));
-
         Blob blob = support.createBucket(name, findFreeName);
 
         synchronized( testRootBuckets ) {

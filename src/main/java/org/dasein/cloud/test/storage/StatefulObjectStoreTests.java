@@ -74,6 +74,7 @@ public class StatefulObjectStoreTests {
         }
         else if( name.getMethodName().equals("createChildBucket") ) {
             testBucket = tm.getTestBucket(DaseinTestManager.STATEFUL, true, true);
+
         }
         else if( name.getMethodName().equals("downloadRoot") ) {
             StorageResources resources = DaseinTestManager.getStorageResources();
@@ -127,7 +128,7 @@ public class StatefulObjectStoreTests {
         else if( name.getMethodName().equals("removeChildObject") ) {
             testObject = tm.getTestObject(DaseinTestManager.REMOVED, false, true);
         }
-        else if( name.getMethodName().equals("clearBucket") ) {
+        else if( name.getMethodName().equals("clear") ) {
             StorageResources resources = DaseinTestManager.getStorageResources();
 
             if( resources != null ) {
