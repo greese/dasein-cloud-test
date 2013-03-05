@@ -334,7 +334,7 @@ public class StorageResources {
             BlobStoreSupport support = services.getBlobStoreSupport();
 
             try {
-                if( support != null && support.isSubscribed() ) {
+                if( support != null && support.allowsNestedBuckets() && support.isSubscribed() ) {
                     Iterable<Blob> roots = support.list(null);
 
                     for( Blob root : roots ) {
@@ -433,7 +433,7 @@ public class StorageResources {
             BlobStoreSupport support = services.getBlobStoreSupport();
 
             try {
-                if( support != null && support.isSubscribed() ) {
+                if( support != null && support.allowsRootObjects() && support.isSubscribed() ) {
                     Iterable<Blob> options = support.list(null);
 
                     for( Blob option : options ) {

@@ -159,10 +159,10 @@ public class StatelessObjectStoreTests {
     }
 
     private void out(Blob blob) {
-        tm.out("Name", (blob.isContainer() ? blob.getBucketName() : blob.getObjectName()));
+        tm.out("Bucket", blob.getBucketName());
+        tm.out("Object", blob.getObjectName());
         tm.out("Created", new Date(blob.getCreationTimestamp()));
         tm.out("Region ID", blob.getProviderRegionId());
-        tm.out("Parent Bucket", (blob.isContainer() ? null : blob.getBucketName()));
         tm.out("Container", blob.isContainer());
         tm.out("Location", blob.getLocation());
         tm.out("Size", blob.getSize());
