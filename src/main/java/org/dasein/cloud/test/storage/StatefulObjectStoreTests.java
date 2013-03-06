@@ -70,7 +70,7 @@ public class StatefulObjectStoreTests {
             testBucket = tm.getTestBucket(DaseinTestManager.REMOVED, true, true);
         }
         else if( name.getMethodName().equals("removeChildBucket") ) {
-            testBucket = tm.getTestBucket(DaseinTestManager.REMOVED, false, true);
+            testBucket = tm.getTestBucket(DaseinTestManager.REMOVED + "2", false, true);
         }
         else if( name.getMethodName().equals("createChildBucket") ) {
             testBucket = tm.getTestBucket(DaseinTestManager.STATEFUL, true, true);

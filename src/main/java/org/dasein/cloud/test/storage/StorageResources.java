@@ -226,7 +226,7 @@ public class StorageResources {
                             if( parent == null ) {
                                 return null;
                             }
-                            parentBucket = parent.getObjectName();
+                            parentBucket = parent.getBucketName();
                             if( parentBucket == null ) {
                                 return null;
                             }
