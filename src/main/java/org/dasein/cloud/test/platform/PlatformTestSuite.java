@@ -15,6 +15,7 @@ import org.junit.runners.Suite;
         StatefulMonitoringTests.class,
         StatefulRDBMSTests.class,
         StatefulCDNTests.class,
+        StatelessMonitoringTests.class,
         StatelessRDBMSTests.class,
         StatelessCDNTests.class
 })

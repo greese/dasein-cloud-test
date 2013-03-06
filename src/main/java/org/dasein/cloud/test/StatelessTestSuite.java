@@ -14,6 +14,7 @@ import org.dasein.cloud.test.network.StatelessNetworkFirewallTests;
 import org.dasein.cloud.test.network.StatelessStaticIPTests;
 import org.dasein.cloud.test.network.StatelessVLANTests;
 import org.dasein.cloud.test.platform.StatelessCDNTests;
+import org.dasein.cloud.test.platform.StatelessMonitoringTests;
 import org.dasein.cloud.test.platform.StatelessRDBMSTests;
 import org.dasein.cloud.test.storage.StatelessObjectStoreTests;
 import org.junit.runner.RunWith;
@@ -42,7 +43,8 @@ import org.junit.runners.Suite;
         StatelessRDBMSTests.class,
         StatelessIAMTests.class,
         StatelessDNSTests.class,
-        StatelessCDNTests.class
+        StatelessCDNTests.class,
+        StatelessMonitoringTests.class
 })
 public class StatelessTestSuite {
 }

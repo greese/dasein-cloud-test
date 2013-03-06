@@ -17,10 +17,15 @@ import org.dasein.cloud.test.storage.StorageResources;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Manages all identity resources for automated provisioning and de-provisioning during integration tests.
@@ -66,6 +71,7 @@ public class PlatformResources {
                         }
                     }
                 }
+                ArrayList<Future<Boolean>> results = new ArrayList<Future<Boolean>>();
 
                 CDNSupport cdnSupport = services.getCDNSupport();
 
@@ -76,7 +82,7 @@ public class PlatformResources {
                                 Distribution d = cdnSupport.getDistribution(entry.getValue());
 
                                 if( d != null ) {
-                                    cdnSupport.delete(entry.getValue());
+                                    results.add(cleanCDN(cdnSupport, entry.getValue()));
                                 }
                             }
                             catch( Throwable ignore ) {
@@ -85,12 +91,37 @@ public class PlatformResources {
                         }
                     }
                 }
+                boolean done;
+
+                do {
+                    done = true;
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException ignore ) { }
+                    for( Future<Boolean> result : results ) {
+                        if( !result.isDone() ) {
+                            done = false;
+                            break;
+                        }
+                    }
+                } while( !done );
             }
         }
         catch( Throwable ignore ) {
             // ignore
         }
         provider.close();
+    }
+
+    ExecutorService service = Executors.newCachedThreadPool();
+
+    private Future<Boolean> cleanCDN(final @Nonnull CDNSupport support, final @Nonnull String distributionId) {
+        return service.submit(new Callable<Boolean>() {
+            @Override
+            public Boolean call() throws Exception {
+                support.delete(distributionId);
+                return true;
+            }
+        });
     }
 
     public void report() {
