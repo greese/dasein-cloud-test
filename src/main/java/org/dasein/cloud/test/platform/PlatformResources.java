@@ -251,7 +251,7 @@ public class PlatformResources {
         if( origin == null ) {
             origin = "http://localhost";
         }
-        String id = support.create(origin, namePrefix + random.nextInt(10000),  true, "dsncdn" + random.nextInt(10000));
+        String id = support.create(origin, namePrefix + random.nextInt(10000),  true, "dsncdn" + random.nextInt(10000) + ".dasein.org");
 
         synchronized( testCDNs ) {
             while( testCDNs.containsKey(label) ) {

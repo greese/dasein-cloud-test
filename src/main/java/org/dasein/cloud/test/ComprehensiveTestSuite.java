@@ -67,13 +67,6 @@ public class ComprehensiveTestSuite extends TestSuite {
             
             provider.connect(BaseTestCase.getTestContext(providerClass));
 
-            if( provider.hasPlatformServices() ) {
-                PlatformServices platform = provider.getPlatformServices();
-                
-                if( platform.hasCDNSupport() ) {
-                    addTests(CDNTestCase.class);
-                }
-            }
             if( provider.hasNetworkServices() ) {
                 NetworkServices network = provider.getNetworkServices();
 
