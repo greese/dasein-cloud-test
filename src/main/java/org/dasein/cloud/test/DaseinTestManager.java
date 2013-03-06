@@ -437,6 +437,10 @@ public class DaseinTestManager {
         }
     }
 
+    public @Nullable String getTestDistributionId(@Nonnull String label, boolean provisionIfNull, @Nullable String origin) {
+        return (platformResources == null ? null : platformResources.getTestDistributionId(label, provisionIfNull, origin));
+    }
+
     public @Nullable String getTestGeneralFirewallId(@Nonnull String label, boolean provisionIfNull) {
         return (networkResources == null ? null : networkResources.getTestFirewallId(label, provisionIfNull, null));
     }
