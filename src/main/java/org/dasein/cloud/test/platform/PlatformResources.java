@@ -8,12 +8,14 @@ import org.dasein.cloud.platform.CDNSupport;
 import org.dasein.cloud.platform.Database;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
+import org.dasein.cloud.platform.DatabaseState;
 import org.dasein.cloud.platform.Distribution;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.RelationalDatabaseSupport;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.storage.StorageResources;
+import org.dasein.util.CalendarWrapper;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -48,6 +50,16 @@ public class PlatformResources {
         this.provider = provider;
     }
 
+    private boolean canRemove(@Nullable Database db) {
+        if( db == null ) {
+            return true;
+        }
+        switch( db.getCurrentState() ) {
+            case DELETING: case DELETED: case AVAILABLE: case STORAGE_FULL: case FAILED: return true;
+            default: return false;
+        }
+    }
+
     public void close() {
         try {
             PlatformServices services = provider.getPlatformServices();
@@ -59,9 +71,19 @@ public class PlatformResources {
                     for( Map.Entry<String,String> entry : testRDBMS.entrySet() ) {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
+                                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
                                 Database db = rdbmsSupport.getDatabase(entry.getValue());
 
-                                if( db != null ) {
+                                while( timeout > System.currentTimeMillis() ) {
+                                    if( canRemove(db) ) {
+                                        break;
+                                    }
+                                    try { Thread.sleep(15000L); }
+                                    catch( InterruptedException ignore ) { }
+                                    try { db = rdbmsSupport.getDatabase(db.getProviderDatabaseId()); }
+                                    catch( Throwable ignore ) { }
+                                }
+                                if( db != null && !db.getCurrentState().equals(DatabaseState.DELETED) && !db.getCurrentState().equals(DatabaseState.DELETING) ) {
                                     rdbmsSupport.removeDatabase(entry.getValue());
                                 }
                             }
@@ -335,4 +357,5 @@ public class PlatformResources {
         }
         return id;
     }
+
 }
