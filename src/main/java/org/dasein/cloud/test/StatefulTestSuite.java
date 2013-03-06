@@ -13,6 +13,7 @@ import org.dasein.cloud.test.network.StatefulStaticIPTests;
 import org.dasein.cloud.test.platform.StatefulCDNTests;
 import org.dasein.cloud.test.platform.StatefulMonitoringTests;
 import org.dasein.cloud.test.network.StatefulVLANTests;
+import org.dasein.cloud.test.platform.StatefulPushNotificationTests;
 import org.dasein.cloud.test.platform.StatefulRDBMSTests;
 import org.dasein.cloud.test.storage.StatefulObjectStoreTests;
 import org.junit.runner.RunWith;
@@ -40,7 +41,8 @@ import org.junit.runners.Suite;
         StatefulRDBMSTests.class,
         StatefulIAMTests.class,
         StatefulDNSTests.class,
-        StatefulCDNTests.class
+        StatefulCDNTests.class,
+        StatefulPushNotificationTests.class
 })
 public class StatefulTestSuite {
 }
