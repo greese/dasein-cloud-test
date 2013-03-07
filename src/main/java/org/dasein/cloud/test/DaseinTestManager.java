@@ -486,6 +486,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
     }
 
+    public @Nullable String getTestTopicId(@Nonnull String label, boolean provisionIfNull) {
+        return (platformResources == null ? null : platformResources.getTestTopicId(label, provisionIfNull));
+    }
+
     public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredGroupId) {
         return (identityResources == null ? null : identityResources.getTestUserId(label, provisionIfNull, preferredGroupId));
     }

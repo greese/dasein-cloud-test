@@ -11,7 +11,9 @@ import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.DatabaseState;
 import org.dasein.cloud.platform.Distribution;
 import org.dasein.cloud.platform.PlatformServices;
+import org.dasein.cloud.platform.PushNotificationSupport;
 import org.dasein.cloud.platform.RelationalDatabaseSupport;
+import org.dasein.cloud.platform.Topic;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.storage.StorageResources;
@@ -41,8 +43,9 @@ public class PlatformResources {
 
     static private final Random random = new Random();
 
-    private final HashMap<String,String> testCDNs  = new HashMap<String, String>();
-    private final HashMap<String,String> testRDBMS = new HashMap<String, String>();
+    private final HashMap<String,String> testCDNs   = new HashMap<String, String>();
+    private final HashMap<String,String> testRDBMS  = new HashMap<String, String>();
+    private final HashMap<String,String> testTopics = new HashMap<String, String>();
 
     private CloudProvider   provider;
 
@@ -65,6 +68,47 @@ public class PlatformResources {
             PlatformServices services = provider.getPlatformServices();
 
             if( services != null ) {
+                // start CDN termination first, wait later
+                ArrayList<Future<Boolean>> results = new ArrayList<Future<Boolean>>();
+
+                CDNSupport cdnSupport = services.getCDNSupport();
+
+                if( cdnSupport != null ) {
+                    for( Map.Entry<String,String> entry : testCDNs.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                Distribution d = cdnSupport.getDistribution(entry.getValue());
+
+                                if( d != null ) {
+                                    results.add(cleanCDN(cdnSupport, entry.getValue()));
+                                }
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
+
+                PushNotificationSupport pushSupport = services.getPushNotificationSupport();
+
+                if( pushSupport != null ) {
+                    for( Map.Entry<String,String> entry : testTopics.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                Topic topic = pushSupport.getTopic(entry.getValue());
+
+                                if( topic != null ) {
+                                    pushSupport.removeTopic(entry.getValue());
+                                }
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
+
                 RelationalDatabaseSupport rdbmsSupport = services.getRelationalDatabaseSupport();
 
                 if( rdbmsSupport != null ) {
@@ -93,26 +137,8 @@ public class PlatformResources {
                         }
                     }
                 }
-                ArrayList<Future<Boolean>> results = new ArrayList<Future<Boolean>>();
 
-                CDNSupport cdnSupport = services.getCDNSupport();
-
-                if( cdnSupport != null ) {
-                    for( Map.Entry<String,String> entry : testCDNs.entrySet() ) {
-                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
-                            try {
-                                Distribution d = cdnSupport.getDistribution(entry.getValue());
-
-                                if( d != null ) {
-                                    results.add(cleanCDN(cdnSupport, entry.getValue()));
-                                }
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
-                            }
-                        }
-                    }
-                }
+                // no wait for CDN stuff
                 boolean done;
 
                 do {
@@ -159,8 +185,16 @@ public class PlatformResources {
         if( !testCDNs.isEmpty() ) {
             if( !header ) {
                 logger.info("Provisioned Platform Resources:");
+                header = true;
             }
             DaseinTestManager.out(logger, null, "---> CDN Distributions", testCDNs.size() + " " + testCDNs);
+        }
+        testTopics.remove(DaseinTestManager.STATELESS);
+        if( !testTopics.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Platform Resources:");
+            }
+            DaseinTestManager.out(logger, null, "---> Notification Topics", testTopics.size() + " " + testTopics);
         }
     }
 
@@ -239,6 +273,43 @@ public class PlatformResources {
         return null;
     }
 
+    public @Nullable String getTestTopicId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testTopics.entrySet() ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessTopic();
+        }
+        String id = testTopics.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            PlatformServices services = provider.getPlatformServices();
+
+            if( services != null ) {
+                PushNotificationSupport support = services.getPushNotificationSupport();
+
+                if( support != null ) {
+                    try {
+                        return provisionTopic(support, label, "dsntopic");
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public @Nullable String findStatelessDistribution() {
         PlatformServices services = provider.getPlatformServices();
 
@@ -278,6 +349,31 @@ public class PlatformResources {
                         String id = databases.next().getProviderDatabaseId();
 
                         testRDBMS.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String findStatelessTopic() {
+        PlatformServices services = provider.getPlatformServices();
+
+        if( services != null ) {
+            PushNotificationSupport support = services.getPushNotificationSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Iterator<Topic> topics = support.listTopics().iterator();
+
+                    if( topics.hasNext() ) {
+                        String id = topics.next().getProviderTopicId();
+
+                        testTopics.put(DaseinTestManager.STATELESS, id);
                         return id;
                     }
                 }
@@ -354,6 +450,18 @@ public class PlatformResources {
                 label = label + random.nextInt(9);
             }
             testRDBMS.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionTopic(@Nonnull PushNotificationSupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+        String id = support.createTopic(namePrefix + random.nextInt(10000)).getProviderTopicId();
+
+        synchronized( testTopics ) {
+            while( testTopics.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testTopics.put(label, id);
         }
         return id;
     }
