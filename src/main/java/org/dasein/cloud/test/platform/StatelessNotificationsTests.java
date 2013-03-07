@@ -5,6 +5,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.PushNotificationSupport;
+import org.dasein.cloud.platform.Subscription;
 import org.dasein.cloud.platform.Topic;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
@@ -63,6 +64,18 @@ public class StatelessNotificationsTests {
     @After
     public void after() {
         tm.end();
+    }
+
+    private void assertSubscription(@Nonnull Subscription subscription) {
+        assertNotNull("The subscription ID may not be null", subscription.getProviderSubscriptionId());
+        assertEquals("The topic does not match the one it should match", testTopicId, subscription.getProviderTopicId());
+        assertNotNull("The subscription owner account may not be null", subscription.getProviderOwnerId());
+        assertEquals("The region ID of the returned subscription does not match the current context", tm.getContext().getRegionId(), subscription.getProviderRegionId());
+        assertNotNull("The name may not be null", subscription.getName());
+        assertNotNull("The description may not be null", subscription.getDescription());
+        assertNotNull("The data format may not be null", subscription.getDataFormat());
+        assertNotNull("The endpoint may not be null", subscription.getEndpoint());
+        assertNotNull("The endpoint type may not be null", subscription.getEndpointType());
     }
 
     private void assertTopic(@Nonnull Topic topic) {
@@ -304,5 +317,54 @@ public class StatelessNotificationsTests {
             assertTrue("Status and topic lists do not match for " + entry.getKey(), s != null && t != null && s && t);
         }
         tm.out("Matches");
+    }
+
+    @Test
+    public void listSubscriptions() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        PushNotificationSupport support = services.getPushNotificationSupport();
+
+        if( support == null ) {
+            tm.ok("Push notifications are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testTopicId != null ) {
+            Iterable<Subscription> list = support.listSubscriptions(testTopicId);
+            int count = 0;
+
+            assertNotNull("The list of subscriptions may not be null", list);
+            for( Subscription subscription : list ) {
+                count++;
+                tm.out("Subscription", subscription);
+            }
+            tm.out("Total Subscription Count to " + testTopicId, count);
+            if( count < 1 ) {
+                if( !support.isSubscribed() ) {
+                    tm.ok("The susbcription count was 0 as it should be in an unsubscribed account");
+                }
+                else {
+                    tm.warn("No subscriptions were identified for the test topic in the account so this test is potentially invalid");
+                }
+            }
+            else if( !support.isSubscribed() ) {
+                fail("Found subscriptions in the account even though it is marked as unsubscribed");
+            }
+            for( Subscription subscription : list ) {
+                assertSubscription(subscription);
+            }
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to push notifications support so this test is invalid");
+            }
+            else {
+                fail("No test topic was found to support this stateless test. Please create one and run again.");
+            }
+        }
     }
 }

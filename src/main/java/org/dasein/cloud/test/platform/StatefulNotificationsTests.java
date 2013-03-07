@@ -1,8 +1,10 @@
 package org.dasein.cloud.test.platform;
 
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.DataFormat;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.platform.EndpointType;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.PushNotificationSupport;
 import org.dasein.cloud.platform.Topic;
@@ -60,6 +62,12 @@ public class StatefulNotificationsTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        if( name.getMethodName().equals("publish") || name.getMethodName().equals("subscribe") ) {
+            testTopicId = tm.getTestTopicId(DaseinTestManager.STATEFUL, true);
+        }
+        else if( name.getMethodName().equals("removeTopic") ) {
+            testTopicId = tm.getTestTopicId(DaseinTestManager.REMOVED, true);
+        }
     }
 
     @After
@@ -98,6 +106,97 @@ public class StatefulNotificationsTests {
         }
         else {
             tm.ok("Push notification support is not subscribed so this test is not valid");
+        }
+    }
+
+    @Test
+    public void publish() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        PushNotificationSupport support = services.getPushNotificationSupport();
+
+        if( support == null ) {
+            tm.ok("Push notifications are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testTopicId != null ) {
+            support.publish(testTopicId, "Dasein Test Subject " + System.currentTimeMillis(), "This is a test");
+            // not much else we can test right now
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to push notifications support so this test is invalid");
+            }
+            else {
+                fail("No test topic was created to support this stateful test.");
+            }
+        }
+    }
+
+    @Test
+    public void subscribe() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        PushNotificationSupport support = services.getPushNotificationSupport();
+
+        if( support == null ) {
+            tm.ok("Push notifications are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testTopicId != null ) {
+            support.subscribe(testTopicId, EndpointType.EMAIL, DataFormat.PLAINTEXT, "test@example.com");
+            // Can't really validate this
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to push notifications support so this test is invalid");
+            }
+            else {
+                fail("No test topic was created to support this stateful test.");
+            }
+        }
+    }
+
+    @Test
+    public void removeTopic() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        PushNotificationSupport support = services.getPushNotificationSupport();
+
+        if( support == null ) {
+            tm.ok("Push notifications are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testTopicId != null ) {
+            Topic topic = support.getTopic(testTopicId);
+
+            tm.out("Before", topic);
+            assertNotNull("The test topic does not exist and thus removal cannot be tested", topic);
+            support.removeTopic(testTopicId);
+            topic = support.getTopic(testTopicId);
+
+            tm.out("After", topic);
+            assertNull("The test topic still exists post-removal", topic);
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to push notifications support so this test is invalid");
+            }
+            else {
+                fail("No test topic was created to support this stateful test.");
+            }
         }
     }
 }
