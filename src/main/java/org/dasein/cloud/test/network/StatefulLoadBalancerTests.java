@@ -40,6 +40,8 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -175,7 +177,7 @@ public class StatefulLoadBalancerTests {
                                                     break;
                                                 }
                                             }
-                                            if( included ) {
+                                            if( !included ) {
                                                 testDataCenterId = dc.getProviderDataCenterId();
                                                 break;
                                             }
@@ -209,14 +211,20 @@ public class StatefulLoadBalancerTests {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
+                                    Iterator<DataCenter> it = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator();
                                     String[] dcs = lb.getProviderDataCenterIds();
 
-                                    if( dcs.length < 1 ) {
-                                        testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-                                        support.addDataCenters(testLoadBalancerId, testDataCenterId);
+                                    if( dcs.length >= 2 ) {
+                                        testDataCenterId = dcs[0];
                                     }
                                     else {
-                                        testDataCenterId = dcs[0];
+                                        while( dcs.length < 2 ) {
+                                            testDataCenterId = it.next().getProviderDataCenterId();
+                                            support.addDataCenters(testLoadBalancerId, testDataCenterId);
+                                            if( dcs.length < 1 && it.hasNext() ) {
+                                                support.addDataCenters(testLoadBalancerId, it.next().getProviderDataCenterId());
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -335,14 +343,24 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
             if( support.isDataCenterLimited() ) {
-                support.addDataCenters(testLoadBalancerId, testDataCenterId);
-
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
+                assertNotNull("The test load balancer disappeared prior to the test", lb);
+
+                tm.out("Before", Arrays.toString(lb.getProviderDataCenterIds()));
+
+                support.addDataCenters(testLoadBalancerId, testDataCenterId);
+
+                lb = support.getLoadBalancer(testLoadBalancerId);
                 assertNotNull("The test load balancer no longer exists", lb);
+
+                String[] ids = lb.getProviderDataCenterIds();
+
+                tm.out("After", Arrays.toString(ids));
+
                 boolean ok = false;
 
-                for( String dc : lb.getProviderDataCenterIds() ) {
+                for( String dc : ids ) {
                     if( dc.equals(testDataCenterId) ) {
                         ok = true;
                     }
@@ -393,11 +411,15 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null ) {
             if( support.supportsAddingEndpoints() && ips ) {
+                tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addIPEndpoints(testLoadBalancerId, "196.91.70.2");
 
+                Iterable<LoadBalancerEndpoint> endpoints = support.listEndpoints(testLoadBalancerId);
+
+                tm.out("After", endpoints);
                 boolean ok = false;
 
-                for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
+                for( LoadBalancerEndpoint endpoint : endpoints ) {
                     if( endpoint.getEndpointType().equals(LbEndpointType.IP) && endpoint.getEndpointValue().equals("196.91.70.2") ) {
                         ok = true;
                     }
@@ -451,14 +473,15 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
             if( support.supportsAddingEndpoints() && vms ) {
+                tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addServers(testLoadBalancerId, testVirtualMachineId);
 
-                LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
+                Iterable<LoadBalancerEndpoint> endpoints = support.listEndpoints(testLoadBalancerId);
 
-                assertNotNull("The test load balancer no longer exists", lb);
+                tm.out("After", endpoints);
                 boolean ok = false;
 
-                for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
+                for( LoadBalancerEndpoint endpoint : endpoints ) {
                     if( endpoint.getEndpointType().equals(LbEndpointType.VM) && endpoint.getEndpointValue().equals(testVirtualMachineId) ) {
                         ok = true;
                     }
@@ -504,14 +527,23 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
             if( support.isDataCenterLimited() ) {
-                support.removeDataCenters(testLoadBalancerId, testDataCenterId);
-
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
+                assertNotNull("The test load balancer disappeared during the test", lb);
+
+                tm.out("Before", Arrays.toString(lb.getProviderDataCenterIds()));
+                support.removeDataCenters(testLoadBalancerId, testDataCenterId);
+
+                lb = support.getLoadBalancer(testLoadBalancerId);
+
                 assertNotNull("The test load balancer no longer exists", lb);
+
+                String[] ids = lb.getProviderDataCenterIds();
+                tm.out("After", Arrays.toString(ids));
+
                 boolean ok = false;
 
-                for( String dc : lb.getProviderDataCenterIds() ) {
+                for( String dc : ids ) {
                     if( dc.equals(testDataCenterId) ) {
                         ok = true;
                     }
@@ -562,11 +594,17 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null ) {
             if( support.supportsAddingEndpoints() && ips ) {
+                tm.out("Before", support.listEndpoints(testLoadBalancerId));
+
                 support.removeIPEndpoints(testLoadBalancerId, "197.41.20.2");
+
+                Iterable<LoadBalancerEndpoint> endpoints = support.listEndpoints(testLoadBalancerId);
+
+                tm.out("After", endpoints);
 
                 boolean ok = false;
 
-                for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
+                for( LoadBalancerEndpoint endpoint : endpoints ) {
                     if( endpoint.getEndpointType().equals(LbEndpointType.IP) && endpoint.getEndpointValue().equals("197.41.20.2") ) {
                         ok = true;
                     }
@@ -620,7 +658,13 @@ public class StatefulLoadBalancerTests {
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
             if( support.supportsAddingEndpoints() && vms ) {
+                tm.out("Before", support.listEndpoints(testLoadBalancerId));
+
                 support.removeServers(testLoadBalancerId, testVirtualMachineId);
+
+                Iterable<LoadBalancerEndpoint> endpoints = support.listEndpoints(testLoadBalancerId);
+
+                tm.out("After", endpoints);
 
                 boolean ok = false;
 
