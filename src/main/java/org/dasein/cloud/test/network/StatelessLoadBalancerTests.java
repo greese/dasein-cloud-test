@@ -145,9 +145,6 @@ public class StatelessLoadBalancerTests {
         if( support.isDataCenterLimited() ) {
             assertTrue("There must be at least one data center associated with the load balancer", dcs.length > 0);
         }
-        else {
-            assertTrue("Load balancers in clouds without data center constraints must not be associated with any data centers", dcs.length == 0);
-        }
         assertNotNull("The load balancer address type may not be null", lb.getAddressType());
         assertNotNull("The load balancer address may not be null", lb.getAddress());
 
