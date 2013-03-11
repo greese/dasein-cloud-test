@@ -483,24 +483,32 @@ public class StatelessStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        Iterable<IpForwardingRule> rules = support.listRules(testIpAddress);
-        int count = 0;
+        if( testIpAddress != null ) {
+            Iterable<IpForwardingRule> rules = support.listRules(testIpAddress);
+            int count = 0;
 
-        for( IpForwardingRule rule : rules ) {
-            count++;
-            tm.out("Rule", rule);
-        }
-        tm.out("Total Rule Count", count);
-        if( count < 1 ) {
-            if( support.isForwarding(version) ) {
-                tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
+            for( IpForwardingRule rule : rules ) {
+                count++;
+                tm.out("Rule", rule);
             }
-            else {
-                tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
+            tm.out("Total Rule Count", count);
+            if( count < 1 ) {
+                if( support.isForwarding(version) ) {
+                    tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
+                }
+                else {
+                    tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
+                }
+            }
+            else if( !support.isForwarding(version) ) {
+                fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
             }
         }
-        else if( !support.isForwarding(version) ) {
-            fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
+        else if( support.isForwarding(version) ) {
+            fail("No test IP address exists for testing forwarding rules for " + version);
+        }
+        else {
+            tm.ok("Forwarding for " + version + " is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
         }
     }
 

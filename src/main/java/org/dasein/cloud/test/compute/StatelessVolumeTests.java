@@ -246,11 +246,11 @@ public class StatelessVolumeTests {
                     assertProductContent(support, product);
                 }
                 else {
-                    if( !support.getVolumeProductRequirement().equals(Requirement.NONE) ) {
+                    if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                         fail("No test product exists for this test even though products are supported");
                     }
                     else {
-                        tm.ok("Volume products are not supported in this cloud");
+                        tm.ok("Volume products are not required in this cloud");
                     }
                 }
             }

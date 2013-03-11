@@ -94,10 +94,11 @@ public class StatefulVLANTests {
         }
         else if( name.getMethodName().equals("launchVM") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-            System.out.println("Test VLAN=" + testVLANId);
+            if( testVLANId == null ) {
+                testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+            }
             if( testVLANId != null ) {
                 testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
-                System.out.println("Test subnet ID=" + testSubnetId);
             }
         }
         else if( name.getMethodName().equals("connectInternetGateway") ) {

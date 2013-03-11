@@ -517,6 +517,7 @@ public class StatefulImageTests {
                                 MachineImage image = support.getImage(provisionedImage);
 
                                 assertNotNull("The image disappeared after it was created, but before it became available", image);
+                                assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(image.getCurrentState()));
                                 tm.out("--> Current State", image.getCurrentState());
                                 if( MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
                                     break;
@@ -635,6 +636,7 @@ public class StatefulImageTests {
                                 MachineImage img = support.getImage(provisionedImage);
 
                                 assertNotNull("The image disappeared after it was created, but before it became available", img);
+                                assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(img.getCurrentState()));
                                 tm.out("--> Current State", img.getCurrentState());
                                 if( MachineImageState.ACTIVE.equals(img.getCurrentState()) ) {
                                     break;
