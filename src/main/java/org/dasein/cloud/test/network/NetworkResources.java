@@ -91,13 +91,15 @@ public class NetworkResources {
         this.provider = provider;
     }
 
-    public void report() {
+    public int report() {
         boolean header = false;
+        int count = 0;
 
         testGeneralFirewalls.remove(DaseinTestManager.STATELESS);
         if( !testGeneralFirewalls.isEmpty() ) {
             logger.info("Provisioned Network Resources:");
             header = true;
+            count += testGeneralFirewalls.size();
             DaseinTestManager.out(logger, null, "---> Firewalls (Standard)", testGeneralFirewalls.size() + " " + testGeneralFirewalls);
         }
         testVLANFirewalls.remove(DaseinTestManager.STATELESS);
@@ -106,6 +108,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testVLANFirewalls.size();
             DaseinTestManager.out(logger, null, "---> Firewalls (VLAN)", testVLANFirewalls.size() + " " + testVLANFirewalls);
         }
         testNetworkFirewalls.remove(DaseinTestManager.STATELESS);
@@ -114,6 +117,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testNetworkFirewalls.size();
             DaseinTestManager.out(logger, null, "---> Network Firewalls", testNetworkFirewalls.size() + " " + testNetworkFirewalls);
         }
         testIps4Free.remove(DaseinTestManager.STATELESS);
@@ -122,6 +126,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testIps4Free.size();
             DaseinTestManager.out(logger, null, "---> Static IPs (Standard/IPv4)", testIps4Free.size() + " " + testIps4Free);
         }
         testIps6Free.remove(DaseinTestManager.STATELESS);
@@ -130,6 +135,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testIps6Free.size();
             DaseinTestManager.out(logger, null, "---> Static IPs (Standard/IPv6)", testIps6Free.size() + " " + testIps6Free);
         }
         testIps4VLAN.remove(DaseinTestManager.STATELESS);
@@ -138,6 +144,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testIps4VLAN.size();
             DaseinTestManager.out(logger, null, "---> Static IPs (VLAN/IPv4)", testIps4VLAN.size() + " " + testIps4VLAN);
         }
         testIps6VLAN.remove(DaseinTestManager.STATELESS);
@@ -146,6 +153,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testIps6VLAN.size();
             DaseinTestManager.out(logger, null, "---> Static IPs (VLAN/IPv6)", testIps6VLAN.size() + " " + testIps6VLAN);
         }
         testSubnets.remove(DaseinTestManager.STATELESS);
@@ -154,6 +162,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testSubnets.size();
             DaseinTestManager.out(logger, null, "---> Subnets", testSubnets.size() + " " + testSubnets);
         }
         testVLANs.remove(DaseinTestManager.STATELESS);
@@ -162,6 +171,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testVLANs.size();
             DaseinTestManager.out(logger, null, "---> VLANs", testVLANs.size() + " " + testVLANs);
         }
         testZones.remove(DaseinTestManager.STATELESS);
@@ -170,6 +180,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
                 header = true;
             }
+            count += testZones.size();
             DaseinTestManager.out(logger, null, "---> DNS Zones", testZones.size() + " " + testZones);
         }
         testLBs.remove(DaseinTestManager.STATELESS);
@@ -177,11 +188,15 @@ public class NetworkResources {
             if( !header ) {
                 logger.info("Provisioned Network Resources:");
             }
+            count += testLBs.size();
             DaseinTestManager.out(logger, null, "--> Load Balancers", testLBs.size() + " " + testLBs);
         }
+        return count;
     }
 
-    public void close() {
+    public int close() {
+        int count = 0;
+
         try {
             try { Thread.sleep(10000L); }
             catch( InterruptedException ignore ) { }
@@ -199,10 +214,14 @@ public class NetworkResources {
                                 try {
                                     if( zone != null ) {
                                         dnsSupport.deleteDnsZone(zone.getProviderDnsZoneId());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
-                                catch( Throwable ignore ) {
-                                    // ignore
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision test DNS zone " + entry.getValue() + ":" + t.getMessage());
                                 }
                             }
                         }
@@ -223,10 +242,14 @@ public class NetworkResources {
                                 try {
                                     if( lb != null ) {
                                         lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
-                                catch( Throwable ignore ) {
-                                    // ignore
+                                catch( Throwable t ) {
+                                    logger.warn("Failed to de-provision test load balancer " + entry.getValue() + ":" + t.getMessage());
                                 }
                             }
                         }
@@ -257,10 +280,14 @@ public class NetworkResources {
                                 try {
                                     if( addr != null ) {
                                         ipSupport.releaseFromPool(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision static IP " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -286,10 +313,14 @@ public class NetworkResources {
                                 try {
                                     if( addr != null ) {
                                         ipSupport.releaseFromPool(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision static IP " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -315,10 +346,14 @@ public class NetworkResources {
                                 try {
                                     if( addr != null ) {
                                         ipSupport.releaseFromPool(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision static IP " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -344,10 +379,14 @@ public class NetworkResources {
                                 try {
                                     if( addr != null ) {
                                         ipSupport.releaseFromPool(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to deprovision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision static IP " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -372,7 +411,7 @@ public class NetworkResources {
                                         }
                                     }
                                     catch( Throwable t ) {
-                                        logger.warn("Failed to remove internet gateway for " + v + ":" + t.getMessage());
+                                        logger.warn("Failed to remove internet gateway for test VLAN " + v + ":" + t.getMessage());
                                     }
                                 }
                             }
@@ -394,10 +433,14 @@ public class NetworkResources {
 
                                     if( f != null ) {
                                         nfSupport.removeFirewall(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision network firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -418,10 +461,14 @@ public class NetworkResources {
 
                                     if( f != null ) {
                                         firewallSupport.delete(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision standard firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -433,10 +480,14 @@ public class NetworkResources {
 
                                     if( f != null ) {
                                         firewallSupport.delete(entry.getValue());
+                                        count++;
+                                    }
+                                    else {
+                                        count++;
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair firewall " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision VLAN firewall " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -450,27 +501,28 @@ public class NetworkResources {
                     try {
                         for( Map.Entry<String,String> entry : testSubnets.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
-                                try {
-                                    Subnet s = vlanSupport.getSubnet(entry.getValue());
+                                Subnet s = vlanSupport.getSubnet(entry.getValue());
 
-                                    if( s != null ) {
-                                        vlanSupport.removeSubnet(entry.getValue());
-                                    }
-                                }
-                                catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair subnet " + entry.getValue() + " post-test: " + t.getMessage());
-                                    try { Thread.sleep(30000L); }
-                                    catch( InterruptedException ignore ) { }
+                                if( s != null ) {
                                     try {
-                                        Subnet s = vlanSupport.getSubnet(entry.getValue());
-
-                                        if( s != null ) {
+                                        vlanSupport.removeSubnet(entry.getValue());
+                                        count++;
+                                    }
+                                    catch( Throwable t ) {
+                                        logger.warn("Failed to de-provision subnet (1) " + entry.getValue() + " post-test: " + t.getMessage());
+                                        try { Thread.sleep(30000L); }
+                                        catch( InterruptedException ignore ) { }
+                                        try {
                                             vlanSupport.removeSubnet(entry.getValue());
+                                            count++;
+                                        }
+                                        catch( Throwable t2 ) {
+                                            logger.warn("Failed to de-provision subnet (final) " + entry.getValue() + " post-test: " + t2.getMessage());
                                         }
                                     }
-                                    catch( Throwable t2 ) {
-                                        logger.warn("Failed to de-provisionKeypair subnet again " + entry.getValue() + " post-test: " + t2.getMessage());
-                                    }
+                                }
+                                else {
+                                    count++;
                                 }
                             }
 
@@ -492,19 +544,31 @@ public class NetworkResources {
                                         }
                                     }
                                     catch( Throwable t ) {
-                                        logger.warn("Failed to remove internet gateway for " + v + ":" + t.getMessage());
+                                        logger.warn("Failed to remove internet gateway for test VLAN " + v + ":" + t.getMessage());
                                     }
+                                }
+                                else {
+                                    count++;
+                                    continue;
                                 }
                                 for( Firewall fw : nfSupport.listFirewalls() ) {
                                     if( fw.getProviderVlanId().equals(entry.getValue()) ) {
-                                        try { nfSupport.removeFirewall(fw.getProviderFirewallId()); }
-                                        catch( Throwable ignore ) { }
+                                        try {
+                                            nfSupport.removeFirewall(fw.getProviderFirewallId());
+                                        }
+                                        catch( Throwable t ) {
+                                            logger.warn("Failed to remove network firewall for test VLAN " + v + ": " + t.getMessage());
+                                        }
                                     }
                                 }
                                 for( Firewall fw : firewallSupport.list() ) {
                                     if( entry.getValue().equals(fw.getProviderFirewallId()) ) {
-                                        try { firewallSupport.delete(fw.getProviderFirewallId()); }
-                                        catch( Throwable ignore ) { }
+                                        try {
+                                            firewallSupport.delete(fw.getProviderFirewallId());
+                                        }
+                                        catch( Throwable t ) {
+                                            logger.warn("Failed to remove test VLAN firewall for VLAN " + v + ": " + t.getMessage());
+                                        }
                                     }
                                 }
                                 try {
@@ -513,23 +577,19 @@ public class NetworkResources {
                                             vlanSupport.removeSubnet(subnet.getProviderSubnetId());
                                         }
                                         catch( Throwable t ) {
-                                            logger.warn("Failed to de-provisionKeypair VLAN subnet " + subnet.getProviderSubnetId() + " for " + entry.getValue() + " post-test: " + t.getMessage());
+                                            logger.warn("Failed to de-provision subnet " + subnet.getProviderSubnetId() + " for test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                         }
                                     }
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair VLAN subnets " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision subnets for test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                                 try {
-                                    if( v != null ) {
-                                        if( vlanSupport.isConnectedViaInternetGateway(v.getProviderVlanId()) ) {
-                                            vlanSupport.removeInternetGateway(v.getProviderVlanId());
-                                        }
-                                        vlanSupport.removeVlan(entry.getValue());
-                                    }
+                                    vlanSupport.removeVlan(entry.getValue());
+                                    count++;
                                 }
                                 catch( Throwable t ) {
-                                    logger.warn("Failed to de-provisionKeypair VLAN " + entry.getValue() + " post-test: " + t.getMessage());
+                                    logger.warn("Failed to de-provision test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                             }
                         }
@@ -538,14 +598,13 @@ public class NetworkResources {
                         // ignore
                     }
                 }
-
-
             }
         }
         catch( Throwable ignore ) {
             // ignore
         }
         provider.close();
+        return count;
     }
 
     private @Nullable String findStatelessDNSZone() {
@@ -1013,7 +1072,7 @@ public class NetworkResources {
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testSubnets.entrySet() ) {
-                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
                     if( id != null ) {
@@ -1048,8 +1107,8 @@ public class NetworkResources {
                         }
                         return provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
                     }
-                    catch( Throwable ignore ) {
-                        return null;
+                    catch( Throwable t ) {
+                        logger.warn("Failed to provider test subnet for " + vlanId + ": " + t.getMessage());
                     }
                 }
             }
@@ -1416,7 +1475,15 @@ public class NetworkResources {
         String id;
 
         options.withSupportedTraffic(support.listSupportedIPVersions().iterator().next());
-        id = options.build(provider);
+        try {
+            id = options.build(provider);
+        }
+        catch( CloudException e ) {
+            if( e.getMessage().contains("conflicts with another") ) {
+                return provisionSubnet(support, label, vlanId, namePrefix, preferredDataCenterId);
+            }
+            throw e;
+        }
         synchronized( testSubnets ) {
             while( testSubnets.containsKey(label) ) {
                 label = label + random.nextInt(9);

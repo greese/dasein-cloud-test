@@ -94,7 +94,11 @@ public class StatefulVLANTests {
         }
         else if( name.getMethodName().equals("launchVM") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-            testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+            System.out.println("Test VLAN=" + testVLANId);
+            if( testVLANId != null ) {
+                testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+                System.out.println("Test subnet ID=" + testSubnetId);
+            }
         }
         else if( name.getMethodName().equals("connectInternetGateway") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -351,9 +355,7 @@ public class StatefulVLANTests {
 
         if( services != null ) {
             support = services.getVirtualMachineSupport();
-            if( support != null ) {
-            }
-            else {
+            if( support == null ) {
                 tm.ok("No virtual machine support in " + tm.getProvider().getCloudName());
                 return;
             }

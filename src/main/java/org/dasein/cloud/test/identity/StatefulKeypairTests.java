@@ -73,20 +73,7 @@ public class StatefulKeypairTests {
             IdentityResources id = DaseinTestManager.getIdentityResources();
 
             if( id != null ) {
-                IdentityServices services = tm.getProvider().getIdentityServices();
-
-                if( services != null ) {
-                    ShellKeySupport support = services.getShellKeySupport();
-
-                    if( support != null ) {
-                        try {
-                            testKeyId = id.provisionKeypair(support, "delete", "dsnkp");
-                        }
-                        catch( Throwable ignore ) {
-                            // ignore
-                        }
-                    }
-                }
+                testKeyId = id.getTestKeypairId(DaseinTestManager.REMOVED, true);
             }
         }
     }

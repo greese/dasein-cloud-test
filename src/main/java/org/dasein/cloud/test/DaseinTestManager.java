@@ -205,62 +205,99 @@ public class DaseinTestManager {
     }
 
     static public void init() {
-        testStart = System.currentTimeMillis();
-        storageResources = new StorageResources(constructProvider());
-        platformResources = new PlatformResources(constructProvider());
-        networkResources = new NetworkResources(constructProvider());
-        identityResources = new IdentityResources(constructProvider());
-        computeResources = new ComputeResources(constructProvider());
-        computeResources.init();
+        Logger logger = Logger.getLogger(DaseinTestManager.class);
 
-        String prop = System.getProperty("dasein.inclusions");
+        logger.info("BEGIN Test Initialization ------------------------------------------------------------------------------");
+        try {
+            testStart = System.currentTimeMillis();
+            storageResources = new StorageResources(constructProvider());
+            platformResources = new PlatformResources(constructProvider());
+            networkResources = new NetworkResources(constructProvider());
+            identityResources = new IdentityResources(constructProvider());
+            computeResources = new ComputeResources(constructProvider());
+            computeResources.init();
 
-        if( prop != null && !prop.equals("") ) {
-            inclusions = new TreeSet<String>();
-            if( prop.contains(",") ) {
-                for( String which : prop.split(",") ) {
-                    inclusions.add(which.toLowerCase());
+            String prop = System.getProperty("dasein.inclusions");
+
+            if( prop != null && !prop.equals("") ) {
+                inclusions = new TreeSet<String>();
+                if( prop.contains(",") ) {
+                    for( String which : prop.split(",") ) {
+                        inclusions.add(which.toLowerCase());
+                    }
+                }
+                else {
+                    inclusions.add(prop.toLowerCase());
                 }
             }
-            else {
-                inclusions.add(prop.toLowerCase());
-            }
-        }
-        prop = System.getProperty("dasein.exclusions");
+            prop = System.getProperty("dasein.exclusions");
 
-        if( prop != null && !prop.equals("") ) {
-            exclusions = new TreeSet<String>();
-            if( prop.contains(",") ) {
-                for( String which : prop.split(",") ) {
-                    exclusions.add(which.toLowerCase());
+            if( prop != null && !prop.equals("") ) {
+                exclusions = new TreeSet<String>();
+                if( prop.contains(",") ) {
+                    for( String which : prop.split(",") ) {
+                        exclusions.add(which.toLowerCase());
+                    }
+                }
+                else {
+                    exclusions.add(prop.toLowerCase());
                 }
             }
-            else {
-                exclusions.add(prop.toLowerCase());
-            }
+            out(logger, null, "Included", (inclusions == null ? null : inclusions.toString()));
+            out(logger, null, "Excluded", (exclusions == null ? null : exclusions.toString()));
+
+            APITrace.report("Init");
+            APITrace.reset();
         }
-        APITrace.report("Init");
-        APITrace.reset();
+        finally {
+            logger.info("END Test Initialization ------------------------------------------------------------------------------");
+            logger.info("");
+        }
     }
 
     static public void cleanUp() {
         Logger logger = Logger.getLogger(DaseinTestManager.class);
+        int provisioned = 0;
+        int cleaned = 0;
 
-        APITrace.report("Clean Up");
-        if( computeResources != null ) {
-            computeResources.close();
+        logger.info("");
+        logger.info("BEGIN Test Clean Up ------------------------------------------------------------------------------");
+        try {
+            APITrace.report("Clean Up");
+            if( computeResources != null ) {
+                int count = computeResources.close();
+
+                out(logger, null, "Compute Resources", String.valueOf(count));
+                cleaned += count;
+            }
+            if( networkResources != null ) {
+                int count = networkResources.close();
+
+                out(logger, null, "Network Resources", String.valueOf(count));
+                cleaned += count;
+            }
+            if( identityResources != null ) {
+                int count = identityResources.close();
+
+                out(logger, null, "Identity Resources", String.valueOf(count));
+                cleaned += count;
+            }
+            if( platformResources != null ) {
+                int count = platformResources.close();
+
+                out(logger, null, "Platform Resources", String.valueOf(count));
+                cleaned += count;
+            }
+            if( storageResources != null ) {
+                int count = storageResources.close();
+
+                out(logger, null, "Storage Resources", String.valueOf(count));
+                cleaned += count;
+            }
         }
-        if( networkResources != null ) {
-            networkResources.close();
-        }
-        if( identityResources != null ) {
-            identityResources.close();
-        }
-        if( platformResources != null ) {
-            platformResources.close();
-        }
-        if( storageResources != null ) {
-            storageResources.close();
+        finally {
+            logger.info("END Test Clean Up ------------------------------------------------------------------------------");
+            logger.info("");
         }
         long duration = System.currentTimeMillis() - testStart;
         int minutes = (int)(duration/ CalendarWrapper.MINUTE);
@@ -276,27 +313,30 @@ public class DaseinTestManager {
         }
         out(logger, null, "---> Total Calls", String.valueOf(total));
         logger.info("");
+
         logger.info("----------- Provisioning Log ----------");
         if( computeResources != null ) {
-            computeResources.report();
+            provisioned += computeResources.report();
         }
         if( identityResources != null ) {
-            identityResources.report();
+            provisioned += identityResources.report();
         }
         if( networkResources != null ) {
-            networkResources.report();
+            provisioned += networkResources.report();
         }
         if( platformResources != null ) {
-            platformResources.report();
+            provisioned += platformResources.report();
         }
         if( storageResources != null ) {
-            storageResources.report();
+            provisioned += storageResources.report();
         }
         logger.info("");
         logger.info("--------------- Results ---------------");
         out(logger, null, "Tests", String.valueOf(testCount));
         out(logger, null, "Skipped", String.valueOf(skipCount));
         out(logger, null, "Run", String.valueOf(testCount - skipCount));
+        out(logger, null, "Resources Provisioned", String.valueOf(provisioned));
+        out(logger, null, "Resources De-provisioned", String.valueOf(cleaned));
         out(logger, null, "Duration", minutes + " minutes " + seconds + " seconds");
         logger.info("-------------------------------------------------------------------------------------------------");
     }

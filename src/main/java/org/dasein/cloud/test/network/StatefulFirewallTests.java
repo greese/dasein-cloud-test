@@ -103,6 +103,9 @@ public class StatefulFirewallTests {
 
                 if( vlan ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                    if( testVLANId == null ) {
+                        testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+                    }
                     testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
                 }
                 else {
@@ -341,7 +344,7 @@ public class StatefulFirewallTests {
                 if( net != null ) {
                     if( support.supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
-                            String id = net.provisionFirewall("provisionKeypair", testVLANId);
+                            String id = net.provisionFirewall("provision", testVLANId);
 
                             tm.out("New VLAN Firewall", id);
                             assertNotNull("No VLAN firewall was created by this test", id);

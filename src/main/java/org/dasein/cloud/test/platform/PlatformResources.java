@@ -81,7 +81,9 @@ public class PlatformResources {
         }
     }
 
-    public void close() {
+    public int close() {
+        int count = 0;
+
         try {
             PlatformServices services = provider.getPlatformServices();
 
@@ -99,10 +101,14 @@ public class PlatformResources {
 
                                 if( d != null ) {
                                     results.add(cleanCDN(cdnSupport, entry.getValue()));
+                                    count++;
+                                }
+                                else {
+                                    count++;
                                 }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test CDN " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -118,10 +124,14 @@ public class PlatformResources {
 
                                 if( topic != null ) {
                                     pushSupport.removeTopic(entry.getValue());
+                                    count++;
+                                }
+                                else {
+                                    count++;
                                 }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test notification topic " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -147,10 +157,14 @@ public class PlatformResources {
                                 }
                                 if( db != null && !db.getCurrentState().equals(DatabaseState.DELETED) && !db.getCurrentState().equals(DatabaseState.DELETING) ) {
                                     rdbmsSupport.removeDatabase(entry.getValue());
+                                    count++;
+                                }
+                                else {
+                                    count++;
                                 }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test relational database " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -176,6 +190,7 @@ public class PlatformResources {
             // ignore
         }
         provider.close();
+        return count;
     }
 
     ExecutorService service = Executors.newCachedThreadPool();
@@ -190,13 +205,15 @@ public class PlatformResources {
         });
     }
 
-    public void report() {
+    public int report() {
         boolean header = false;
+        int count = 0;
 
         testRDBMS.remove(DaseinTestManager.STATELESS);
         if( !testRDBMS.isEmpty() ) {
             logger.info("Provisioned Platform Resources:");
             header = true;
+            count += testRDBMS.size();
             DaseinTestManager.out(logger, null, "---> RDBMS Instances", testRDBMS.size() + " " + testRDBMS);
         }
         testCDNs.remove(DaseinTestManager.STATELESS);
@@ -205,6 +222,7 @@ public class PlatformResources {
                 logger.info("Provisioned Platform Resources:");
                 header = true;
             }
+            count += testCDNs.size();
             DaseinTestManager.out(logger, null, "---> CDN Distributions", testCDNs.size() + " " + testCDNs);
         }
         testTopics.remove(DaseinTestManager.STATELESS);
@@ -212,8 +230,10 @@ public class PlatformResources {
             if( !header ) {
                 logger.info("Provisioned Platform Resources:");
             }
+            count += testTopics.size();
             DaseinTestManager.out(logger, null, "---> Notification Topics", testTopics.size() + " " + testTopics);
         }
+        return count;
     }
 
     public @Nullable String getTestDistributionId(@Nonnull String label, boolean provisionIfNull, @Nullable String origin) {

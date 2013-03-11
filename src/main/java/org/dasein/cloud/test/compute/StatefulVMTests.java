@@ -127,7 +127,7 @@ public class StatefulVMTests {
             }
         }
         else if( name.getMethodName().equals("terminate") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, null, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("start") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
