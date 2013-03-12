@@ -189,7 +189,7 @@ public class NetworkResources {
                 logger.info("Provisioned Network Resources:");
             }
             count += testLBs.size();
-            DaseinTestManager.out(logger, null, "--> Load Balancers", testLBs.size() + " " + testLBs);
+            DaseinTestManager.out(logger, null, "---> Load Balancers", testLBs.size() + " " + testLBs);
         }
         return count;
     }

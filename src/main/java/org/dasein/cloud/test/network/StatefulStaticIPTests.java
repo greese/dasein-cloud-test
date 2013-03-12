@@ -199,70 +199,67 @@ public class StatefulStaticIPTests {
                 }
             }
             else if( testVlanId != null ) {
-                testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL + "vlan", VmState.RUNNING, true, null);
-                if( testVMId == null ) {
-                    String productId = tm.getTestVMProductId();
-                    String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+                String productId = tm.getTestVMProductId();
+                String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
 
-                    if( productId != null && imageId != null ) {
-                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
-                        String vlanId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
-                        String dataCenterId = null;
+                if( productId != null && imageId != null ) {
+                    VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+                    String vlanId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
+                    String dataCenterId = null;
 
-                        if( vlanId == null ) {
-                            vlanId = testVlanId;
+                    if( vlanId == null ) {
+                        vlanId = testVlanId;
 
-                            try {
-                                @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVlanId);
+                        try {
+                            @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVlanId);
 
-                                if( vlan != null ) {
-                                    dataCenterId = vlan.getProviderDataCenterId();
-                                }
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            if( vlan != null ) {
+                                dataCenterId = vlan.getProviderDataCenterId();
                             }
                         }
-                        else {
-                            try {
-                                @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testVlanId);
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    else {
+                        try {
+                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testVlanId);
 
-                                if( subnet != null ) {
-                                    dataCenterId = subnet.getProviderDataCenterId();
-                                }
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            if( subnet != null ) {
+                                dataCenterId = subnet.getProviderDataCenterId();
                             }
                         }
-                        if( dataCenterId == null ) {
-                            try {
-                                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                                    if( dc.isActive() && dc.isAvailable() ) {
-                                        dataCenterId = dc.getProviderDataCenterId();
-                                        break;
-                                    }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    if( dataCenterId == null ) {
+                        try {
+                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                if( dc.isActive() && dc.isAvailable() ) {
+                                    dataCenterId = dc.getProviderDataCenterId();
+                                    break;
                                 }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
-                            }
                         }
-                        assert dataCenterId != null;
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    assert dataCenterId != null;
 
-                        options.inDataCenter(dataCenterId);
-                        options.inVlan(null, dataCenterId, vlanId);
+                    options.inDataCenter(dataCenterId);
+                    options.inVlan(null, dataCenterId, vlanId);
 
-                        ComputeResources compute = DaseinTestManager.getComputeResources();
+                    ComputeResources compute = DaseinTestManager.getComputeResources();
 
-                        if( compute != null ) {
-                            try {
-                                //noinspection ConstantConditions
-                                testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
-                            }
+                    if( compute != null ) {
+                        try {
+                            //noinspection ConstantConditions
+                            testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
                         }
                     }
                 }

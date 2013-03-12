@@ -21,8 +21,7 @@ package org.dasein.cloud.test.network;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.LbEndpointType;
 import org.dasein.cloud.network.LoadBalancer;
@@ -30,7 +29,6 @@ import org.dasein.cloud.network.LoadBalancerEndpoint;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.compute.ComputeResources;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -125,19 +123,7 @@ public class StatefulLoadBalancerTests {
                     if( ids.length > 0 ) {
                         testDataCenterId = ids[ids.length-1];
                     }
-                    ComputeResources c = DaseinTestManager.getComputeResources();
-
-                    if( c != null ) {
-                        ComputeServices services = tm.getProvider().getComputeServices();
-
-                        if( services != null ) {
-                            VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                            if( support != null ) {
-                                testVirtualMachineId = c.provisionVM(support, DaseinTestManager.STATEFUL + "3", "dsnlbvm", "dsnlb", testDataCenterId);
-                            }
-                        }
-                    }
+                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "_" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
                 }
             }
             catch( Throwable ignore ) {
@@ -260,21 +246,9 @@ public class StatefulLoadBalancerTests {
                             testVirtualMachineId = ids.iterator().next();
                         }
                         else {
-                            ComputeResources c = DaseinTestManager.getComputeResources();
-
-                            if( c != null ) {
-                                ComputeServices services = tm.getProvider().getComputeServices();
-
-                                if( services != null ) {
-                                    VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
-
-                                    if( vmSupport != null ) {
-                                        testVirtualMachineId = c.provisionVM(vmSupport, DaseinTestManager.STATEFUL, "dsnlbvm", "dsnlb", testDataCenterId);
-                                        if( testVirtualMachineId != null ) {
-                                            support.addServers(testLoadBalancerId, testVirtualMachineId);
-                                        }
-                                    }
-                                }
+                            testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "_" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
+                            if( testVirtualMachineId != null ) {
+                                support.addServers(testLoadBalancerId, testVirtualMachineId);
                             }
                         }
                     }
