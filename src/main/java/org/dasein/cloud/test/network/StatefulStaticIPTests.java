@@ -223,7 +223,7 @@ public class StatefulStaticIPTests {
                     }
                     else {
                         try {
-                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testVlanId);
+                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(vlanId);
 
                             if( subnet != null ) {
                                 dataCenterId = subnet.getProviderDataCenterId();
@@ -258,8 +258,8 @@ public class StatefulStaticIPTests {
                             //noinspection ConstantConditions
                             testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
                         }
-                        catch( Throwable ignore ) {
-                            // ignore
+                        catch( Throwable t ) {
+                            tm.warn("Unable to provision test VM with VLAN/subnet=" + vlanId + " in " + dataCenterId);
                         }
                     }
                 }
