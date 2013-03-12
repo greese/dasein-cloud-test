@@ -223,6 +223,25 @@ public class StatefulImageTests {
                             boolean found = false;
 
                             shares = support.listShares(testImageId);
+
+                            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*3L);
+
+                            while( timeout > System.currentTimeMillis() ) {
+                                found = false;
+                                for( String share : shares ) {
+                                    if( share.equals(testShareAccount) ) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if( found ) {
+                                    break;
+                                }
+                                try { Thread.sleep(15000L); }
+                                catch( InterruptedException ignore ) { }
+                                try { shares = support.listShares(testImageId); }
+                                catch( Throwable ignore ) { }
+                            }
                             tm.out("After", shares);
                             for( String share : shares ) {
                                 if( share.equals(testShareAccount) ) {
@@ -287,6 +306,25 @@ public class StatefulImageTests {
                             boolean found = false;
 
                             shares = support.listShares(testImageId);
+
+                            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*3L);
+
+                            while( timeout > System.currentTimeMillis() ) {
+                                found = false;
+                                for( String share : shares ) {
+                                    if( share.equals(testShareAccount) ) {
+                                        found = true;
+                                        break;
+                                    }
+                                }
+                                if( !found ) {
+                                    break;
+                                }
+                                try { Thread.sleep(15000L); }
+                                catch( InterruptedException ignore ) { }
+                                try { shares = support.listShares(testImageId); }
+                                catch( Throwable ignore ) { }
+                            }
                             tm.out("After", shares);
                             for( String share : shares ) {
                                 if( share.equals(testShareAccount) ) {
@@ -334,7 +372,6 @@ public class StatefulImageTests {
 
     @Test
     public void addPublicShare() throws CloudException, InternalException {
-        assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -345,8 +382,20 @@ public class StatefulImageTests {
                     if( support.supportsImageSharingWithPublic() ) {
                         tm.out("Before", support.isImageSharedWithPublic(testImageId));
                         support.addPublicShare(testImageId);
-                        tm.out("After", support.isImageSharedWithPublic(testImageId));
-                        assertTrue("Image remains private", support.isImageSharedWithPublic(testImageId));
+
+                        long timeout = (System.currentTimeMillis() + CalendarWrapper.MINUTE * 3L);
+                        boolean shared = false;
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            shared = support.isImageSharedWithPublic(testImageId);
+                            if( shared ) {
+                                break;
+                            }
+                            try { Thread.sleep(15000L); }
+                            catch( InterruptedException ignore ) { }
+                        }
+                        tm.out("After", shared);
+                        assertTrue("Image remains private", shared);
                     }
                     else {
                         try {
@@ -392,8 +441,20 @@ public class StatefulImageTests {
                     if( support.supportsImageSharingWithPublic() ) {
                         tm.out("Before", support.isImageSharedWithPublic(testImageId));
                         support.removePublicShare(testImageId);
-                        tm.out("After", support.isImageSharedWithPublic(testImageId));
-                        assertFalse("Image remains public", support.isImageSharedWithPublic(testImageId));
+
+                        long timeout = (System.currentTimeMillis() + CalendarWrapper.MINUTE * 3L);
+                        boolean shared = true;
+
+                        while( timeout > System.currentTimeMillis() ) {
+                            shared = support.isImageSharedWithPublic(testImageId);
+                            if( !shared ) {
+                                break;
+                            }
+                            try { Thread.sleep(15000L); }
+                            catch( InterruptedException ignore ) { }
+                        }
+                        tm.out("After", shared);
+                        assertFalse("Image remains public", shared);
                     }
                     else {
                         try {
@@ -444,6 +505,20 @@ public class StatefulImageTests {
                     catch( OperationNotSupportedException e ) {
                         fail("This operation should not throw an OperationNotSupportedException (just a NO-OP in clouds without sharing)");
                     }
+                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 3L);
+                    boolean shared;
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        shared = support.isImageSharedWithPublic(testImageId);
+                        if( !shared ) {
+                            shared = support.listShares(testImageId).iterator().hasNext();
+                            if( !shared ) {
+                                break;
+                            }
+                        }
+                        try { Thread.sleep(15000L); }
+                        catch( InterruptedException ignore ) { }
+                    }
                     tm.out("After [Public]", support.isImageSharedWithPublic(testImageId));
                     tm.out("After [Private]", support.listShares(testImageId));
 
@@ -471,9 +546,17 @@ public class StatefulImageTests {
         }
     }
 
+    static private boolean capturedOnce = false;
+
     @Test
     public void capture() throws CloudException, InternalException {
-        assumeTrue(!tm.isTestSkipped());
+        if( capturedOnce ) {
+            try { Thread.sleep(CalendarWrapper.MINUTE * 2L); }
+            catch( InterruptedException ignore ) { }
+        }
+        else {
+            capturedOnce = true;
+        }
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {
@@ -563,7 +646,13 @@ public class StatefulImageTests {
 
     @Test
     public void captureAsync() throws Throwable {
-        assumeTrue(!tm.isTestSkipped());
+        if( capturedOnce ) {
+            try { Thread.sleep(CalendarWrapper.MINUTE * 2L); }
+            catch( InterruptedException ignore ) { }
+        }
+        else {
+            capturedOnce = true;
+        }
         ComputeServices services = tm.getProvider().getComputeServices();
 
         if( services != null ) {

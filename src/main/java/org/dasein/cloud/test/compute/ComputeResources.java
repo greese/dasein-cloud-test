@@ -412,11 +412,20 @@ public class ComputeResources {
     public @Nullable String getTestVmId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
-                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
                     if( id != null ) {
-                        return id;
+                        try {
+                            @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(id);
+
+                            if( vm != null && !VmState.TERMINATED.equals(vm.getCurrentState()) ) {
+                                return id;
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
                     }
                 }
             }
@@ -436,7 +445,7 @@ public class ComputeResources {
                 try {
                     VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
 
-                    if( vm == null && provisionIfNull ) {
+                    if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState())) && provisionIfNull ) {
                         id = provisionVM(support, label, "Dasein Test " + label, "dsnvm", preferredDataCenterId);
                         vm = support.getVirtualMachine(id);
                     }
@@ -445,8 +454,15 @@ public class ComputeResources {
                     }
                     return id;
                 }
-                catch( Throwable ignore ) {
-                    return null;
+                catch( Throwable t ) {
+                    try {
+                        if( support.isSubscribed() ) {
+                            logger.warn("Unable to provision test virtual machine under label " + label + ": " + t.getMessage());
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
                 }
             }
         }

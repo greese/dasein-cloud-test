@@ -121,7 +121,21 @@ public class StatefulVolumeTests {
         }
         else if( name.getMethodName().equals("attach") ) {
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            String dc = null;
+
+            if( testVMId != null ) {
+                try {
+                    VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                    if( vm != null ) {
+                        dc = vm.getProviderDataCenterId();
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, dc);
 
             if( testVolumeId != null ) {
                 try {
@@ -141,7 +155,21 @@ public class StatefulVolumeTests {
         }
         else if( name.getMethodName().equals("detach") ) {
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            String dc = null;
+
+            if( testVMId != null ) {
+                try {
+                    VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                    if( vm != null ) {
+                        dc = vm.getProviderDataCenterId();
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, dc);
 
             if( testVolumeId != null && testVMId != null ) {
                 try {

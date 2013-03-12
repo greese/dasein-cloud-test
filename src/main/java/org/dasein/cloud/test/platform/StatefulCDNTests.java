@@ -85,10 +85,8 @@ public class StatefulCDNTests {
         }
         else {
             testOrigin = tm.getTestBucket("statefulCDN", true, true);
-            System.out.println(name.getMethodName() + "=" + testOrigin);
             if( testOrigin != null ) {
                 testDistributionId = tm.getTestDistributionId(DaseinTestManager.STATEFUL, true, testOrigin.getBucketName());
-                System.out.println("Distribution=" + testDistributionId);
             }
         }
     }

@@ -213,6 +213,19 @@ public class NetworkResources {
 
                                 try {
                                     if( zone != null ) {
+                                        try {
+                                            for( DNSRecord record : dnsSupport.listDnsRecords(zone.getProviderDnsZoneId(), DNSRecordType.A, null) ) {
+                                                try {
+                                                    dnsSupport.deleteDnsRecords(record);
+                                                }
+                                                catch( Throwable ignore ) {
+                                                    // ignore
+                                                }
+                                            }
+                                        }
+                                        catch( Throwable ignore ) {
+                                            // ignore
+                                        }
                                         dnsSupport.deleteDnsZone(zone.getProviderDnsZoneId());
                                         count++;
                                     }
@@ -1027,11 +1040,20 @@ public class NetworkResources {
         }
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : map.entrySet() ) {
-                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
                     if( id != null ) {
-                        return id;
+                        try {
+                            @SuppressWarnings("ConstantConditions") IpAddress addr = provider.getNetworkServices().getIpAddressSupport().getIpAddress(id);
+
+                            if( addr != null ) {
+                                return id;
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
                     }
                 }
             }
@@ -1040,7 +1062,16 @@ public class NetworkResources {
         String id = map.get(label);
 
         if( id != null ) {
-            return id;
+            try {
+                @SuppressWarnings("ConstantConditions") IpAddress addr = provider.getNetworkServices().getIpAddressSupport().getIpAddress(id);
+
+                if( addr != null ) {
+                    return id;
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
         }
         if( provisionIfNull ) {
             NetworkServices services = provider.getNetworkServices();
@@ -1060,8 +1091,15 @@ public class NetworkResources {
                             return provisionAddress(support, label, version, null);
                         }
                     }
-                    catch( Throwable ignore ) {
-                        return null;
+                    catch( Throwable t ) {
+                        try {
+                            if( support.isSubscribed() ) {
+                                logger.warn("Failed to provision test IP address under label " + label + ": " + t.getMessage());
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
                     }
                 }
             }

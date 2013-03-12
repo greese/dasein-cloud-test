@@ -443,10 +443,7 @@ public class StatelessFirewallTests {
                     tm.out("Firewall", fw);
                 }
                 tm.out("Total Firewall Count", count);
-                if( !support.isSubscribed() ) {
-                    assertEquals("The firewall count should be zero since this account is not subscribed to this service", 0, count);
-                }
-                else if( count == 0 ) {
+                if( support.isSubscribed() && count == 0 ) {
                     tm.warn("This test is likely invalid as no firewalls were provided in the results for validation");
                 }
                 if( count > 0 ) {
@@ -481,10 +478,7 @@ public class StatelessFirewallTests {
                     tm.out("Firewall Status", fw);
                 }
                 tm.out("Total Firewall Status Count", count);
-                if( !support.isSubscribed() ) {
-                    assertEquals("The firewall status count should be zero since this account is not subscribed to this service", 0, count);
-                }
-                else if( count == 0 ) {
+                if( support.isSubscribed() && count == 0 ) {
                     tm.warn("This test is likely invalid as no firewall status items were provided in the results for validation");
                 }
             }
