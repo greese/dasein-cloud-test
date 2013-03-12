@@ -23,7 +23,7 @@
   </licenses>
   
   <organization>
-    <name>enstratius, Inc.</name>
+    <name>Enstratius, Inc.</name>
     <url>http://www.enstratius.com</url>
   </organization>
 
@@ -120,7 +120,7 @@
                 </excludes>
                 <properties>
                     <year>2009-2013</year>
-                    <copyrightHolder>enstratius, Inc.</copyrightHolder>
+                    <copyrightHolder>Enstratius, Inc.</copyrightHolder>
                 </properties>
             </configuration>
         </plugin>
