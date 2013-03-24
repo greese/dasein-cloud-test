@@ -601,7 +601,8 @@ public class StatefulFirewallTests {
             tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
             String[] fwIds = vm.getProviderFirewallIds();
 
-            assertTrue("The firewall IDs do not match", fwIds.length == 1 && fwIds[0].equals(testFirewallId));
+            tm.out("Firewall IDs", Arrays.toString(fwIds));
+            assertTrue("The firewall IDs do not match the test firewall of " + testFirewallId, fwIds.length == 1 && fwIds[0].equals(testFirewallId));
         }
     }
 }

@@ -1146,7 +1146,7 @@ public class NetworkResources {
                         return provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
                     }
                     catch( Throwable t ) {
-                        logger.warn("Failed to provider test subnet for " + vlanId + ": " + t.getMessage());
+                        logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
                     }
                 }
             }
