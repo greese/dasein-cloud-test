@@ -240,9 +240,9 @@ public class StatefulVLANTests {
                         tm.out("New VLAN", id);
                         assertNotNull("Could not find the new VLAN in the cloud after creation", support.getVlan(id));
                     }
-                    else {
+                    else if( support.isSubscribed() ) {
                         try {
-                            resources.provisionVLAN(support, "provisionKeypair", "dnsvlan", null);
+                            resources.provisionVLAN(support, "provision", "dnsvlan", null);
                             fail("VLAN provisioning completed even though it isn't supported");
                         }
                         catch( OperationNotSupportedException expected ) {
