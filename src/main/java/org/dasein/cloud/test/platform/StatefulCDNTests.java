@@ -344,7 +344,7 @@ public class StatefulCDNTests {
             support.delete(testDistributionId);
             d = support.getDistribution(testDistributionId);
             tm.out("After", d);
-            assertNull("The test distribution still exists post-deletion", d);
+            assertTrue("The test distribution still exists post-deletion", d == null || (!d.isActive() && !d.isDeployed()));
         }
         else {
             if( !support.isSubscribed() ) {

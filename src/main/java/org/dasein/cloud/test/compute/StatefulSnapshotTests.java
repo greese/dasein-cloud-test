@@ -33,6 +33,7 @@ import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -40,6 +41,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import java.util.Calendar;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -165,6 +168,24 @@ public class StatefulSnapshotTests {
         }
         else if( name.getMethodName().equals("removeSnapshot") ) {
             testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.REMOVED, true);
+            if( testSnapshotId != null ) {
+                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*5L);
+
+                while( timeout > System.currentTimeMillis() ) {
+                    try {
+                        Snapshot s = support.getSnapshot(testSnapshotId);
+
+                        if( s == null || !SnapshotState.PENDING.equals(s.getCurrentState()) ) {
+                            break;
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException ignore ) { }
+                }
+            }
         }
         else {
             testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATEFUL, true);
