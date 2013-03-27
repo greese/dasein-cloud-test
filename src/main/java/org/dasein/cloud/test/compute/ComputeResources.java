@@ -600,6 +600,7 @@ public class ComputeResources {
                             if( testVMProductId != null ) {
                                 break;
                             }
+                            options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
                             try {
                                 for( MachineImage image : imageSupport.searchPublicImages(options) ) {
                                     if( MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware()) ) {
