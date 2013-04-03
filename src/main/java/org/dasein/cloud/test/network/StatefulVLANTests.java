@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
@@ -8,6 +26,7 @@ import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
@@ -15,6 +34,7 @@ import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
+import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -76,7 +96,12 @@ public class StatefulVLANTests {
         }
         else if( name.getMethodName().equals("launchVM") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-            testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+            if( testVLANId == null ) {
+                testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+            }
+            if( testVLANId != null ) {
+                testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+            }
         }
         else if( name.getMethodName().equals("connectInternetGateway") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -217,9 +242,9 @@ public class StatefulVLANTests {
                         tm.out("New VLAN", id);
                         assertNotNull("Could not find the new VLAN in the cloud after creation", support.getVlan(id));
                     }
-                    else {
+                    else if( support.isSubscribed() ) {
                         try {
-                            resources.provisionVLAN(support, "provisionKeypair", "dnsvlan", null);
+                            resources.provisionVLAN(support, "provision", "dnsvlan", null);
                             fail("VLAN provisioning completed even though it isn't supported");
                         }
                         catch( OperationNotSupportedException expected ) {
@@ -333,9 +358,7 @@ public class StatefulVLANTests {
 
         if( services != null ) {
             support = services.getVirtualMachineSupport();
-            if( support != null ) {
-            }
-            else {
+            if( support == null ) {
                 tm.ok("No virtual machine support in " + tm.getProvider().getCloudName());
                 return;
             }
@@ -402,6 +425,23 @@ public class StatefulVLANTests {
 
             VirtualMachine vm = support.getVirtualMachine(vmId);
 
+            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE * 5L);
+
+            while( timeout > System.currentTimeMillis() ) {
+                if( vm == null ) {
+                    break;
+                }
+                if( vm.getProviderVlanId() != null ) {
+                    break;
+                }
+                if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                    break;
+                }
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+                try { vm = support.getVirtualMachine(vmId); }
+                catch( Throwable ignore ) { }
+            }
             assertNotNull("Launched VM does not exist", vm);
             tm.out("In VLAN", vm.getProviderVlanId());
             tm.out("In Subnet", vm.getProviderSubnetId());

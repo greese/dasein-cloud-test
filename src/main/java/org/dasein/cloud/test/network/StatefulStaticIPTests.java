@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
@@ -181,70 +199,67 @@ public class StatefulStaticIPTests {
                 }
             }
             else if( testVlanId != null ) {
-                testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL + "vlan", VmState.RUNNING, false, null);
-                if( testVMId == null ) {
-                    String productId = tm.getTestVMProductId();
-                    String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+                String productId = tm.getTestVMProductId();
+                String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
 
-                    if( productId != null && imageId != null ) {
-                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
-                        String vlanId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
-                        String dataCenterId = null;
+                if( productId != null && imageId != null ) {
+                    VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+                    String vlanId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
+                    String dataCenterId = null;
 
-                        if( vlanId == null ) {
-                            vlanId = testVlanId;
+                    if( vlanId == null ) {
+                        vlanId = testVlanId;
 
-                            try {
-                                @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVlanId);
+                        try {
+                            @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVlanId);
 
-                                if( vlan != null ) {
-                                    dataCenterId = vlan.getProviderDataCenterId();
-                                }
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            if( vlan != null ) {
+                                dataCenterId = vlan.getProviderDataCenterId();
                             }
                         }
-                        else {
-                            try {
-                                @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testVlanId);
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    else {
+                        try {
+                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(vlanId);
 
-                                if( subnet != null ) {
-                                    dataCenterId = subnet.getProviderDataCenterId();
-                                }
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            if( subnet != null ) {
+                                dataCenterId = subnet.getProviderDataCenterId();
                             }
                         }
-                        if( dataCenterId == null ) {
-                            try {
-                                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                                    if( dc.isActive() && dc.isAvailable() ) {
-                                        dataCenterId = dc.getProviderDataCenterId();
-                                        break;
-                                    }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    if( dataCenterId == null ) {
+                        try {
+                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                if( dc.isActive() && dc.isAvailable() ) {
+                                    dataCenterId = dc.getProviderDataCenterId();
+                                    break;
                                 }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
-                            }
                         }
-                        assert dataCenterId != null;
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                    assert dataCenterId != null;
 
-                        options.inDataCenter(dataCenterId);
-                        options.inVlan(null, dataCenterId, vlanId);
+                    options.inDataCenter(dataCenterId);
+                    options.inVlan(null, dataCenterId, vlanId);
 
-                        ComputeResources compute = DaseinTestManager.getComputeResources();
+                    ComputeResources compute = DaseinTestManager.getComputeResources();
 
-                        if( compute != null ) {
-                            try {
-                                //noinspection ConstantConditions
-                                testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
-                            }
-                            catch( Throwable ignore ) {
-                                // ignore
-                            }
+                    if( compute != null ) {
+                        try {
+                            //noinspection ConstantConditions
+                            testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
+                        }
+                        catch( Throwable t ) {
+                            tm.warn("Unable to provision test VM with VLAN/subnet=" + vlanId + " in " + dataCenterId);
                         }
                     }
                 }
@@ -253,7 +268,7 @@ public class StatefulStaticIPTests {
                         VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
 
                         testVlanId = vm.getProviderVlanId();
-                        testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, version, true, testVlanId);
+                        testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL + testVlanId, true, version, true, testVlanId);
                     }
                     catch( Throwable ignore ) {
                         // ignore
@@ -319,7 +334,7 @@ public class StatefulStaticIPTests {
         assertNotNull("Testing failed to initialize properly as there are no network resources", network);
         if( !support.isSubscribed() ) {
             try {
-                network.provisionAddress(support, "provisionKeypair", version, null);
+                network.provisionAddress(support, "provision", version, null);
                 fail("The account is supposedly not subscribed to IP address support, but a request operation completed");
             }
             catch( CloudException expected ) {
@@ -330,10 +345,10 @@ public class StatefulStaticIPTests {
             String addressId;
 
             if( !forVLAN ) {
-                addressId = network.provisionAddress(support, "provisionKeypair", version, null);
+                addressId = network.provisionAddress(support, "provision", version, null);
             }
             else {
-                addressId = network.provisionAddress(support, "provisionKeypair", version, testVlanId);
+                addressId = network.provisionAddress(support, "provision", version, testVlanId);
             }
             tm.out("New " + version + " Address", addressId);
             assertNotNull("Requesting a new IP address may not result in a null address ID", addressId);
@@ -341,10 +356,10 @@ public class StatefulStaticIPTests {
         else {
             try {
                 if( !forVLAN ) {
-                    network.provisionAddress(support, "provisionKeypair", version, null);
+                    network.provisionAddress(support, "provision", version, null);
                 }
                 else {
-                    network.provisionAddress(support, "provisionKeypair", version, UUID.randomUUID().toString());
+                    network.provisionAddress(support, "provision", version, UUID.randomUUID().toString());
                 }
                 fail("Requesting addresses of " + version + " is supposedly not supported, but the operation completed");
             }
@@ -391,8 +406,11 @@ public class StatefulStaticIPTests {
             if( !support.isSubscribed() ) {
                 tm.ok("No IP address subscription exists for this account in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
+            else if( !support.isAssignablePostLaunch(version) ) {
+                tm.ok("Unable to assign new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            }
             else if( !support.isRequestable(version) ) {
-                tm.warn("Unable to provisionKeypair new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test cannot be run");
+                tm.warn("Unable to provision new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
             else {
                 if( name.getMethodName().contains("VLAN") && !support.supportsVLANAddresses(version) ) {

@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
@@ -51,6 +69,7 @@ public class StatefulDNSTests {
 
     private DNSRecord testRecord;
     private String    testZoneId;
+    private String    testRecordName;
 
     public StatefulDNSTests() { }
 
@@ -63,6 +82,26 @@ public class StatefulDNSTests {
         }
         else if( name.getMethodName().equals("addRecord") ) {
             testZoneId = tm.getTestZoneId(DaseinTestManager.STATEFUL, true);
+            if( testZoneId != null ) {
+                NetworkServices services = tm.getProvider().getNetworkServices();
+
+                if( services != null ) {
+                    DNSSupport support = services.getDnsSupport();
+
+                    if( support != null ) {
+                        try {
+                            DNSZone zone = support.getDnsZone(testZoneId);
+
+                            if( zone != null ) {
+                                testRecordName = "dsn" + System.currentTimeMillis() + "." + zone.getDomainName();
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                }
+            }
         }
         else if( name.getMethodName().equals("removeRecord") ) {
             testZoneId = tm.getTestZoneId(DaseinTestManager.STATEFUL, true);
@@ -81,7 +120,12 @@ public class StatefulDNSTests {
                     return;
                 }
                 try {
-                    testRecord = support.addDnsRecord(testZoneId, DNSRecordType.A, "removerecord", 3600, "210.10.10.10");
+                    DNSZone zone = support.getDnsZone(testZoneId);
+
+                    if( zone != null ) {
+                        testRecordName = "dsn" + System.currentTimeMillis() + "." + zone.getDomainName();
+                    }
+                    testRecord = support.addDnsRecord(testZoneId, DNSRecordType.A, testRecordName, 3600, "210.10.10.10");
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -173,8 +217,8 @@ public class StatefulDNSTests {
             tm.ok("DNS is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testZoneId != null ) {
-            DNSRecord record = support.addDnsRecord(testZoneId, DNSRecordType.A, "addrecord", 3600, "210.10.10.10");
+        if( testZoneId != null && testRecordName != null ) {
+            DNSRecord record = support.addDnsRecord(testZoneId, DNSRecordType.A, testRecordName, 3600, "210.10.10.10");
 
             tm.out("New DNS Record", record);
             assertNotNull("No DNS record was created for the test", record);
@@ -203,7 +247,7 @@ public class StatefulDNSTests {
             tm.ok("DNS is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testZoneId != null ) {
+        if( testRecord != null ) {
             support.deleteDnsRecords(testRecord);
             boolean found = false;
 

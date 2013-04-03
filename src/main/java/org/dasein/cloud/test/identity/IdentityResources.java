@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.identity;
 
 import org.apache.log4j.Logger;
@@ -41,7 +59,9 @@ public class IdentityResources {
         this.provider = provider;
     }
 
-    public void close() {
+    public int close() {
+        int count = 0;
+
         try {
             IdentityServices identityServices = provider.getIdentityServices();
 
@@ -53,9 +73,10 @@ public class IdentityResources {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
                                 keySupport.deleteKeypair(entry.getValue());
+                                count++;
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test keypair " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -67,9 +88,10 @@ public class IdentityResources {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
                                 iamSupport.removeUser(entry.getValue());
+                                count++;
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test user " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -77,9 +99,10 @@ public class IdentityResources {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
                                 iamSupport.removeGroup(entry.getValue());
+                                count++;
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test group " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -90,15 +113,18 @@ public class IdentityResources {
             // ignore
         }
         provider.close();
+        return count;
     }
 
-    public void report() {
+    public int report() {
         boolean header = false;
+        int count = 0;
 
         testKeys.remove(DaseinTestManager.STATELESS);
         if( !testKeys.isEmpty() ) {
             logger.info("Provisioned Identity Resources:");
             header = true;
+            count += testKeys.size();
             DaseinTestManager.out(logger, null, "---> SSH Keypairs", testKeys.size() + " " + testKeys);
         }
         testGroups.remove(DaseinTestManager.STATELESS);
@@ -107,6 +133,7 @@ public class IdentityResources {
                 logger.info("Provisioned Identity Resources:");
                 header = true;
             }
+            count += testGroups.size();
             DaseinTestManager.out(logger, null, "---> Groups", testGroups.size() + " " + testGroups);
         }
         testUsers.remove(DaseinTestManager.STATELESS);
@@ -114,8 +141,10 @@ public class IdentityResources {
             if( !header ) {
                 logger.info("Provisioned Identity Resources:");
             }
+            count+= testUsers.size();
             DaseinTestManager.out(logger, null, "---> Users", testUsers.size() + " " + testUsers);
         }
+        return count;
     }
 
     public @Nullable String getTestGroupId(@Nonnull String label, boolean provisionIfNull) {

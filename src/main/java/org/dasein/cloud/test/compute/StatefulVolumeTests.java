@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.compute;
 
 import org.dasein.cloud.CloudException;
@@ -30,6 +48,7 @@ import org.junit.rules.TestName;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -103,7 +122,21 @@ public class StatefulVolumeTests {
         }
         else if( name.getMethodName().equals("attach") ) {
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            String dc = null;
+
+            if( testVMId != null ) {
+                try {
+                    VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                    if( vm != null ) {
+                        dc = vm.getProviderDataCenterId();
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, dc);
 
             if( testVolumeId != null ) {
                 try {
@@ -123,7 +156,21 @@ public class StatefulVolumeTests {
         }
         else if( name.getMethodName().equals("detach") ) {
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            String dc = null;
+
+            if( testVMId != null ) {
+                try {
+                    VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
+
+                    if( vm != null ) {
+                        dc = vm.getProviderDataCenterId();
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, dc);
 
             if( testVolumeId != null && testVMId != null ) {
                 try {
@@ -145,6 +192,20 @@ public class StatefulVolumeTests {
                                 }
                             }
                         }
+                    }
+                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        Volume volume = support.getVolume(testVolumeId);
+
+                        if( volume == null ) {
+                            break;
+                        }
+                        if( volume.getProviderVirtualMachineId() != null ) {
+                            break;
+                        }
+                        try { Thread.sleep(30000L); }
+                        catch( InterruptedException e ) { }
                     }
                 }
                 catch( Throwable ignore ) {

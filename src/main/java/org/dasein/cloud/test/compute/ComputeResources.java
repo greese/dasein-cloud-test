@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.compute;
 
 import org.apache.log4j.Logger;
@@ -76,13 +94,15 @@ public class ComputeResources {
         this.provider = provider;
     }
 
-    public void report() {
+    public int report() {
         boolean header = false;
+        int count = 0;
 
         testMachineImages.remove(DaseinTestManager.STATELESS);
         if( !testMachineImages.isEmpty() ) {
             logger.info("Provisioned Compute Resources:");
             header = true;
+            testMachineImages.size();
             DaseinTestManager.out(logger, null, "---> Machine Images", testMachineImages.size() + " " + testMachineImages);
         }
         testSnapshots.remove(DaseinTestManager.STATELESS);
@@ -91,6 +111,7 @@ public class ComputeResources {
                 logger.info("Provisioned Compute Resources:");
                 header = true;
             }
+            count += testSnapshots.size();
             DaseinTestManager.out(logger, null, "---> Snapshots", testSnapshots.size() + " " + testSnapshots);
         }
         testVMs.remove(DaseinTestManager.STATELESS);
@@ -99,6 +120,7 @@ public class ComputeResources {
                 logger.info("Provisioned Compute Resources:");
                 header = true;
             }
+            count += testVMs.size();
             DaseinTestManager.out(logger, null, "---> Virtual Machines", testVMs.size() + " " + testVMs);
         }
         testVolumes.remove(DaseinTestManager.STATELESS);
@@ -106,12 +128,15 @@ public class ComputeResources {
             if( !header ) {
                 logger.info("Provisioned Compute Resources:");
             }
+            count+= testVolumes.size();
             DaseinTestManager.out(logger, null, "---> Volumes", testVolumes.size() + " " + testVolumes);
         }
+        return count;
     }
 
-    public void close() {
+    public int close() {
         ComputeServices computeServices = provider.getComputeServices();
+        int count = 0;
 
         if( computeServices != null ) {
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
@@ -120,10 +145,18 @@ public class ComputeResources {
                 for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            vmSupport.terminate(entry.getValue());
+                            VirtualMachine vm = vmSupport.getVirtualMachine(entry.getValue());
+
+                            if( vm != null ) {
+                                vmSupport.terminate(entry.getValue());
+                                count++;
+                            }
+                            else {
+                                count++;
+                            }
                         }
-                        catch( Throwable ignore ) {
-                            // ignore
+                        catch( Throwable t ) {
+                            logger.warn("Failed to de-provision test VM " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
                 }
@@ -135,10 +168,18 @@ public class ComputeResources {
                 for( Map.Entry<String,String> entry : testMachineImages.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            imageSupport.remove(entry.getValue());
+                            MachineImage img = imageSupport.getImage(entry.getValue());
+
+                            if( img != null ) {
+                                imageSupport.remove(entry.getValue());
+                                count++;
+                            }
+                            else {
+                                count++;
+                            }
                         }
-                        catch( Throwable ignore ) {
-                            // ignore
+                        catch( Throwable t ) {
+                            logger.warn("Failed to de-provision test image " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
                 }
@@ -150,10 +191,18 @@ public class ComputeResources {
                 for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            snapshotSupport.remove(entry.getValue());
+                            Snapshot snapshot = snapshotSupport.getSnapshot(entry.getValue());
+
+                            if( snapshot != null ) {
+                                snapshotSupport.remove(entry.getValue());
+                                count++;
+                            }
+                            else {
+                                count++;
+                            }
                         }
                         catch( Throwable t ) {
-                            logger.warn("Failed to deprovision snapshot " + entry.getValue() + " post-test: " + t.getMessage());
+                            logger.warn("Failed to de-provision test snapshot " + entry.getValue() + " post-test: " + t.getMessage());
                         }
                     }
                 }
@@ -164,10 +213,14 @@ public class ComputeResources {
                 for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            volumeSupport.detach(entry.getValue(), true);
+                            Volume volume = volumeSupport.getVolume(entry.getValue());
+
+                            if( volume != null ) {
+                                volumeSupport.detach(entry.getValue(), true);
+                            }
                         }
                         catch( Throwable ignore ) {
-                            // ignore
+                            // IGNORE
                         }
                     }
                 }
@@ -176,16 +229,25 @@ public class ComputeResources {
                 for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            volumeSupport.remove(entry.getValue());
+                            Volume volume = volumeSupport.getVolume(entry.getValue());
+
+                            if( volume != null ) {
+                                volumeSupport.remove(entry.getValue());
+                                count++;
+                            }
+                            else {
+                                count++;
+                            }
                         }
-                        catch( Throwable ignore ) {
-                            // ignore
+                        catch( Throwable t ) {
+                            logger.warn("Failed to de-provision test volume " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
                 }
             }
         }
         provider.close();
+        return count;
     }
 
     private @Nullable String findStatelessSnapshot() {
@@ -312,7 +374,7 @@ public class ComputeResources {
     public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
-                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
                     if( id != null ) {
@@ -350,11 +412,20 @@ public class ComputeResources {
     public @Nullable String getTestVmId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
-                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
                     if( id != null ) {
-                        return id;
+                        try {
+                            @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(id);
+
+                            if( vm != null && !VmState.TERMINATED.equals(vm.getCurrentState()) ) {
+                                return id;
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
                     }
                 }
             }
@@ -374,7 +445,7 @@ public class ComputeResources {
                 try {
                     VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
 
-                    if( vm == null && provisionIfNull ) {
+                    if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState())) && provisionIfNull ) {
                         id = provisionVM(support, label, "Dasein Test " + label, "dsnvm", preferredDataCenterId);
                         vm = support.getVirtualMachine(id);
                     }
@@ -383,8 +454,15 @@ public class ComputeResources {
                     }
                     return id;
                 }
-                catch( Throwable ignore ) {
-                    return null;
+                catch( Throwable t ) {
+                    try {
+                        if( support.isSubscribed() ) {
+                            logger.warn("Unable to provision test virtual machine under label " + label + ": " + t.getMessage());
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
                 }
             }
         }
@@ -522,6 +600,7 @@ public class ComputeResources {
                             if( testVMProductId != null ) {
                                 break;
                             }
+                            options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
                             try {
                                 for( MachineImage image : imageSupport.searchPublicImages(options) ) {
                                     if( MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware()) ) {
@@ -675,9 +754,47 @@ public class ComputeResources {
         SnapshotCreateOptions options;
 
         if( volumeId == null ) {
-            volumeId = getTestVolumeId(label, true, null, null);
+            volumeId = getTestVolumeId(DaseinTestManager.STATEFUL + (System.currentTimeMillis()%1000), true, null, null);
             if( volumeId == null ) {
                 throw new CloudException("No volume from which to create a snapshot");
+            }
+        }
+        @SuppressWarnings("ConstantConditions") VolumeSupport vs = provider.getComputeServices().getVolumeSupport();
+
+        if( vs != null ) {
+            Volume volume = vs.getVolume(volumeId);
+
+            if( volume != null ) {
+                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+
+                while( timeout > System.currentTimeMillis() ) {
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException ignore ) { }
+                    try { volume = vs.getVolume(volumeId); }
+                    catch( Throwable ignore ) { }
+                    if( volume == null || volume.getCurrentState().equals(VolumeState.AVAILABLE) || volume.getCurrentState().equals(VolumeState.DELETED) ) {
+                        break;
+                    }
+                }
+            }
+            if( volume != null && volume.getProviderVirtualMachineId() == null && support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+                String vmId = getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, volume.getProviderDataCenterId());
+
+                if( vmId != null ) {
+                    @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmId);
+
+                    if( vm != null ) {
+                        for( String deviceId : vs.listPossibleDeviceIds(vm.getPlatform()) ) {
+                            try {
+                                vs.attach(volumeId, vmId, deviceId);
+                                break;
+                            }
+                            catch( Throwable ignore ) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
             }
         }
         options = SnapshotCreateOptions.getInstanceForCreate(volumeId, namePrefix + (System.currentTimeMillis()%10000), "Dasein Snapshot Test " + label);

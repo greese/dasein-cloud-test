@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
@@ -85,6 +103,9 @@ public class StatefulFirewallTests {
 
                 if( vlan ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                    if( testVLANId == null ) {
+                        testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+                    }
                     testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
                 }
                 else {
@@ -323,7 +344,7 @@ public class StatefulFirewallTests {
                 if( net != null ) {
                     if( support.supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
-                            String id = net.provisionFirewall("provisionKeypair", testVLANId);
+                            String id = net.provisionFirewall("provision", testVLANId);
 
                             tm.out("New VLAN Firewall", id);
                             assertNotNull("No VLAN firewall was created by this test", id);
@@ -580,7 +601,7 @@ public class StatefulFirewallTests {
             tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
             String[] fwIds = vm.getProviderFirewallIds();
 
-            assertTrue("The firewall IDs do not match", fwIds.length == 1 && fwIds[0].equals(testFirewallId));
+            assertTrue("The firewall IDs do not match the test firewall of " + testFirewallId, fwIds.length == 1 && fwIds[0].equals(testFirewallId));
         }
     }
 }

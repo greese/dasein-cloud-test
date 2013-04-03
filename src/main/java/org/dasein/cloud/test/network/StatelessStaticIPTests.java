@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
@@ -465,24 +483,32 @@ public class StatelessStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        Iterable<IpForwardingRule> rules = support.listRules(testIpAddress);
-        int count = 0;
+        if( testIpAddress != null ) {
+            Iterable<IpForwardingRule> rules = support.listRules(testIpAddress);
+            int count = 0;
 
-        for( IpForwardingRule rule : rules ) {
-            count++;
-            tm.out("Rule", rule);
-        }
-        tm.out("Total Rule Count", count);
-        if( count < 1 ) {
-            if( support.isForwarding(version) ) {
-                tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
+            for( IpForwardingRule rule : rules ) {
+                count++;
+                tm.out("Rule", rule);
             }
-            else {
-                tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
+            tm.out("Total Rule Count", count);
+            if( count < 1 ) {
+                if( support.isForwarding(version) ) {
+                    tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
+                }
+                else {
+                    tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
+                }
+            }
+            else if( !support.isForwarding(version) ) {
+                fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
             }
         }
-        else if( !support.isForwarding(version) ) {
-            fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
+        else if( support.isForwarding(version) ) {
+            fail("No test IP address exists for testing forwarding rules for " + version);
+        }
+        else {
+            tm.ok("Forwarding for " + version + " is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
         }
     }
 

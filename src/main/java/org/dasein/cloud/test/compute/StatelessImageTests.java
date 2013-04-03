@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.compute;
 
 import org.dasein.cloud.CloudException;
@@ -27,6 +45,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -39,6 +58,8 @@ import static org.junit.Assume.assumeTrue;
  * @author George Reese
  */
 public class StatelessImageTests {
+    static private final Random random = new Random();
+
     static private DaseinTestManager tm;
 
     @BeforeClass
@@ -729,8 +750,11 @@ public class StatelessImageTests {
                     assertTrue("Because public machine image libraries are not supported, the list of images should be empty", ubuntu == 0);
                 }
                 for( MachineImage image : images ) {
-                    assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Ubuntu", Platform.UBUNTU, image.getPlatform());
-                    assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
+                    // if there are more than 100 images, check only one in five
+                    if( ubuntu < 100 || random.nextInt(100) < 20 ) {
+                        assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Ubuntu", Platform.UBUNTU, image.getPlatform());
+                        assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
+                    }
                 }
 
                 images = support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.WINDOWS));
@@ -746,8 +770,11 @@ public class StatelessImageTests {
                     assertTrue("Because public machine images libraries are not supported, the list of images should be empty", windows == 0);
                 }
                 for( MachineImage image : images ) {
-                    assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Windows", Platform.WINDOWS, image.getPlatform());
-                    assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
+                    // if there are more than 100 images, check only one in five
+                    if( windows < 100 || random.nextInt(100) < 20 ) {
+                        assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Windows", Platform.WINDOWS, image.getPlatform());
+                        assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
+                    }
                 }
                 if( windows == 0 && ubuntu == 0 ) {
                     if( supported && support.supportsPublicLibrary(ImageClass.MACHINE) ) {

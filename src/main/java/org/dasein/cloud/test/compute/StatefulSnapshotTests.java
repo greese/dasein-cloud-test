@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.compute;
 
 import org.dasein.cloud.CloudException;
@@ -15,6 +33,7 @@ import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -22,6 +41,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import java.util.Calendar;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -58,6 +79,8 @@ public class StatefulSnapshotTests {
     private String testSourceRegion;
     private String testVolumeId;
 
+    static private int postfix = 1;
+
     public StatefulSnapshotTests() { }
 
     @Before
@@ -77,7 +100,7 @@ public class StatefulSnapshotTests {
                 if( support != null ) {
                     try {
                         if( support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
-                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, null);
 
                             if( vmId != null ) {
                                 @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(vmId);
@@ -139,12 +162,30 @@ public class StatefulSnapshotTests {
                     testSnapshotId = DaseinTestManager.getComputeResources().provisionSnapshot(support, "filter", "dsnfilter", null);
                 }
                 catch( Throwable t ) {
-                    tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                    tm.warn("Failed to provision test VM for snapshot filter test: " + t.getMessage());
                 }
             }
         }
         else if( name.getMethodName().equals("removeSnapshot") ) {
             testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.REMOVED, true);
+            if( testSnapshotId != null ) {
+                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*5L);
+
+                while( timeout > System.currentTimeMillis() ) {
+                    try {
+                        Snapshot s = support.getSnapshot(testSnapshotId);
+
+                        if( s == null || !SnapshotState.PENDING.equals(s.getCurrentState()) ) {
+                            break;
+                        }
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                    try { Thread.sleep(15000L); }
+                    catch( InterruptedException ignore ) { }
+                }
+            }
         }
         else {
             testSnapshotId = tm.getTestSnapshotId(DaseinTestManager.STATEFUL, true);
@@ -246,7 +287,15 @@ public class StatefulSnapshotTests {
                 tm.warn("No snapshots were listed and thus the test may be in error");
             }
             else {
-                fail("Should have found test snapshot " + testSnapshotId + ", but none were found");
+                Snapshot snapshot = support.getSnapshot(testSnapshotId);
+
+                if( snapshot == null || !snapshot.getName().contains("dsnfilter") ) {
+                    tm.warn("This cloud did not retain the snapshot meta-data, so no snapshots match");
+                    found = true; // a little hack to deal with this case
+                }
+                else {
+                    fail("Should have found test snapshot " + testSnapshotId + ", but none were found");
+                }
             }
         }
         if( testSnapshotId != null ) {

@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.platform;
 
 import org.dasein.cloud.CloudException;
@@ -7,6 +25,7 @@ import org.dasein.cloud.platform.DatabaseState;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.RelationalDatabaseSupport;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.util.CalendarWrapper;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -14,6 +33,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import javax.annotation.Nullable;
 
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -105,10 +126,21 @@ public class StatefulRDBMSTests {
             return;
         }
         if( testDatabaseId != null ) {
+            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
             Database db = support.getDatabase(testDatabaseId);
 
+            while( timeout > System.currentTimeMillis() ) {
+                if( canRemove(db) ) {
+                    break;
+                }
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+                try { db = support.getDatabase(db.getProviderDatabaseId()); }
+                catch( Throwable ignore ) { }
+            }
             assertNotNull("The test database is not found", db);
             tm.out("Before", db.getCurrentState());
+
             support.removeDatabase(testDatabaseId);
             db = support.getDatabase(testDatabaseId);
             DatabaseState s = (db == null ? DatabaseState.DELETED : db.getCurrentState());
@@ -122,6 +154,16 @@ public class StatefulRDBMSTests {
             else {
                 tm.ok("RDBMS support is not subscribed so this test is not entirely valid");
             }
+        }
+    }
+
+    private boolean canRemove(@Nullable Database db) {
+        if( db == null ) {
+            return true;
+        }
+        switch( db.getCurrentState() ) {
+            case DELETING: case DELETED: case AVAILABLE: case STORAGE_FULL: case FAILED: return true;
+            default: return false;
         }
     }
 }

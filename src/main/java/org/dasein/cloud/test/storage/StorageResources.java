@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.storage;
 
 import org.apache.log4j.Logger;
@@ -42,7 +60,9 @@ public class StorageResources {
         this.provider = provider;
     }
 
-    public void close() {
+    public int close() {
+        int count = 0;
+
         try {
             StorageServices services = provider.getStorageServices();
 
@@ -57,12 +77,20 @@ public class StorageResources {
                                 String object = entry.getValue().getObjectName();
 
                                 if( object == null ) {
-                                        continue; // not possible
+                                    continue; // not possible
                                 }
-                                support.removeObject(bucket, object);
+                                Blob blob = support.getObject(bucket, object);
+
+                                if( blob != null ) {
+                                    support.removeObject(bucket, object);
+                                    count++;
+                                }
+                                else {
+                                    count++;
+                                }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to remove test root object " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -76,10 +104,18 @@ public class StorageResources {
                                 if( object == null ) {
                                     continue; // not possible
                                 }
-                                support.removeObject(bucket, object);
+                                Blob blob = support.getObject(bucket, object);
+
+                                if( blob != null ) {
+                                    support.removeObject(bucket, object);
+                                    count++;
+                                }
+                                else {
+                                    count++;
+                                }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to remove test child object " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -97,20 +133,36 @@ public class StorageResources {
                                 else {
                                     bucket = bucket + "/" + entry.getValue().getObjectName();
                                 }
-                                support.removeBucket(bucket);
+                                Blob blob = support.getBucket(bucket);
+
+                                if( blob != null ) {
+                                    support.removeBucket(bucket);
+                                    count++;
+                                }
+                                else {
+                                    count++;
+                                }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to remove test child bucket " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
                     for( Map.Entry<String,Blob> entry : testRootBuckets.entrySet() ) {
                         if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                             try {
-                                support.removeBucket(entry.getValue().getBucketName());
+                                Blob blob = support.getBucket(entry.getValue().getBucketName());
+
+                                if( blob != null ) {
+                                    support.removeBucket(entry.getValue().getBucketName());
+                                    count++;
+                                }
+                                else {
+                                    count++;
+                                }
                             }
-                            catch( Throwable ignore ) {
-                                // ignore
+                            catch( Throwable t ) {
+                                logger.warn("Failed to remove test root bucket " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -121,15 +173,18 @@ public class StorageResources {
             // ignore
         }
         provider.close();
+        return count;
     }
 
-    public void report() {
+    public int report() {
         boolean header = false;
+        int count = 0;
 
         testRootBuckets.remove(DaseinTestManager.STATELESS);
         if( !testRootBuckets.isEmpty() ) {
             logger.info("Provisioned Storage Resources:");
             header = true;
+            count += testRootBuckets.size();
             DaseinTestManager.out(logger, null, "---> Root Buckets", testRootBuckets.size() + " " + testRootBuckets);
         }
         testRootObjects.remove(DaseinTestManager.STATELESS);
@@ -138,6 +193,7 @@ public class StorageResources {
                 logger.info("Provisioned Storage Resources:");
                 header = true;
             }
+            count += testRootObjects.size();
             DaseinTestManager.out(logger, null, "---> Root Objects", testRootObjects.size() + " " + testRootObjects);
         }
         testChildBuckets.remove(DaseinTestManager.STATELESS);
@@ -146,6 +202,7 @@ public class StorageResources {
                 logger.info("Provisioned Storage Resources:");
                 header = true;
             }
+            count += testChildBuckets.size();
             DaseinTestManager.out(logger, null, "---> Child Buckets", testChildBuckets.size() + " " + testChildBuckets);
         }
         testChildObjects.remove(DaseinTestManager.STATELESS);
@@ -153,8 +210,10 @@ public class StorageResources {
             if( !header ) {
                 logger.info("Provisioned Storage Resources:");
             }
+            count += testChildObjects.size();
             DaseinTestManager.out(logger, null, "---> Child Objects", testChildObjects.size() + " " + testChildObjects);
         }
+        return count;
     }
 
     public @Nullable Blob getTestRootBucket(@Nonnull String label, boolean provisionIfNull, @Nullable String namePrefix) {
@@ -185,8 +244,8 @@ public class StorageResources {
                     try {
                         return provisionRootBucket(support, label, namePrefix == null ? "dsnbkt" : namePrefix, false, true);
                     }
-                    catch( Throwable ignore ) {
-                        // ignore
+                    catch( Throwable t ) {
+                        logger.warn("Unable to provision root test bucket: " + t.getMessage());
                     }
                 }
             }
@@ -226,7 +285,7 @@ public class StorageResources {
                             if( parent == null ) {
                                 return null;
                             }
-                            parentBucket = parent.getObjectName();
+                            parentBucket = parent.getBucketName();
                             if( parentBucket == null ) {
                                 return null;
                             }

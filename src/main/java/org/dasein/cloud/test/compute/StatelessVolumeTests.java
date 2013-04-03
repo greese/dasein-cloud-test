@@ -1,3 +1,21 @@
+/**
+ * Copyright (C) 2009-2013 Enstratius, Inc.
+ *
+ * ====================================================================
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ * ====================================================================
+ */
+
 package org.dasein.cloud.test.compute;
 
 import org.dasein.cloud.CloudException;
@@ -228,11 +246,11 @@ public class StatelessVolumeTests {
                     assertProductContent(support, product);
                 }
                 else {
-                    if( !support.getVolumeProductRequirement().equals(Requirement.NONE) ) {
+                    if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                         fail("No test product exists for this test even though products are supported");
                     }
                     else {
-                        tm.ok("Volume products are not supported in this cloud");
+                        tm.ok("Volume products are not required in this cloud");
                     }
                 }
             }
@@ -269,7 +287,7 @@ public class StatelessVolumeTests {
                 else if( support.getVolumeProductRequirement().equals(Requirement.NONE) ) {
                     assertEquals("This cloud does not support volume products, but there's at least one product", 0, count);
                 }
-                else {
+                else if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                     assertTrue("There must be at least one product in this cloud", count > 0);
                 }
                 for( VolumeProduct product : products ) {
