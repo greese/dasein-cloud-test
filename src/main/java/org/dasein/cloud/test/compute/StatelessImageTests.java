@@ -653,7 +653,7 @@ public class StatelessImageTests {
     }
 
     @Test
-    public void findTestUbuntuOrWindowsInPrivateLibrary() throws CloudException, InternalException {
+    public void findTestUbuntuOrWindowsOrRHELInPrivateLibrary() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
@@ -682,6 +682,22 @@ public class StatelessImageTests {
                 }
                 for( MachineImage image : images ) {
                     assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Ubuntu", Platform.UBUNTU, image.getPlatform());
+                }
+
+                images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.RHEL));
+                int rhel = 0;
+
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    rhel++;
+                    tm.out("RHEL Image", image);
+                }
+                tm.out("Total RHEL Image Count", ubuntu);
+                if( !supported ) {
+                    assertTrue("Because machine images are not supported, the list of images should be empty", rhel == 0);
+                }
+                for( MachineImage image : images ) {
+                    assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not RHEL", Platform.RHEL, image.getPlatform());
                 }
 
                 images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.WINDOWS));
@@ -722,7 +738,7 @@ public class StatelessImageTests {
     }
 
     @Test
-    public void findUbuntuOrWindowsInPublicLibrary() throws CloudException, InternalException {
+    public void findUbuntuOrWindowsOrRHELInPublicLibrary() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
@@ -756,6 +772,27 @@ public class StatelessImageTests {
                         assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
                     }
                 }
+
+                images = support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.RHEL));
+                int rhel = 0;
+
+                assertNotNull("searchPublicIMages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    rhel++;
+                    tm.out("RHEL Image", image);
+                }
+                tm.out("Total Public RHEL Image Count", ubuntu);
+                if( !supported || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                    assertTrue("Because public machine image libraries are not supported, the list of images should be empty", ubuntu == 0);
+                }
+                for( MachineImage image : images ) {
+                    // if there are more than 100 images, check only one in five
+                    if( rhel < 100 || random.nextInt(100) < 20 ) {
+                        assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not RHEL", Platform.RHEL, image.getPlatform());
+                        assertTrue("The image " + image.getProviderMachineImageId() + " is actually private", support.isImageSharedWithPublic(image.getProviderMachineImageId()));
+                    }
+                }
+
 
                 images = support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.WINDOWS));
                 int windows = 0;

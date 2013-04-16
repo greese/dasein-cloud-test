@@ -26,6 +26,7 @@ import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.LbEndpointType;
 import org.dasein.cloud.network.LoadBalancer;
 import org.dasein.cloud.network.LoadBalancerEndpoint;
+import org.dasein.cloud.network.LoadBalancerState;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.test.DaseinTestManager;
@@ -689,13 +690,14 @@ public class StatefulLoadBalancerTests {
         if( testLoadBalancerId != null ) {
             LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
-            tm.out("Before", lb);
+            tm.out("Before", (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState());
             assertNotNull("The load balancer is null prior to the test", lb);
             support.removeLoadBalancer(testLoadBalancerId);
             lb = support.getLoadBalancer(testLoadBalancerId);
+            LoadBalancerState s = (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState();
 
-            tm.out("After", lb);
-            assertNull("The load balancer still exists after the test", lb);
+            tm.out("After", s);
+            assertEquals("The load balancer still exists after the test", LoadBalancerState.TERMINATED, s);
         }
         else {
             if( support.isSubscribed() ) {

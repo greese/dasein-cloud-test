@@ -564,23 +564,27 @@ public class NetworkResources {
                                     count++;
                                     continue;
                                 }
-                                for( Firewall fw : nfSupport.listFirewalls() ) {
-                                    if( fw.getProviderVlanId().equals(entry.getValue()) ) {
-                                        try {
-                                            nfSupport.removeFirewall(fw.getProviderFirewallId());
-                                        }
-                                        catch( Throwable t ) {
-                                            logger.warn("Failed to remove network firewall for test VLAN " + v + ": " + t.getMessage());
+                                if( nfSupport != null ) {
+                                    for( Firewall fw : nfSupport.listFirewalls() ) {
+                                        if( fw.getProviderVlanId().equals(entry.getValue()) ) {
+                                            try {
+                                                nfSupport.removeFirewall(fw.getProviderFirewallId());
+                                            }
+                                            catch( Throwable t ) {
+                                                logger.warn("Failed to remove network firewall for test VLAN " + v + ": " + t.getMessage());
+                                            }
                                         }
                                     }
                                 }
-                                for( Firewall fw : firewallSupport.list() ) {
-                                    if( entry.getValue().equals(fw.getProviderFirewallId()) ) {
-                                        try {
-                                            firewallSupport.delete(fw.getProviderFirewallId());
-                                        }
-                                        catch( Throwable t ) {
-                                            logger.warn("Failed to remove test VLAN firewall for VLAN " + v + ": " + t.getMessage());
+                                if( firewallSupport != null ) {
+                                    for( Firewall fw : firewallSupport.list() ) {
+                                        if( entry.getValue().equals(fw.getProviderFirewallId()) ) {
+                                            try {
+                                                firewallSupport.delete(fw.getProviderFirewallId());
+                                            }
+                                            catch( Throwable t ) {
+                                                logger.warn("Failed to remove test VLAN firewall for VLAN " + v + ": " + t.getMessage());
+                                            }
                                         }
                                     }
                                 }
@@ -1146,7 +1150,7 @@ public class NetworkResources {
                         return provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
                     }
                     catch( Throwable t ) {
-                        logger.warn("Failed to provider test subnet for " + vlanId + ": " + t.getMessage());
+                        logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
                     }
                 }
             }

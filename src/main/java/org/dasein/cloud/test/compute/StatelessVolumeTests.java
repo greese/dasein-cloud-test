@@ -287,7 +287,7 @@ public class StatelessVolumeTests {
                 else if( support.getVolumeProductRequirement().equals(Requirement.NONE) ) {
                     assertEquals("This cloud does not support volume products, but there's at least one product", 0, count);
                 }
-                else {
+                else if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                     assertTrue("There must be at least one product in this cloud", count > 0);
                 }
                 for( VolumeProduct product : products ) {

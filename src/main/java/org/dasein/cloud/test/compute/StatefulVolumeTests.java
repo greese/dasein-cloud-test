@@ -48,6 +48,7 @@ import org.junit.rules.TestName;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -191,6 +192,20 @@ public class StatefulVolumeTests {
                                 }
                             }
                         }
+                    }
+                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        Volume volume = support.getVolume(testVolumeId);
+
+                        if( volume == null ) {
+                            break;
+                        }
+                        if( volume.getProviderVirtualMachineId() != null ) {
+                            break;
+                        }
+                        try { Thread.sleep(30000L); }
+                        catch( InterruptedException e ) { }
                     }
                 }
                 catch( Throwable ignore ) {
