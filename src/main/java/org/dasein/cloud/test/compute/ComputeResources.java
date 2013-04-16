@@ -579,7 +579,7 @@ public class ComputeResources {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
                     if( currentProduct != null ) {
-                        for( Platform platform : new Platform[] { Platform.UBUNTU, Platform.CENT_OS, Platform.WINDOWS } ) {
+                        for( Platform platform : new Platform[] { Platform.UBUNTU, Platform.CENT_OS, Platform.WINDOWS, Platform.RHEL } ) {
                             ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
 
                             try {
