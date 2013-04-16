@@ -692,7 +692,7 @@ public class StatelessImageTests {
                     rhel++;
                     tm.out("RHEL Image", image);
                 }
-                tm.out("Total RHEL Image Count", ubuntu);
+                tm.out("Total RHEL Image Count", rhel);
                 if( !supported ) {
                     assertTrue("Because machine images are not supported, the list of images should be empty", rhel == 0);
                 }
@@ -781,7 +781,7 @@ public class StatelessImageTests {
                     rhel++;
                     tm.out("RHEL Image", image);
                 }
-                tm.out("Total Public RHEL Image Count", ubuntu);
+                tm.out("Total Public RHEL Image Count", rhel);
                 if( !supported || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
                     assertTrue("Because public machine image libraries are not supported, the list of images should be empty", ubuntu == 0);
                 }
