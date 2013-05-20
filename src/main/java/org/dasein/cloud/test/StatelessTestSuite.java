@@ -22,6 +22,7 @@ import org.dasein.cloud.test.cloud.StatelessAuthenticationTests;
 import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.dasein.cloud.test.compute.StatelessImageTests;
 import org.dasein.cloud.test.compute.StatelessSnapshotTests;
+import org.dasein.cloud.test.compute.StatelessVMMonitoringTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.dasein.cloud.test.identity.StatelessIAMTests;
@@ -66,7 +67,8 @@ import org.junit.runners.Suite;
         StatelessDNSTests.class,
         StatelessCDNTests.class,
         StatelessMonitoringTests.class,
-        StatelessNotificationsTests.class
+        StatelessNotificationsTests.class,
+        StatelessVMMonitoringTests.class
 })
 public class StatelessTestSuite {
 }

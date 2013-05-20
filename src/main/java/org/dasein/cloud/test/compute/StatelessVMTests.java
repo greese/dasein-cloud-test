@@ -161,8 +161,6 @@ public class StatelessVMTests {
                 tm.out("VLAN Req", r);
                 requirements.put("VLAN Requirement", r);
                 tm.out("Prevent API Termination", support.isAPITerminationPreventable());
-                tm.out("Basic Analytics", support.isBasicAnalyticsSupported());
-                tm.out("Extended Analytics", support.isExtendedAnalyticsSupported());
                 tm.out("User Data", support.isUserDataSupported());
 
                 VMScalingCapabilities capabilities = support.describeVerticalScalingCapabilities();
