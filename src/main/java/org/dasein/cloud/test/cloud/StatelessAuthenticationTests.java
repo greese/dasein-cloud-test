@@ -18,6 +18,7 @@
 
 package org.dasein.cloud.test.cloud;
 
+import junit.framework.Assert;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -69,27 +70,23 @@ public class StatelessAuthenticationTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        provider = DaseinTestManager.constructProvider();
-        ProviderContext ctx = provider.getContext();
-
-        if( ctx == null ) {
-            throw new RuntimeException("This is not possible");
-        }
         if( name.getMethodName().equals("invalidPassword") ) {
-            ctx.setAccessPrivate("ThisCannotPossiblyBeASecretKey".getBytes());
-            provider.connect(ctx);
+            provider = DaseinTestManager.constructProvider(null, null, "ThisCannotPossiblyBeASecretKey");
         }
         else if( name.getMethodName().equals("invalidAccount") ) {
-            ctx.setAccountNumber("MyWibblesAreTribbles");
-            ctx.setAccessPublic("MyWibblesAreTribbles".getBytes());
-            provider.connect(ctx);
+            provider = DaseinTestManager.constructProvider("MyWibblesAreTribbles", "MyWibblesAreTribbles", null);
         }
         else if( name.getMethodName().equals("reconnect") ) {
-            provider.connect(ctx);
+            provider = DaseinTestManager.constructProvider();
+            ProviderContext ctx = provider.getContext();
 
+            Assert.assertNotNull("Context cannot be null at this point", ctx);
             String id = provider.testContext();
 
             ctx.setAccountNumber(id);
+        }
+        else {
+            provider = DaseinTestManager.constructProvider();
         }
     }
 

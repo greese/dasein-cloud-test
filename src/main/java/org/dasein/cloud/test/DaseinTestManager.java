@@ -80,6 +80,10 @@ public class DaseinTestManager {
     static private long testStart;
 
     static public @Nonnull CloudProvider constructProvider() {
+        return constructProvider(null, null, null);
+    }
+
+    static public @Nonnull CloudProvider constructProvider(@Nullable String overrideAccount, @Nullable String overrideShared, @Nullable String overrideSecret) {
         String cname = System.getProperty("providerClass");
         CloudProvider provider;
 
@@ -97,15 +101,15 @@ public class DaseinTestManager {
         try {
             String prop;
 
-            prop = System.getProperty("accountNumber");
+            prop = overrideAccount == null ? System.getProperty("accountNumber") : overrideAccount;
             if( prop != null ) {
                 ctx.setAccountNumber(prop);
             }
-            prop = System.getProperty("accessPublic");
+            prop = overrideShared == null ? System.getProperty("accessPublic") : overrideShared;
             if( prop != null ) {
                 ctx.setAccessPublic(prop.getBytes("utf-8"));
             }
-            prop = System.getProperty("accessPrivate");
+            prop = overrideSecret == null ? System.getProperty("accessPrivate") : overrideSecret;
             if( prop != null ) {
                 ctx.setAccessPrivate(prop.getBytes("utf-8"));
             }
