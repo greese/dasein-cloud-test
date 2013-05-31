@@ -556,6 +556,10 @@ public class DaseinTestManager {
         return (platformResources == null ? null : platformResources.getTestTopicId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestTopologyId(@Nonnull String label, boolean provisionIfNull) {
+        return (computeResources == null ? null : computeResources.getTestTopologyId(label, provisionIfNull));
+    }
+
     public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredGroupId) {
         return (identityResources == null ? null : identityResources.getTestUserId(label, provisionIfNull, preferredGroupId));
     }

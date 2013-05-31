@@ -38,6 +38,9 @@ import org.dasein.cloud.compute.Snapshot;
 import org.dasein.cloud.compute.SnapshotCreateOptions;
 import org.dasein.cloud.compute.SnapshotState;
 import org.dasein.cloud.compute.SnapshotSupport;
+import org.dasein.cloud.compute.Topology;
+import org.dasein.cloud.compute.TopologyState;
+import org.dasein.cloud.compute.TopologySupport;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineProduct;
@@ -82,6 +85,7 @@ public class ComputeResources {
 
     private final HashMap<String,String> testMachineImages = new HashMap<String,String>();
     private final HashMap<String,String> testSnapshots     = new HashMap<String, String>();
+    private final HashMap<String,String> testTopologies    = new HashMap<String, String>();
     private final HashMap<String,String> testVMs           = new HashMap<String, String>();
     private final HashMap<String,String> testVolumes       = new HashMap<String, String>();
 
@@ -286,6 +290,40 @@ public class ComputeResources {
         return null;
     }
 
+    private @Nullable String findStatelessTopology() {
+        ComputeServices computeServices = provider.getComputeServices();
+
+        if( computeServices != null ) {
+            TopologySupport support = computeServices.getTopologySupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Topology defaultTopology = null;
+
+                    for( Topology t : support.listTopologies(null) ) {
+                        if( t.getCurrentState().equals(TopologyState.ACTIVE) ) {
+                            defaultTopology = t;
+                            break;
+                        }
+                        if( defaultTopology == null ) {
+                            defaultTopology = t;
+                        }
+                    }
+                    if( defaultTopology != null ) {
+                        String id = defaultTopology.getProviderTopologyId();
+
+                        testTopologies.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
     public @Nullable String getTestDataCenterId(boolean stateless) {
         if( testDataCenterId != null ) {
             return testDataCenterId;
@@ -400,6 +438,45 @@ public class ComputeResources {
             if( support != null ) {
                 try {
                     return provisionSnapshot(support, label, "dsnsnap" + (System.currentTimeMillis()%10000), null);
+                }
+                catch( Throwable ignore ) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String getTestTopologyId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testTopologies.entrySet() ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessTopology();
+        }
+        String id = testTopologies.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( !provisionIfNull ) {
+            return null;
+        }
+        ComputeServices services = provider.getComputeServices();
+
+        if( services != null ) {
+            TopologySupport support = services.getTopologySupport();
+
+            if( support != null ) {
+                try {
+                    // TODO: when support for creating topologies is implemented, use this
+                    return null;
                 }
                 catch( Throwable ignore ) {
                     return null;

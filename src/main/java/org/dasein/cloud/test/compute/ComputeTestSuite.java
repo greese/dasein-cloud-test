@@ -40,7 +40,8 @@ import org.junit.runners.Suite;
         StatelessImageTests.class,
         StatelessVolumeTests.class,
         StatelessSnapshotTests.class,
-        StatelessVMMonitoringTests.class
+        StatelessVMMonitoringTests.class,
+        StatelessTopologyTests.class
 })
 public class ComputeTestSuite {
     @BeforeClass
