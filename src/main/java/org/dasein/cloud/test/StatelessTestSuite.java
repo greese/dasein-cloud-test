@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +23,7 @@ import org.dasein.cloud.test.cloud.StatelessAuthenticationTests;
 import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.dasein.cloud.test.compute.StatelessImageTests;
 import org.dasein.cloud.test.compute.StatelessSnapshotTests;
-import org.dasein.cloud.test.compute.StatelessTopologyTests;
+import org.dasein.cloud.test.ci.StatelessTopologyTests;
 import org.dasein.cloud.test.compute.StatelessVMMonitoringTests;
 import org.dasein.cloud.test.compute.StatelessVMTests;
 import org.dasein.cloud.test.compute.StatelessVolumeTests;

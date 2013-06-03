@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -29,6 +30,7 @@ import org.dasein.cloud.network.IPVersion;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.storage.Blob;
+import org.dasein.cloud.test.ci.CIResources;
 import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
@@ -66,6 +68,7 @@ public class DaseinTestManager {
 
     static private HashMap<String,Integer> apiAudit = new HashMap<String, Integer>();
 
+    static private CIResources       ciResources;
     static private ComputeResources  computeResources;
     static private TreeSet<String>   exclusions;
     static private IdentityResources identityResources;
@@ -218,6 +221,7 @@ public class DaseinTestManager {
             platformResources = new PlatformResources(constructProvider());
             networkResources = new NetworkResources(constructProvider());
             identityResources = new IdentityResources(constructProvider());
+            ciResources = new CIResources(constructProvider());
             computeResources = new ComputeResources(constructProvider());
             computeResources.init();
 
@@ -268,6 +272,12 @@ public class DaseinTestManager {
         logger.info("BEGIN Test Clean Up ------------------------------------------------------------------------------");
         try {
             APITrace.report("Clean Up");
+            if( ciResources != null ) {
+                int count = ciResources.close();
+
+                out(logger, null, "CI Resources", String.valueOf(count));
+                cleaned += count;
+            }
             if( computeResources != null ) {
                 int count = computeResources.close();
 
@@ -321,6 +331,9 @@ public class DaseinTestManager {
         logger.info("----------- Provisioning Log ----------");
         if( computeResources != null ) {
             provisioned += computeResources.report();
+        }
+        if( ciResources != null ) {
+            provisioned += ciResources.report();
         }
         if( identityResources != null ) {
             provisioned += identityResources.report();
@@ -557,7 +570,7 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestTopologyId(@Nonnull String label, boolean provisionIfNull) {
-        return (computeResources == null ? null : computeResources.getTestTopologyId(label, provisionIfNull));
+        return (ciResources == null ? null : ciResources.getTestTopologyId(label, provisionIfNull));
     }
 
     public @Nullable String getTestUserId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredGroupId) {
