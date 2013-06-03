@@ -36,7 +36,6 @@ import org.junit.rules.TestName;
 import javax.annotation.Nonnull;
 import java.util.Date;
 import java.util.Map;
-import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.Assert.assertNotNull;
@@ -54,8 +53,6 @@ import static org.junit.Assume.assumeTrue;
  * @since 2013.07
  */
 public class StatelessTopologyTests {
-    static private final Random random = new Random();
-
     static private DaseinTestManager tm;
 
     @BeforeClass
