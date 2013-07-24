@@ -29,6 +29,9 @@ import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.DatabaseState;
 import org.dasein.cloud.platform.Distribution;
+import org.dasein.cloud.platform.MQCreateOptions;
+import org.dasein.cloud.platform.MQSupport;
+import org.dasein.cloud.platform.MessageQueue;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.PushNotificationSupport;
 import org.dasein.cloud.platform.RelationalDatabaseSupport;
@@ -55,6 +58,7 @@ import java.util.concurrent.Future;
  * <p>Created by George Reese: 2/18/13 10:16 AM</p>
  * @author George Reese
  * @version 2013.04 initial version
+ * @version 2013.07 updated for message queue services support (issue #6)
  * @since 2013.04
  */
 public class PlatformResources {
@@ -63,6 +67,7 @@ public class PlatformResources {
     static private final Random random = new Random();
 
     private final HashMap<String,String> testCDNs   = new HashMap<String, String>();
+    private final HashMap<String,String> testQueues = new HashMap<String, String>();
     private final HashMap<String,String> testRDBMS  = new HashMap<String, String>();
     private final HashMap<String,String> testTopics = new HashMap<String, String>();
 
@@ -110,6 +115,29 @@ public class PlatformResources {
                             }
                             catch( Throwable t ) {
                                 logger.warn("Failed to de-provision test CDN " + entry.getValue() + ": " + t.getMessage());
+                            }
+                        }
+                    }
+                }
+
+                MQSupport mqSupport = services.getMessageQueueSupport();
+
+                if( mqSupport != null ) {
+                    for( Map.Entry<String,String> entry : testQueues.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                            try {
+                                MessageQueue mq = mqSupport.getMessageQueue(entry.getValue());
+
+                                if( mq != null ) {
+                                    mqSupport.removeMessageQueue(mq.getProviderMessageQueueId(), "Dasein Cloud test clean-up");
+                                    count++;
+                                }
+                                else {
+                                    count++;
+                                }
+                            }
+                            catch( Throwable t ) {
+                                logger.warn("Failed to de-provision test message queue " + entry.getValue() + ": " + t.getMessage());
                             }
                         }
                     }
@@ -226,6 +254,15 @@ public class PlatformResources {
             count += testCDNs.size();
             DaseinTestManager.out(logger, null, "---> CDN Distributions", testCDNs.size() + " " + testCDNs);
         }
+        testQueues.remove(DaseinTestManager.STATELESS);
+        if( !testQueues.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Platform Resources:");
+                header = true;
+            }
+            count += testQueues.size();
+            DaseinTestManager.out(logger, null, "---> Message Queues", testQueues.size() + " " + testQueues);
+        }
         testTopics.remove(DaseinTestManager.STATELESS);
         if( !testTopics.isEmpty() ) {
             if( !header ) {
@@ -274,6 +311,43 @@ public class PlatformResources {
         return null;
     }
 
+
+    public @Nullable String getTestQueueId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testQueues.entrySet() ) {
+                if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessMQ();
+        }
+        String id = testQueues.get(label);
+
+        if( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            PlatformServices services = provider.getPlatformServices();
+
+            if( services != null ) {
+                MQSupport mqSupport = services.getMessageQueueSupport();
+
+                if( mqSupport != null ) {
+                    try {
+                        return provisionMQ(mqSupport, label, "dsnmq");
+                    }
+                    catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
 
     public @Nullable String getTestRDBMSId(@Nonnull String label, boolean provisionIfNull, @Nullable DatabaseEngine engine) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
@@ -374,6 +448,31 @@ public class PlatformResources {
         return null;
     }
 
+    public @Nullable String findStatelessMQ() {
+        PlatformServices services = provider.getPlatformServices();
+
+        if( services != null ) {
+            MQSupport mqSupport = services.getMessageQueueSupport();
+
+            try {
+                if( mqSupport != null && mqSupport.isSubscribed() ) {
+                    Iterator<MessageQueue> queues = mqSupport.listMessageQueues().iterator();
+
+                    if( queues.hasNext() ) {
+                        String id = queues.next().getProviderMessageQueueId();
+
+                        testQueues.put(DaseinTestManager.STATELESS, id);
+                        return id;
+                    }
+                }
+            }
+            catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+    }
+
     public @Nullable String findStatelessRDBMS() {
         PlatformServices services = provider.getPlatformServices();
 
@@ -446,6 +545,21 @@ public class PlatformResources {
                 label = label + random.nextInt(9);
             }
             testCDNs.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionMQ(@Nonnull MQSupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+        MQCreateOptions options = MQCreateOptions.getInstance(namePrefix + (System.currentTimeMillis()%10000), "Test MQ auto-provisioned by Dasein Cloud integration tests");
+        String id;
+
+
+        id = support.createMessageQueue(options);
+        synchronized( testQueues ) {
+            while( testQueues.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testQueues.put(label, id);
         }
         return id;
     }
