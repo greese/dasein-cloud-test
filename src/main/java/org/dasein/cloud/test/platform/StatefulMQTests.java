@@ -1,11 +1,14 @@
 package org.dasein.cloud.test.platform;
 
+import org.dasein.cloud.CloudException;
+import org.dasein.cloud.InternalException;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
+import org.junit.Test;
 import org.junit.rules.TestName;
 
 import static org.junit.Assume.assumeTrue;
@@ -43,10 +46,10 @@ public class StatefulMQTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if( name.getMethodName().equals("removeMessageQueue") ) {
+        if( name.getMethodName().equalsIgnoreCase("removeMessageQueue") ) {
             testQueueId = tm.getTestQueueId(DaseinTestManager.REMOVED, true);
         }
-        else {
+        else if( !name.getMethodName().equalsIgnoreCase("createMessageQueue") ) {
             testQueueId = tm.getTestQueueId(DaseinTestManager.STATEFUL, true);
         }
     }
@@ -59,5 +62,30 @@ public class StatefulMQTests {
         finally {
             tm.end();
         }
+    }
+
+    @Test
+    public void createMessageQueue() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void removeMessageQueue() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void sendMessage() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void receiveMessage() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void receiveMessages() throws CloudException, InternalException {
+        // TODO: implement me
     }
 }
