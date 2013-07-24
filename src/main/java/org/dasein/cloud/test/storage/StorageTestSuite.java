@@ -37,7 +37,9 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulObjectStoreTests.class,
-        StatelessObjectStoreTests.class
+        StatefulOfflineStoreTests.class,
+        StatelessObjectStoreTests.class,
+        StatelessOfflineStoreTests.class
 })
 public class StorageTestSuite {
   @BeforeClass
