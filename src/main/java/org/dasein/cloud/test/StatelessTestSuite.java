@@ -40,6 +40,7 @@ import org.dasein.cloud.test.platform.StatelessMonitoringTests;
 import org.dasein.cloud.test.platform.StatelessNotificationsTests;
 import org.dasein.cloud.test.platform.StatelessRDBMSTests;
 import org.dasein.cloud.test.storage.StatelessObjectStoreTests;
+import org.dasein.cloud.test.storage.StatelessOfflineStoreTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -52,6 +53,7 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatelessObjectStoreTests.class,
+        StatelessOfflineStoreTests.class,
         StatelessAuthenticationTests.class,
         StatelessDCTests.class,
         StatelessVMTests.class,
