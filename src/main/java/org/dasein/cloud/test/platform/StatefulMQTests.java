@@ -21,8 +21,6 @@ package org.dasein.cloud.test.platform;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.platform.MonitoringSupport;
-import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -35,17 +33,18 @@ import org.junit.rules.TestName;
 import static org.junit.Assume.assumeTrue;
 
 /**
- * [Class Documentation]
- * <p>Created by George Reese: 3/6/13 3:04 AM</p>
- *
+ * Implements integration testing for stateful operations against cloud message queue services.
+ * <p>Created by George Reese: 7/24/13 10:32 AM</p>
  * @author George Reese
+ * @version 2013.07 initial version (issue #6)
+ * @since 2013.07
  */
-public class StatelessMonitoringTests {
+public class StatefulMQTests {
     static private DaseinTestManager tm;
 
     @BeforeClass
     static public void configure() {
-        tm = new DaseinTestManager(StatelessMonitoringTests.class);
+        tm = new DaseinTestManager(StatefulMQTests.class);
     }
 
     @AfterClass
@@ -58,33 +57,54 @@ public class StatelessMonitoringTests {
     @Rule
     public final TestName name = new TestName();
 
-    public StatelessMonitoringTests() { }
+    private String testQueueId;
+
+    public StatefulMQTests() { }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        if( name.getMethodName().equalsIgnoreCase("removeMessageQueue") ) {
+            testQueueId = tm.getTestQueueId(DaseinTestManager.REMOVED, true);
+        }
+        else if( !name.getMethodName().equalsIgnoreCase("createMessageQueue") ) {
+            testQueueId = tm.getTestQueueId(DaseinTestManager.STATEFUL, true);
+        }
     }
 
     @After
     public void after() {
-        tm.end();
+        try {
+            testQueueId = null;
+        }
+        finally {
+            tm.end();
+        }
     }
 
     @Test
-    public void checkMetaData() throws CloudException, InternalException {
-        PlatformServices services = tm.getProvider().getPlatformServices();
+    public void createMessageQueue() throws CloudException, InternalException {
+        // TODO: implement me
+    }
 
-        if( services == null ) {
-            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        MonitoringSupport support = services.getMonitoringSupport();
+    @Test
+    public void removeMessageQueue() throws CloudException, InternalException {
+        // TODO: implement me
+    }
 
-        if( support == null ) {
-            tm.ok("Monitoring services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        tm.out("Subscribed", support.isSubscribed());
+    @Test
+    public void sendMessage() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void receiveMessage() throws CloudException, InternalException {
+        // TODO: implement me
+    }
+
+    @Test
+    public void receiveMessages() throws CloudException, InternalException {
+        // TODO: implement me
     }
 }

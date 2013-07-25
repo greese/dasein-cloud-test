@@ -17,8 +17,18 @@
  * ====================================================================
  */
 
-package org.dasein.cloud.test;
+package org.dasein.cloud.test.ci;
 
+import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.compute.StatefulImageTests;
+import org.dasein.cloud.test.compute.StatefulSnapshotTests;
+import org.dasein.cloud.test.compute.StatefulVMTests;
+import org.dasein.cloud.test.compute.StatefulVolumeTests;
+import org.dasein.cloud.test.compute.StatelessImageTests;
+import org.dasein.cloud.test.compute.StatelessSnapshotTests;
+import org.dasein.cloud.test.compute.StatelessVMMonitoringTests;
+import org.dasein.cloud.test.compute.StatelessVMTests;
+import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -26,13 +36,13 @@ import org.junit.runners.Suite;
 
 /**
  * [Class Documentation]
- * <p>Created by George Reese: 2/17/13 7:38 PM</p>
- *
  * @author George Reese
  */
 @RunWith(Suite.class)
-@Suite.SuiteClasses({ StatefulTestSuite.class, StatelessTestSuite.class })
-public class GlobalTestSuite {
+@Suite.SuiteClasses({
+        StatelessTopologyTests.class
+})
+public class CITestSuite {
     @BeforeClass
     static public void setup() {
         DaseinTestManager.init();

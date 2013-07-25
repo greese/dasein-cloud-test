@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -102,7 +103,7 @@ public class ComputeResources {
         if( !testMachineImages.isEmpty() ) {
             logger.info("Provisioned Compute Resources:");
             header = true;
-            testMachineImages.size();
+            count += testMachineImages.size();
             DaseinTestManager.out(logger, null, "---> Machine Images", testMachineImages.size() + " " + testMachineImages);
         }
         testSnapshots.remove(DaseinTestManager.STATELESS);
@@ -939,7 +940,7 @@ public class ComputeResources {
         String name = namePrefix + " " + now;
         String host = hostPrefix + (now%10000);
 
-        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud"), preferredDataCenter);
+        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter);
     }
 
     public @Nonnull String provisionVolume(@Nonnull VolumeSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) throws CloudException, InternalException {

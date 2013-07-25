@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,6 +36,7 @@ import org.dasein.cloud.test.network.StatefulVLANTests;
 import org.dasein.cloud.test.platform.StatefulNotificationsTests;
 import org.dasein.cloud.test.platform.StatefulRDBMSTests;
 import org.dasein.cloud.test.storage.StatefulObjectStoreTests;
+import org.dasein.cloud.test.storage.StatefulOfflineStoreTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -47,6 +49,7 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulObjectStoreTests.class,
+        StatefulOfflineStoreTests.class,
         StatefulVMTests.class,
         StatefulKeypairTests.class,
         StatefulImageTests.class,

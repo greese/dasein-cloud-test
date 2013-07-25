@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +20,7 @@
 package org.dasein.cloud.test.compute;
 
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.ci.StatelessTopologyTests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -39,7 +41,8 @@ import org.junit.runners.Suite;
         StatelessVMTests.class,
         StatelessImageTests.class,
         StatelessVolumeTests.class,
-        StatelessSnapshotTests.class
+        StatelessSnapshotTests.class,
+        StatelessVMMonitoringTests.class
 })
 public class ComputeTestSuite {
     @BeforeClass

@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +19,7 @@
 
 package org.dasein.cloud.test.network;
 
+import junit.framework.Assert;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
@@ -35,6 +37,7 @@ import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Permission;
 import org.dasein.cloud.network.Protocol;
 import org.dasein.cloud.network.RuleTarget;
+import org.dasein.cloud.network.RuleTargetType;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.test.DaseinTestManager;
@@ -47,6 +50,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import javax.annotation.Nonnull;
 import java.util.Arrays;
 import java.util.UUID;
 
@@ -144,30 +148,35 @@ public class StatefulFirewallTests {
                         Direction direction = null;
                         int p = port++;
 
-                        if( name.getMethodName().endsWith("IngressAllow") ) {
+                        if( name.getMethodName().contains("IngressAllow") ) {
                             direction = Direction.INGRESS;
                             permission = Permission.ALLOW;
                         }
-                        else if( name.getMethodName().endsWith("IngressDeny") ) {
+                        else if( name.getMethodName().contains("IngressDeny") ) {
                             direction = Direction.INGRESS;
                             permission = Permission.DENY;
                         }
-                        else if( name.getMethodName().endsWith("EgressAllow") ) {
+                        else if( name.getMethodName().contains("EgressAllow") ) {
                             direction = Direction.EGRESS;
                             permission = Permission.ALLOW;
                         }
-                        else if( name.getMethodName().endsWith("EgressDeny") ) {
+                        else if( name.getMethodName().contains("EgressDeny") ) {
                             direction = Direction.EGRESS;
                             permission = Permission.DENY;
                         }
                         if( direction != null && permission != null ) {
+                            RuleTargetType type = RuleTargetType.CIDR;
+
+                            if( name.getMethodName().contains("Global") ) {
+                                type = RuleTargetType.GLOBAL;
+                            }
                             if( direction.equals(Direction.INGRESS) ) {
-                                source = RuleTarget.getCIDR("209.98.98.98/32");
+                                source = getRandomEndpoint(type);
                                 destination = RuleTarget.getGlobal(testFirewallId);
                             }
                             else {
                                 source = RuleTarget.getGlobal(testFirewallId);
-                                destination = RuleTarget.getCIDR("209.98.98.98/32");
+                                destination = getRandomEndpoint(type);
                             }
                             try {
                                 testRuleId = support.authorize(testFirewallId, direction, permission, source, Protocol.TCP, destination, p, p, 0);
@@ -194,7 +203,23 @@ public class StatefulFirewallTests {
         }
     }
 
-    private void checkAddRule(Direction direction, Permission permission, boolean vlanTest) throws CloudException, InternalException {
+    private @Nonnull RuleTarget getRandomEndpoint(@Nonnull RuleTargetType type) {
+        switch( type ) {
+            case CIDR:
+                return RuleTarget.getCIDR("209.98.98.98/32");
+            case GLOBAL:
+                String id = tm.getTestAnyFirewallId("endpoint", true);
+
+                if( id != null ) {
+                    return RuleTarget.getGlobal(id);
+                }
+                break;
+        }
+        fail("Unable to generate an appropriate endpoint type");
+        return null;
+    }
+
+    private void checkAddRule(Direction direction, Permission permission, boolean vlanTest, RuleTargetType type) throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services == null ) {
@@ -225,12 +250,35 @@ public class StatefulFirewallTests {
         RuleTarget sourceEndpoint, destinationEndpoint;
 
         if( direction.equals(Direction.INGRESS) ) {
-            sourceEndpoint = RuleTarget.getCIDR("209.98.98.98/32");
+            sourceEndpoint = getRandomEndpoint(type);
             destinationEndpoint = RuleTarget.getGlobal(testFirewallId);
         }
         else {
-            destinationEndpoint = RuleTarget.getCIDR("209.98.98.98/32");
+            destinationEndpoint = getRandomEndpoint(type);
             sourceEndpoint = RuleTarget.getGlobal(testFirewallId);
+        }
+        boolean supported = false;
+
+        for( RuleTargetType t : support.listSupportedSourceTypes(vlanTest) ) {
+            if( t.equals(sourceEndpoint.getRuleTargetType()) ) {
+                supported = true;
+                break;
+            }
+        }
+        if( !supported ) {
+            tm.ok("Source type " + sourceEndpoint.getRuleTargetType() + " is not supported");
+            return;
+        }
+        supported = false;
+        for( RuleTargetType t : support.listSupportedDestinationTypes(vlanTest) ) {
+            if( t.equals(destinationEndpoint.getRuleTargetType()) ) {
+                supported = true;
+                break;
+            }
+        }
+        if( !supported ) {
+            tm.ok("Destination type " + destinationEndpoint.getRuleTargetType() + " is not supported");
+            return;
         }
         if( support.supportsRules(direction, permission, vlanTest) ) {
             String ruleId = support.authorize(testFirewallId, direction, permission, sourceEndpoint, Protocol.TCP, destinationEndpoint, p, p, 0);
@@ -257,7 +305,7 @@ public class StatefulFirewallTests {
         }
     }
 
-    private void checkRemoveRule(Direction direction, Permission permission, boolean vlanTest) throws CloudException, InternalException {
+    private void checkRemoveRule(Direction direction, Permission permission, boolean vlanTest, boolean oldStyle) throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services == null ) {
@@ -273,17 +321,77 @@ public class StatefulFirewallTests {
         }
         if( testRuleId == null ) {
             if( support.supportsRules(direction, permission, vlanTest) ) {
-                fail("No test rule exists even though these type of rules are supported");
+                RuleTargetType type = RuleTargetType.CIDR;
+
+                if( name.getMethodName().contains("Global") ) {
+                    type = RuleTargetType.GLOBAL;
+                }
+                boolean supported = false;
+
+                if( direction.equals(Direction.INGRESS) ) {
+                    for( RuleTargetType t : support.listSupportedSourceTypes(vlanTest) ) {
+                        if( t.equals(type) ) {
+                            supported = true;
+                            break;
+                        }
+                    }
+                }
+                else {
+                    for( RuleTargetType t : support.listSupportedDestinationTypes(vlanTest) ) {
+                        if( t.equals(type) ) {
+                            supported = true;
+                            break;
+                        }
+                    }
+                }
+                if( supported ) {
+                    fail("No test rule exists even though these type of rules are supported");
+                }
+                else {
+                    tm.ok("Rule targe type " + type + " is not supported");
+                    return;
+                }
             }
             else {
                 tm.ok("Rule type not supported");
                 return;
             }
         }
-        support.revoke(testRuleId);
+        if( !oldStyle ) {
+            support.revoke(testRuleId);
+        }
+        else {
+            FirewallRule test = null;
+
+            for( FirewallRule rule : support.getRules(testFirewallId) ) {
+                if( rule.getProviderRuleId().equals(testRuleId) ) {
+                    test = rule;
+                    break;
+                }
+            }
+            assertNotNull("Test firewall rule cannot be found for " + testRuleId, test);
+            if( direction.equals(Direction.INGRESS) ) {
+                //noinspection deprecation
+                support.revoke(testFirewallId, direction, permission, test.getSource(), test.getProtocol(), test.getDestinationEndpoint(), test.getStartPort(), test.getEndPort());
+            }
+            else {
+                RuleTarget dest = test.getDestinationEndpoint();
+                String source = null;
+
+                switch( dest.getRuleTargetType() ) {
+                    case CIDR: source = dest.getCidr(); break;
+                    case GLOBAL: source = dest.getProviderFirewallId(); break;
+                    case VLAN: source = dest.getProviderVlanId(); break;
+                    case VM: source = dest.getProviderVirtualMachineId(); break;
+                }
+                Assert.assertNotNull("Unknown target type: " + dest.getRuleTargetType(), source);
+                support.revoke(testFirewallId, direction, permission, source, test.getProtocol(), test.getSourceEndpoint(), test.getStartPort(), test.getEndPort());
+            }
+        }
         boolean found = false;
         for( FirewallRule rule : support.getRules(testFirewallId) ) {
             if( rule.getProviderRuleId().equals(testRuleId) ) {
+                System.out.println("Rule " + rule + " is still there");
                 found = true;
             }
         }
@@ -380,82 +488,168 @@ public class StatefulFirewallTests {
 
     @Test
     public void addGeneralIngressAllow() throws CloudException, InternalException {
-        checkAddRule(Direction.INGRESS, Permission.ALLOW, false);
+        checkAddRule(Direction.INGRESS, Permission.ALLOW, false, RuleTargetType.CIDR);
     }
 
     @Test
     public void addGeneralIngressDeny() throws CloudException, InternalException {
-        checkAddRule(Direction.INGRESS, Permission.DENY, false);
+        checkAddRule(Direction.INGRESS, Permission.DENY, false, RuleTargetType.CIDR);
     }
 
     @Test
     public void addGeneralEgressAllow() throws CloudException, InternalException {
-        checkAddRule(Direction.EGRESS, Permission.ALLOW, false);
+        checkAddRule(Direction.EGRESS, Permission.ALLOW, false, RuleTargetType.CIDR);
     }
 
     @Test
     public void addGeneralEgressDeny() throws CloudException, InternalException {
-        checkAddRule(Direction.EGRESS, Permission.DENY, false);
+        checkAddRule(Direction.EGRESS, Permission.DENY, false, RuleTargetType.CIDR);
     }
 
     @Test
     public void addVLANIngressAllow() throws CloudException, InternalException {
-        checkAddRule(Direction.INGRESS, Permission.ALLOW, true);
+        checkAddRule(Direction.INGRESS, Permission.ALLOW, true, RuleTargetType.CIDR);
     }
 
     @Test
     public void addVLANIngressDeny() throws CloudException, InternalException {
-        checkAddRule(Direction.INGRESS, Permission.DENY, true);
+        checkAddRule(Direction.INGRESS, Permission.DENY, true, RuleTargetType.CIDR);
     }
 
     @Test
     public void addVLANEgressAllow() throws CloudException, InternalException {
-        checkAddRule(Direction.EGRESS, Permission.ALLOW, true);
+        checkAddRule(Direction.EGRESS, Permission.ALLOW, true, RuleTargetType.CIDR);
     }
 
     @Test
     public void addVLANEgressDeny() throws CloudException, InternalException {
-        checkAddRule(Direction.EGRESS, Permission.DENY, true);
+        checkAddRule(Direction.EGRESS, Permission.DENY, true, RuleTargetType.CIDR);
+    }
+
+    @Test
+    public void addGeneralIngressAllowGlobal() throws CloudException, InternalException {
+        checkAddRule(Direction.INGRESS, Permission.ALLOW, false, RuleTargetType.GLOBAL);
     }
 
     @Test
     public void revokeGeneralIngressAllow() throws CloudException, InternalException {
-        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, false);
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, false, false);
     }
 
     @Test
     public void revokeGeneralIngressDeny() throws CloudException, InternalException {
-        checkRemoveRule(Direction.INGRESS, Permission.DENY, false);
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, false, false);
     }
 
     @Test
     public void revokeGeneralEgressAllow() throws CloudException, InternalException {
-        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, false);
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, false, false);
     }
 
     @Test
     public void revokeGeneralEgressDeny() throws CloudException, InternalException {
-        checkRemoveRule(Direction.EGRESS, Permission.DENY, false);
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, false, false);
     }
 
     @Test
     public void revokeVLANIngressAllow() throws CloudException, InternalException {
-        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, true);
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, true, false);
     }
 
     @Test
     public void revokeVLANIngressDeny() throws CloudException, InternalException {
-        checkRemoveRule(Direction.INGRESS, Permission.DENY, true);
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, true, false);
     }
 
     @Test
     public void revokeVLANEgressAllow() throws CloudException, InternalException {
-        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, true);
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, true, false);
     }
 
     @Test
     public void revokeVLANEgressDeny() throws CloudException, InternalException {
-        checkRemoveRule(Direction.EGRESS, Permission.DENY, true);
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, true, false);
+    }
+
+
+    @Test
+    public void revokeGeneralIngressAllowOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, false, true);
+    }
+
+    @Test
+    public void revokeGeneralIngressDenyOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, false, true);
+    }
+
+    @Test
+    public void revokeGeneralEgressAllowOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, false, true);
+    }
+
+    @Test
+    public void revokeGeneralEgressDenyOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, false, true);
+    }
+
+    @Test
+    public void revokeVLANIngressAllowOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, true, true);
+    }
+
+    @Test
+    public void revokeVLANIngressDenyOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, true, true);
+    }
+
+    @Test
+    public void revokeVLANEgressAllowOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, true, true);
+    }
+
+    @Test
+    public void revokeVLANEgressDenyOldStyle() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, true, true);
+    }
+
+    @Test
+    public void revokeGeneralIngressAllowOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, false, true);
+    }
+
+    @Test
+    public void revokeGeneralIngressDenyOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, false, true);
+    }
+
+    @Test
+    public void revokeGeneralEgressAllowOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, false, true);
+    }
+
+    @Test
+    public void revokeGeneralEgressDenyOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, false, true);
+    }
+
+    @Test
+    public void revokeVLANIngressAllowOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.ALLOW, true, true);
+    }
+
+    @Test
+    public void revokeVLANIngressDenyOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.INGRESS, Permission.DENY, true, true);
+    }
+
+    @Test
+    public void revokeVLANEgressAllowOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.ALLOW, true, true);
+    }
+
+    @Test
+    public void revokeVLANEgressDenyOldStyleGlobal() throws CloudException, InternalException {
+        checkRemoveRule(Direction.EGRESS, Permission.DENY, true, true);
     }
 
     @Test

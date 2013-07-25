@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -26,7 +27,8 @@ import org.junit.runners.Suite;
 
 /**
  * @author Cameron Stokes (http://github.com/clstokes)
- * @since 2013-02-19
+ * @version 2013.07 added MQ support (issue #6)
+ * @since 2013.02
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
@@ -37,7 +39,8 @@ import org.junit.runners.Suite;
         StatelessMonitoringTests.class,
         StatelessRDBMSTests.class,
         StatelessCDNTests.class,
-        StatelessNotificationsTests.class
+        StatelessNotificationsTests.class,
+        StatelessMQTests.class
 })
 public class PlatformTestSuite {
   @BeforeClass

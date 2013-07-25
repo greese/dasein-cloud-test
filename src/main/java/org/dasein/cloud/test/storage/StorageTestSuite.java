@@ -1,5 +1,6 @@
 /**
- * Copyright (C) 2009-2013 Enstratius, Inc.
+ * Copyright (C) 2009-2013 Dell, Inc.
+ * See annotations for authorship information
  *
  * ====================================================================
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,7 +37,9 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulObjectStoreTests.class,
-        StatelessObjectStoreTests.class
+        StatefulOfflineStoreTests.class,
+        StatelessObjectStoreTests.class,
+        StatelessOfflineStoreTests.class
 })
 public class StorageTestSuite {
   @BeforeClass
