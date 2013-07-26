@@ -366,7 +366,7 @@ public class StorageResources {
                 if( support != null ) {
                     try {
                         if( parentBucket == null ) {
-                            Blob parent = getTestRootBucket(label, true, null);
+                            Blob parent = getTestRootBucket(DaseinTestManager.STATEFUL, true, null);
 
                             if( parent == null ) {
                                 return null;
