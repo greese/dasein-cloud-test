@@ -361,12 +361,12 @@ public class StorageResources {
             StorageServices services = provider.getStorageServices();
 
             if( services != null ) {
-                BlobStoreSupport support = services.getBlobStoreSupport();
+                BlobStoreSupport support = services.getOnlineStorageSupport();
 
                 if( support != null ) {
                     try {
                         if( parentBucket == null ) {
-                            Blob parent = getTestRootBucket(label, true, null);
+                            Blob parent = getTestRootBucket(DaseinTestManager.STATEFUL, true, null);
 
                             if( parent == null ) {
                                 return null;
@@ -391,7 +391,7 @@ public class StorageResources {
         StorageServices services = provider.getStorageServices();
 
         if( services != null ) {
-            BlobStoreSupport support = services.getBlobStoreSupport();
+            BlobStoreSupport support = services.getOnlineStorageSupport();
 
             try {
                 if( support != null && support.allowsNestedBuckets() && support.isSubscribed() ) {
