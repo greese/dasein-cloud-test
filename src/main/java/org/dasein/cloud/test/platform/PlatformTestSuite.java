@@ -27,7 +27,8 @@ import org.junit.runners.Suite;
 
 /**
  * @author Cameron Stokes (http://github.com/clstokes)
- * @since 2013-02-19
+ * @version 2013.07 added MQ support (issue #6)
+ * @since 2013.02
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
@@ -39,7 +40,8 @@ import org.junit.runners.Suite;
         StatelessMonitoringTests.class,
         StatelessRDBMSTests.class,
         StatelessCDNTests.class,
-        StatelessNotificationsTests.class
+        StatelessNotificationsTests.class,
+        StatelessMQTests.class
 })
 public class PlatformTestSuite {
   @BeforeClass

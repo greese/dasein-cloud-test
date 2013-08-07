@@ -167,7 +167,7 @@ public class StatefulFirewallTests {
                         if( direction != null && permission != null ) {
                             RuleTargetType type = RuleTargetType.CIDR;
 
-                            if( name.getMethodName().contains("Global") ) {
+                            if( name.getMethodName().contains("Global") && !name.getMethodName().contains("OldStyle") ) {
                                 type = RuleTargetType.GLOBAL;
                             }
                             if( direction.equals(Direction.INGRESS) ) {

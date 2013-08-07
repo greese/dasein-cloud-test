@@ -59,6 +59,7 @@ import java.util.TreeSet;
  * <p>Created by George Reese: 2/17/13 3:23 PM</p>
  * @author George Reese
  * @version 2013.04 initial version
+ * @version 2013.07 Added MQ cloud services support (issue #6)
  * @since 2013.04
  */
 public class DaseinTestManager {
@@ -547,6 +548,10 @@ public class DaseinTestManager {
         else {
             return (storageResources == null ? null : storageResources.getTestChildObject(label, provisionIfNull, null, null));
         }
+    }
+
+    public @Nullable String getTestQueueId(@Nonnull String label, boolean provisionIfNull) {
+        return (platformResources == null ? null : platformResources.getTestQueueId(label, provisionIfNull));
     }
 
     public @Nullable String getTestRDBMSId(@Nonnull String label, boolean provisionIfNull, @Nullable DatabaseEngine engine) {

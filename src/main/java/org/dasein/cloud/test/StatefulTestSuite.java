@@ -36,6 +36,7 @@ import org.dasein.cloud.test.network.StatefulVLANTests;
 import org.dasein.cloud.test.platform.StatefulPushNotificationTests;
 import org.dasein.cloud.test.platform.StatefulRDBMSTests;
 import org.dasein.cloud.test.storage.StatefulObjectStoreTests;
+import org.dasein.cloud.test.storage.StatefulOfflineStoreTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -48,6 +49,7 @@ import org.junit.runners.Suite;
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatefulObjectStoreTests.class,
+        StatefulOfflineStoreTests.class,
         StatefulVMTests.class,
         StatefulKeypairTests.class,
         StatefulImageTests.class,

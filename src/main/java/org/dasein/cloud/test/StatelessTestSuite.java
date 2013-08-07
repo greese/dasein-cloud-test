@@ -36,10 +36,12 @@ import org.dasein.cloud.test.network.StatelessNetworkFirewallTests;
 import org.dasein.cloud.test.network.StatelessStaticIPTests;
 import org.dasein.cloud.test.network.StatelessVLANTests;
 import org.dasein.cloud.test.platform.StatelessCDNTests;
+import org.dasein.cloud.test.platform.StatelessMQTests;
 import org.dasein.cloud.test.platform.StatelessMonitoringTests;
 import org.dasein.cloud.test.platform.StatelessNotificationsTests;
 import org.dasein.cloud.test.platform.StatelessRDBMSTests;
 import org.dasein.cloud.test.storage.StatelessObjectStoreTests;
+import org.dasein.cloud.test.storage.StatelessOfflineStoreTests;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 
@@ -48,10 +50,12 @@ import org.junit.runners.Suite;
  * <p>Created by George Reese: 2/17/13 8:12 PM</p>
  *
  * @author George Reese
+ * @version 2013.07 added MQ support (issue #6)
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
         StatelessObjectStoreTests.class,
+        StatelessOfflineStoreTests.class,
         StatelessAuthenticationTests.class,
         StatelessDCTests.class,
         StatelessVMTests.class,
@@ -68,6 +72,7 @@ import org.junit.runners.Suite;
         StatelessIAMTests.class,
         StatelessDNSTests.class,
         StatelessCDNTests.class,
+        StatelessMQTests.class,
         StatelessMonitoringTests.class,
         StatelessNotificationsTests.class,
         StatelessVMMonitoringTests.class,
