@@ -23,28 +23,14 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Networkable;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.network.VLANSupport;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -74,6 +60,7 @@ public class StatelessVLANTests {
     public final TestName name = new TestName();
 
     private String testSubnetId;
+    private String testInternetGateway;
     private String testVLANId;
 
     public StatelessVLANTests() { }
@@ -84,6 +71,7 @@ public class StatelessVLANTests {
         assumeTrue(!tm.isTestSkipped());
         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
         testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATELESS, false, null, null);
+        testInternetGateway = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, false, null, null);
     }
 
     @After
@@ -480,6 +468,48 @@ public class StatelessVLANTests {
         else {
             tm.ok("No network services in this cloud");
         }
+    }
+
+    @Test
+    public void getInternetGateway() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testInternetGateway != null ) {
+            InternetGateway iGateway = support.getInternetGatewayById(testInternetGateway);
+            tm.out("Internet Gateway", iGateway);
+            assertNotNull("The test internet gateway was not found in the cloud", iGateway);
+            String foundId = iGateway.getProviderInternetGatewayId();
+            assertNotNull("The test internet gateway id was null", foundId);
+            if( testVLANId != null ) {
+              String iGatewayIdByVlan = support.getInternetGatewayId(testVLANId);
+              assertTrue( "Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase( foundId ) );
+            } else {
+              assertNotNull("The test VLAN was not present and could not verify internet gateway for vlan with id:", testVLANId);
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test internet gatway was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if( support.supportsInternetGatewayCreation() ) {
+              tm.ok("Internet Gateways are not supported so there is no test for " + name.getMethodName());
+            }
+            else {
+              fail("No test internet gateway was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
     }
 
     @Test

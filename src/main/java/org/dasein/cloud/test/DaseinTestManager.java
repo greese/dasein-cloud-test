@@ -570,6 +570,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
     }
 
+    public @Nullable String getTestInternetGatewayId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+      return (networkResources == null ? null : networkResources.getTestInternetGatewayId(label, provisionIfNull, vlanId, preferredDataCenterId));
+    }
+
     public @Nullable String getTestTopicId(@Nonnull String label, boolean provisionIfNull) {
         return (platformResources == null ? null : platformResources.getTestTopicId(label, provisionIfNull));
     }
