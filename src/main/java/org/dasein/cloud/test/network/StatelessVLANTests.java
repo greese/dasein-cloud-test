@@ -485,7 +485,7 @@ public class StatelessVLANTests {
             String foundId = iGateway.getProviderInternetGatewayId();
             assertNotNull("The test internet gateway id was null", foundId);
             if( testVLANId != null ) {
-              String iGatewayIdByVlan = support.getInternetGatewayId(testVLANId);
+              String iGatewayIdByVlan = support.getAttachedInternetGatewayId(testVLANId);
               assertTrue( "Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase( foundId ) );
             } else {
               assertNotNull("The test VLAN was not present and could not verify internet gateway for vlan with id:", testVLANId);

@@ -522,7 +522,7 @@ public class StatefulVLANTests {
                         assertNotNull("Test internet gateway no longer exists, cannot test removing it", iGateway);
                         String foundId = iGateway.getProviderInternetGatewayId();
                         assertNotNull("The test internet gateway id was null", foundId);
-                        String iGatewayIdByVlan = support.getInternetGatewayId(testVLANId);
+                        String iGatewayIdByVlan = support.getAttachedInternetGatewayId(testVLANId);
                         assertTrue( "Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase( foundId ) );
                         support.removeInternetGateway(testVLANId);
                         try { Thread.sleep(5000L); }
