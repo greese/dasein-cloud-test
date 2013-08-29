@@ -32,6 +32,8 @@ import org.dasein.util.CalendarWrapper;
 import org.junit.*;
 import org.junit.rules.TestName;
 
+import java.util.Collection;
+
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
@@ -130,6 +132,16 @@ public class StatefulVLANTests {
                 // ignore
               }
             }
+        }
+        else if( name.getMethodName().equals("listInternetGateway") ) {
+          // sleeps were necessary to achieve accurate result with list
+          // list would return 0 objects because of "provider lag"
+          testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+          try { Thread.sleep(1000L); }
+          catch( InterruptedException ignore ) { }
+          testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+          try { Thread.sleep(1000L); }
+          catch( InterruptedException ignore ) { }
         }
         else if( name.getMethodName().equals("removeInternetGateway") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -466,7 +478,7 @@ public class StatefulVLANTests {
                         assertFalse("The VLAN is already connected via an internet gateway and thus this test cannot run", connected);
                         resources.provisionInternetGateway(support, "provisionKeypair", testVLANId);
                         connected = support.isConnectedViaInternetGateway(testVLANId);
-                        try { Thread.sleep(2000L); }
+                        try { Thread.sleep(2500L); }
                         catch( InterruptedException ignore ) { }
                         tm.out("After", connected);
                         assertTrue("The VLAN is not connected via an Internet Gateway", connected);
@@ -503,6 +515,48 @@ public class StatefulVLANTests {
         else {
             tm.ok("No network services in this cloud");
         }
+    }
+
+    @Test
+    public void listInternetGateway() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+        if( support != null ) {
+          if( testVLANId != null ) {
+            if( support.supportsInternetGatewayCreation() ) {
+              Collection<InternetGateway> igCollection = support.listInternetGateways( testVLANId );
+              assertTrue( "List internet gateways returned an empty collection", igCollection.size() > 0 );
+            }
+            else {
+              try {
+                support.listInternetGateways( testVLANId );
+                fail("Internet gateway list completed even though Internet Gateway is not supported");
+              }
+              catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
+              }
+            }
+          }
+          else {
+            if( !support.allowsNewVlanCreation() ) {
+              tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
+            }
+            else if( support.isSubscribed() ) {
+              fail("No test VLAN for " + name.getMethodName() + " test");
+            }
+            else {
+              tm.ok("VLAN service is not subscribed so this test may not be entirely valid");
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
     }
 
     @Test

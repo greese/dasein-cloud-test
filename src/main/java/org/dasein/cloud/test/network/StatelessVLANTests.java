@@ -108,6 +108,18 @@ public class StatelessVLANTests {
         }
     }
 
+    private void assertInternetGatewayContent(@Nonnull InternetGateway internetGateway, @Nullable String vlanId) throws CloudException, InternalException {
+      assertNotNull("The internet gateway ID may not be null", internetGateway.getProviderInternetGatewayId());
+      assertNotNull("The internet gateway owner may not be null", internetGateway.getProviderOwnerId());
+      assertNotNull("The internet gateway region ID may not be null", internetGateway.getProviderRegionId());
+      assertNotNull("The internet gateway VLAN ID may not be null", internetGateway.getProviderVlanId());
+      assertEquals("The internet gateway in question does not belong in the current region", tm.getContext().getRegionId(), internetGateway.getProviderRegionId());
+      assertNotNull("The internet gateway state cannot be null", internetGateway.getAttachmentState());
+      if( vlanId != null ) {
+        assertEquals("The test VLAN ID does not match the VLAN of the internet gateway", vlanId, internetGateway.getProviderVlanId());
+      }
+    }
+
     private void assertVLANContent(@Nonnull VLANSupport support, @Nonnull VLAN network) throws CloudException, InternalException {
         assertNotNull("VLAN ID may not be null", network.getProviderVlanId());
         assertNotNull("Account owner may not be null", network.getProviderOwnerId());
@@ -471,6 +483,28 @@ public class StatelessVLANTests {
     }
 
     @Test
+    public void getBogusInternetGateway() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          InternetGateway internetGateway = support.getInternetGatewayById(UUID.randomUUID().toString());
+
+          tm.out("Bogus Internet Gateway", internetGateway);
+          assertNull("Bogus internet gateway was supposed to be null, but got a valid internet gateway", internetGateway);
+        }
+        else {
+          tm.ok("No internet gateway support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
     public void getInternetGateway() throws CloudException, InternalException {
       NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -486,7 +520,7 @@ public class StatelessVLANTests {
             assertNotNull("The test internet gateway id was null", foundId);
             if( testVLANId != null ) {
               String iGatewayIdByVlan = support.getAttachedInternetGatewayId(testVLANId);
-              assertTrue( "Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase( foundId ) );
+              assertTrue("Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase(foundId));
             } else {
               assertNotNull("The test VLAN was not present and could not verify internet gateway for vlan with id:", testVLANId);
             }
@@ -617,6 +651,55 @@ public class StatelessVLANTests {
         else {
             tm.ok("No network services in this cloud");
         }
+    }
+
+    @Test
+    public void listInternetGateways() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testVLANId != null ) {
+            Iterable<InternetGateway> internetGateways = support.listInternetGateways(testVLANId);
+            int count = 0;
+
+            assertNotNull("The list of internet gateways may not be null (though it can be empty)", internetGateways);
+            for( InternetGateway internetgateway : internetGateways ) {
+              count++;
+              tm.out("Internet Gateway", internetgateway);
+            }
+            tm.out("Total Internet Gateway Count for " + testVLANId, count);
+
+            if( !support.isSubscribed() ) {
+              assertTrue("The call to list internet gateways returned internet gateways even though the account is marked as not subscribed", count == 0);
+            }
+            else if( count == 0 ) {
+              tm.warn("No internet gateways appeared in the list and thus the test may not be valid");
+            }
+            if( count > 0 ) {
+              for( InternetGateway internetgateway : internetGateways )  {
+                assertInternetGatewayContent(internetgateway, testVLANId);
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test VLAN was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
     }
 
     @Test
