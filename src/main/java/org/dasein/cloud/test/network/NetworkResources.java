@@ -24,6 +24,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
@@ -33,10 +34,7 @@ import org.dasein.cloud.test.compute.ComputeResources;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 /**
  * Caching of and access to network resources used in the various test cases.
@@ -958,7 +956,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, null);
+                    return provisionLoadBalancer(label, null, false);
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -1348,7 +1346,7 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix) throws CloudException, InternalException {
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -1407,6 +1405,7 @@ public class NetworkResources {
             options.havingListeners(LbListener.getInstance(1000 + random.nextInt(10000), 1000 + random.nextInt(10000)));
         }
         String[] dcIds = new String[2];
+        String testSubnetId = null;
 
         if( support.identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             Iterable<LbEndpointType> types = support.listSupportedEndpointTypes();
@@ -1418,11 +1417,42 @@ public class NetworkResources {
                     break;
                 }
             }
+            if( !internal ) {
+                options.asType( LbType.EXTERNAL );
+            }
+            else {
+              options.asType( LbType.INTERNAL );
+            }
             if( vmBased ) {
                 ComputeResources c = DaseinTestManager.getComputeResources();
 
                 if( c != null ) {
-                    String server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+                    String server1 = null;
+                    if( !internal ) {
+                      server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+                    }
+                    else {
+                      String vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                      try { Thread.sleep(750L); }
+                      catch( InterruptedException ignore ) { }
+                      VLAN vlan = services.getVlanSupport().getVlan(vlanId);
+                      if(vlan == null) {
+                        throw new CloudException("No such VLAN: " + vlanId);
+                      }
+                      String subnetId = getTestSubnetId(DaseinTestManager.STATEFUL, true, vlanId, vlan.getProviderDataCenterId());
+                      try { Thread.sleep(750L); }
+                      catch( InterruptedException ignore ) { }
+                      Subnet subnet = services.getVlanSupport().getSubnet(subnetId);
+                      if(subnet == null) {
+                        throw new CloudException("No such Subnet: " + subnetId);
+                      }
+                      testSubnetId = subnetId;
+                      String productId = c.getTestVMProductId();
+                      String imageId = c.getTestImageId(DaseinTestManager.STATELESS, false);
+                      VMLaunchOptions vmOptions = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+                      vmOptions.inVlan(null, vlan.getProviderDataCenterId(), subnet.getProviderSubnetId());
+                      server1 = c.provisionVM(provider.getComputeServices().getVirtualMachineSupport(), "internalLbLaunch", vmOptions, vlan.getProviderDataCenterId());
+                    }
 
                     if( server1 != null ) {
                         @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(server1);
@@ -1431,18 +1461,21 @@ public class NetworkResources {
                             dcIds[0] = vm.getProviderDataCenterId();
                         }
                     }
-                    @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
-                    String targetDC = dcIds[0];
+                    String server2 = null;
+                    if( !internal ) {
+                      @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
+                      String targetDC = dcIds[0];
 
-                    if( it.hasNext() ) {
-                        String dcId = it.next().getProviderDataCenterId();
+                      if( it.hasNext() ) {
+                          String dcId = it.next().getProviderDataCenterId();
 
-                        if( !dcId.equals(dcIds[0]) ) {
-                            dcIds[1] = dcId;
-                            targetDC = dcId;
-                        }
+                          if( !dcId.equals(dcIds[0]) ) {
+                              dcIds[1] = dcId;
+                              targetDC = dcId;
+                          }
+                      }
+                      server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
                     }
-                    String server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
 
                     if( server1 != null && server2 != null ) {
                         options.withVirtualMachines(server1, server2);
@@ -1473,6 +1506,9 @@ public class NetworkResources {
                     options.limitedTo(it.next().getProviderDataCenterId());
                 }
             }
+        }
+        if( internal && testSubnetId != null ) {
+          options.withProviderSubnetIds(testSubnetId);
         }
 
         String id = options.build(provider);

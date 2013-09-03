@@ -293,14 +293,43 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionLoadBalancer("provision", "dsncrlbtest");
+        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
 
         LoadBalancer lb = support.getLoadBalancer(id);
 
-        assertNotNull("The newly created load balancer is not null", lb);
+        assertNotNull("The newly created load balancer is null", lb);
+    }
+
+    @Test
+    public void createInternalLoadBalancer() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services == null ) {
+        tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        return;
+      }
+      LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+      if( support == null ) {
+        tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        return;
+      }
+      NetworkResources network = DaseinTestManager.getNetworkResources();
+
+      if( network == null ) {
+        fail("Failed to initialize network capabilities for tests");
+      }
+      String id = network.provisionLoadBalancer("provision", "dsncrintlbtest", true);
+
+      tm.out("New Internal Load Balancer", id);
+      assertNotNull("The newly created load balancer ID was null", id);
+
+      LoadBalancer lb = support.getLoadBalancer(id);
+
+      assertNotNull("The newly created load balancer is null", lb);
     }
 
     @Test
