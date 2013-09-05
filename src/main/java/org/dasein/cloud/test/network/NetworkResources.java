@@ -1161,7 +1161,6 @@ public class NetworkResources {
             }
           }
         }
-        return testInternetGateways.get(DaseinTestManager.STATELESS);
       }
       String id = testInternetGateways.get(label);
 
@@ -1244,7 +1243,6 @@ public class NetworkResources {
             }
           }
         }
-        return testRouteTables.get(DaseinTestManager.STATELESS);
       }
       String id = testRouteTables.get(label);
 
