@@ -60,6 +60,7 @@ public class NetworkResources {
     private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
     private final HashMap<String,String> testInternetGateways = new HashMap<String, String>();
     private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
+    private final HashMap<String,String> testRouteTables      = new HashMap<String, String>();
     private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
     private final HashMap<String,String> testZones            = new HashMap<String, String>();
 
@@ -1160,7 +1161,6 @@ public class NetworkResources {
             }
           }
         }
-        findStatelessVLAN();
         return testInternetGateways.get(DaseinTestManager.STATELESS);
       }
       String id = testInternetGateways.get(label);
@@ -1231,6 +1231,44 @@ public class NetworkResources {
             }
         }
         return null;
+    }
+
+    public @Nullable String getTestRoutingTableId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+      if( label.equals(DaseinTestManager.STATELESS) ) {
+        for( Map.Entry<String,String> entry : testRouteTables.entrySet() ) {
+          if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+            String id = entry.getValue();
+
+            if( id != null ) {
+              return id;
+            }
+          }
+        }
+        return testRouteTables.get(DaseinTestManager.STATELESS);
+      }
+      String id = testRouteTables.get(label);
+
+      if( id != null ) {
+        return id;
+      }
+      if( provisionIfNull ) {
+        NetworkServices services = provider.getNetworkServices();
+
+        if( services != null ) {
+          VLANSupport support = services.getVlanSupport();
+
+          if( support != null ) {
+            try {
+              String vlanId = getTestVLANId(label, true, preferredDataCenterId);
+              return provisionRoutingTable(support, vlanId, label, "dsnrtb");
+            }
+            catch( Throwable ignore ) {
+              return null;
+            }
+          }
+        }
+      }
+      return null;
     }
 
     public @Nullable String getTestZoneId(@Nonnull String label, boolean provisionIfNull) {
@@ -1645,6 +1683,20 @@ public class NetworkResources {
             testVLANs.put(label, id);
         }
         return id;
+    }
+
+    public @Nonnull String provisionRoutingTable(@Nonnull VLANSupport support, @Nonnull String vlanId, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+      String id = support.createRoutingTable(vlanId, namePrefix + (System.currentTimeMillis()%10000), "Test Routing Table for the Dasein Cloud Integration tests");
+      if( id == null ) {
+        throw new CloudException("No Routing Table was created");
+      }
+      synchronized( testRouteTables ) {
+        while( testRouteTables.containsKey(label) ) {
+          label = label + random.nextInt(9);
+        }
+        testRouteTables.put(label, id);
+      }
+      return id;
     }
 
     public @Nonnull String provisionDNSZone(@Nonnull DNSSupport support, @Nonnull String label, @Nonnull String domainPrefix, @Nonnull String tld) throws CloudException, InternalException {

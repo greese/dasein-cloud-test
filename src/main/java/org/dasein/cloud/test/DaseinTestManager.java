@@ -622,6 +622,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestVLANId(label, provisionIfNull, preferredDataCenterId));
     }
 
+    public @Nullable String getTestRoutingTableId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+      return (networkResources == null ? null : networkResources.getTestRoutingTableId(label, provisionIfNull, preferredDataCenterId));
+    }
+
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;

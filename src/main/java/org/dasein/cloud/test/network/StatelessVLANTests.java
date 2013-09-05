@@ -144,6 +144,14 @@ public class StatelessVLANTests {
         assertEquals("The VLAN in question does not belong in the current region", tm.getContext().getRegionId(), network.getProviderRegionId());
     }
 
+    private void assertRouteTableContent(@Nonnull RoutingTable rtb) throws CloudException, InternalException {
+      assertNotNull("Routing Table ID may not be null", rtb.getProviderRoutingTableId());
+      assertNotNull("Account owner may not be null", rtb.getProviderOwnerId());
+      assertNotNull("Region ID may not be null", rtb.getProviderRegionId());
+      assertNotNull("Routing Table name may not be null", rtb.getName());
+      assertNotNull("Routing Table description may not be null", rtb.getDescription());
+    }
+
     @Test
     public void checkMetaData() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -340,6 +348,56 @@ public class StatelessVLANTests {
         else {
             tm.ok("No network services in this cloud");
         }
+    }
+
+    @Test
+    public void listRoutingTablesForVlan() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+
+          if( testVLANId != null ) {
+            Iterable<RoutingTable> rtbs = support.listRoutingTablesForVlan(testVLANId);
+            int count = 0;
+
+            assertNotNull("The list of Routing Tables may not be null (though it can be empty)", rtbs);
+            for( RoutingTable rtb : rtbs ) {
+              count++;
+              tm.out("Routing Table", rtb);
+            }
+            tm.out("Total Routing Table Count", count);
+
+            if( !support.isSubscribed() ) {
+              assertTrue("The call to list Route Tables returned Route Tables even though the account is marked as not subscribed", count == 0);
+            }
+            else if( count == 0 ) {
+              tm.warn("No Route Tables appeared in the list and thus the test may not be valid");
+            }
+            if( count > 0 ) {
+              for( RoutingTable rtb : support.listRoutingTablesForVlan(testVLANId) )  {
+                assertRouteTableContent(rtb);
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test VLAN was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
     }
 
     @Test

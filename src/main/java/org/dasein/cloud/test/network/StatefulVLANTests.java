@@ -64,6 +64,7 @@ public class StatefulVLANTests {
     private String testVLANId;
     private String testSubnetId;
     private String testInternetGatewayId;
+    private String testRoutingTableId;
 
     public StatefulVLANTests() { }
 
@@ -79,8 +80,18 @@ public class StatefulVLANTests {
                 testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
             }
         }
+        else if( name.getMethodName().equals("provisionRoutingTable") ) {
+          testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+          if( testVLANId == null ) {
+            testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+          }
+        }
         else if( name.getMethodName().equals("removeVLAN") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.REMOVED, true, null);
+        }
+        else if( name.getMethodName().equals("removeRoutingTable") ) {
+          testVLANId = tm.getTestVLANId(DaseinTestManager.REMOVED, true, null);
+          testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATEFUL, false, null);
         }
         else if( name.getMethodName().equals("removeSubnet") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -152,25 +163,31 @@ public class StatefulVLANTests {
     @After
     public void after() {
         try {
-            if( testVLANId != null ) {
-                try {
-                    NetworkServices services = tm.getProvider().getNetworkServices();
+          try {
+              NetworkServices services = tm.getProvider().getNetworkServices();
 
-                    if( services != null ) {
-                        VLANSupport support = services.getVlanSupport();
+              if( services != null ) {
+                  VLANSupport support = services.getVlanSupport();
 
-                        if( support != null && support.isConnectedViaInternetGateway(testVLANId) ) {
-                            support.removeInternetGateway(testVLANId);
-                            testInternetGatewayId = null;
-                        }
+                  if( support != null ) {
+                    if( testVLANId != null ) {
+                      if( support.isConnectedViaInternetGateway(testVLANId) ) {
+                        support.removeInternetGateway(testVLANId);
+                        testInternetGatewayId = null;
+                      }
                     }
-                }
-                catch(Throwable ignore ) {
-                    // ignore
-                }
-            }
-            testVLANId = null;
-            testSubnetId = null;
+                    if( testRoutingTableId != null ) {
+                      support.removeRoutingTable(testRoutingTableId);
+                      testRoutingTableId = null;
+                    }
+                  }
+              }
+          }
+          catch(Throwable ignore ) {
+              // ignore
+          }
+          testVLANId = null;
+          testSubnetId = null;
         }
         finally {
             tm.end();
@@ -276,6 +293,62 @@ public class StatefulVLANTests {
     }
 
     @Test
+    public void provisionRoutingTable() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          boolean supported = (support.allowsNewRoutingTableCreation() && support.isSubscribed());
+
+          if( testVLANId != null ) {
+            NetworkResources resources = DaseinTestManager.getNetworkResources();
+
+            if( resources != null ) {
+              if( supported ) {
+                VLAN vlan = support.getVlan(testVLANId);
+                assertNotNull("The test VLAN does not exist", vlan);
+                String id = resources.provisionRoutingTable(support, vlan.getProviderVlanId(), "provisionKeypair", "dnsrtb");
+                tm.out("New Routing Table", id);
+                testRoutingTableId = id;
+                try { Thread.sleep(1500L); }
+                catch( InterruptedException ignore ) { }
+                assertNotNull("Could not find the new Routing Table in the cloud after creation", support.getRoutingTable(id));
+              }
+              else if( support.isSubscribed() ) {
+                try {
+                  String id = resources.provisionRoutingTable(support, testVLANId, "provisionKeypair", "dnsrtb");
+                  fail("Route Table provisioning completed even though it isn't supported");
+                }
+                catch( OperationNotSupportedException expected ) {
+                  tm.ok("Caught OperationNotSupportedException for " + name.getMethodName() + " as expected");
+                }
+              }
+            }
+            else {
+              fail("The network resources failed to initialize for testing");
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test VLAN was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
     public void removeVLAN() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -316,6 +389,47 @@ public class StatefulVLANTests {
         else {
             tm.ok("No network services in this cloud");
         }
+    }
+
+    @Test
+    public void removeRoutingTable() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testRoutingTableId != null ) {
+            RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
+
+            tm.out("Before", rtb);
+            assertNotNull("Test route table no longer exists, cannot test removing it", rtb);
+            support.removeRoutingTable(testRoutingTableId);
+            try { Thread.sleep(3000L); }
+            catch( InterruptedException ignore ) { }
+            rtb = support.getRoutingTable(testRoutingTableId);
+            tm.out("After", rtb);
+            assertNull("The route table remains available", rtb);
+          }
+          else {
+            if( !support.allowsNewRoutingTableCreation() ) {
+              tm.ok("Route Table creation/deletion is not supported in " + tm.getProvider().getCloudName());
+            }
+            else if( support.isSubscribed() ) {
+              fail("No test route table for deletion test");
+            }
+            else {
+              tm.ok("VLAN service is not subscribed so this test is not entirely valid");
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
     }
 
     @Test
@@ -622,4 +736,5 @@ public class StatefulVLANTests {
           tm.ok("No network services in this cloud");
       }
     }
+
 }
