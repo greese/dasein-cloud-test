@@ -841,6 +841,7 @@ public class NetworkResources {
                     VLAN defaultVlan = null;
                     Subnet defaultSubnet = null;
                     InternetGateway defaultInternetGateway = null;
+                    RoutingTable defaultRouteTable = null;
 
                     for( VLAN vlan : vlanSupport.listVlans() ) {
                         if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
@@ -857,7 +858,12 @@ public class NetworkResources {
                                                   defaultInternetGateway = vlanSupport.getInternetGatewayById( igateway.getProviderInternetGatewayId() );
                                                   defaultVlan = vlan;
                                                   defaultSubnet = foundSubnet;
-                                                  break;
+                                                  if( defaultRouteTable == null ) {
+                                                    for( RoutingTable rtb : vlanSupport.listRoutingTablesForVlan( vlan.getProviderVlanId() ) ) {
+                                                      defaultRouteTable = vlanSupport.getRoutingTable( rtb.getProviderRoutingTableId() );
+                                                      break;
+                                                    }
+                                                  }
                                                 }
                                               }
                                             }
@@ -884,6 +890,9 @@ public class NetworkResources {
                     }
                     if( defaultInternetGateway != null ) {
                         testInternetGateways.put(DaseinTestManager.STATELESS, defaultInternetGateway.getProviderInternetGatewayId());
+                    }
+                    if( defaultRouteTable != null ) {
+                      testRouteTables.put(DaseinTestManager.STATELESS, defaultRouteTable.getProviderRoutingTableId());
                     }
                     return id;
                 }
