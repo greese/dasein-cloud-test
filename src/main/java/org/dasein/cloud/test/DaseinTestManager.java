@@ -633,6 +633,13 @@ public class DaseinTestManager {
         return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
     }
 
+    public @Nullable String getTestVLANVMId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+      if( computeResources == null ) {
+        return null;
+      }
+      return computeResources.getTestVLANVmId(label, desiredState, vlanId, provisionIfNull, preferredDataCenterId);
+    }
+
     public @Nullable String getTestVMProductId() {
         return (computeResources == null ? null : computeResources.getTestVMProductId());
     }
