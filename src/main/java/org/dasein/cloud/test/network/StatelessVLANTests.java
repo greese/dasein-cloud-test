@@ -23,10 +23,6 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.*;
@@ -67,8 +63,6 @@ public class StatelessVLANTests {
     private String testInternetGatewayId;
     private String testVLANId;
     private String testRoutingTableId;
-    private String testVLANVMId;
-    private String[] cidrs = new String[]{ "192.168.1.0/28", "192.168.20.0/28", "192.168.40.0/28", "192.168.60.0/28", "192.168.80.0/28" };
 
     public StatelessVLANTests() { }
 
@@ -77,65 +71,34 @@ public class StatelessVLANTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+        if( testVLANId == null ) {
+          testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, true, null);
+          try { Thread.sleep(15000L); }
+          catch( InterruptedException ignore ) { }
+        }
         testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATELESS, false, null, null);
+        if( testSubnetId == null ) {
+          testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
+        }
         testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, false, null, null);
-        testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATELESS, false, null);
-        if( name.getMethodName().equals("addRouteToVM") || name.getMethodName().equals("addRouteToNetworkInterface") ) {
-          try {
-            NetworkServices services = tm.getProvider().getNetworkServices();
-            if( services != null ) {
-              VLANSupport support = services.getVlanSupport();
-              if( support != null && testRoutingTableId != null ) {
-                RoutingTable rtb = support.getRoutingTable( testRoutingTableId );
-                if( rtb != null ) {
-                  testVLANVMId = tm.getTestVLANVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, rtb.getProviderVlanId(), true, null);
-                  Route[] routes = rtb.getRoutes();
-                  for( Route rt : routes ) {
-                    try {
-                      support.removeRoute( testRoutingTableId, rt.getDestinationCidr() );
-                    }
-                    catch(Exception e) {
-                      // ignore
-                    }
-                  }
-                }
-              }
-            }
-          }
-          catch(Throwable ignore ) {
-            // ignore
-          }
+        if( testInternetGatewayId == null ) {
+          testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
+        }
+        testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATELESS, false, null, null);
+        if( testRoutingTableId == null ) {
+          testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
         }
     }
 
     @After
     public void after() {
         tm.end();
-        if( name.getMethodName().equals("addRouteToVM") || name.getMethodName().equals("addRouteToNetworkInterface") ) {
-          try {
-            NetworkServices services = tm.getProvider().getNetworkServices();
-            if( services != null ) {
-              VLANSupport support = services.getVlanSupport();
-              if( support != null && testRoutingTableId != null ) {
-                RoutingTable rtb = support.getRoutingTable( testRoutingTableId );
-                if( rtb != null ) {
-                  Route[] routes = rtb.getRoutes();
-                  for( Route rt : routes ) {
-                    try {
-                      support.removeRoute( testRoutingTableId, rt.getDestinationCidr() );
-                    }
-                    catch(Exception e) {
-                      // ignore
-                    }
-                  }
-                }
-              }
-            }
-          }
-          catch(Throwable ignore ) {
-            // ignore
-          }
-        }
     }
 
     private void assertSubnetContent(@Nonnull VLANSupport support, @Nonnull Subnet subnet, @Nullable String vlanId) throws CloudException, InternalException {
@@ -740,14 +703,6 @@ public class StatelessVLANTests {
             InternetGateway iGateway = support.getInternetGatewayById(testInternetGatewayId);
             tm.out("Internet Gateway", iGateway);
             assertNotNull("The test internet gateway was not found in the cloud", iGateway);
-            String foundId = iGateway.getProviderInternetGatewayId();
-            assertNotNull("The test internet gateway id was null", foundId);
-            if( testVLANId != null ) {
-              String iGatewayIdByVlan = support.getAttachedInternetGatewayId(testVLANId);
-              assertTrue("Gateway found by Id and Gateway found by VLAN do not match", iGatewayIdByVlan.equalsIgnoreCase(foundId));
-            } else {
-              assertNotNull("The test VLAN was not present and could not verify internet gateway for vlan with id:", testVLANId);
-            }
           }
           else {
             if( !support.isSubscribed() ) {
@@ -1001,7 +956,12 @@ public class StatelessVLANTests {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {
-              fail("No test route table was found for running the stateless test: " + name.getMethodName());
+              if( testSubnetId == null ) {
+                fail("No test subnet was found for running the stateful test: " + name.getMethodName());
+              }
+              else {
+                fail("No test route table was found for running the stateful test: " + name.getMethodName());
+              }
             }
           }
         }
@@ -1033,13 +993,15 @@ public class StatelessVLANTests {
             try { Thread.sleep(3000L); }
             catch( InterruptedException ignore ) { }
             rtb = support.getRoutingTable(testRoutingTableId);
-            tm.out("Route Table subnets", rtb.getProviderSubnetIds());
-            String[] rtbSubArr = rtb.getProviderSubnetIds();
             Boolean match = false;
-            if( rtbSubArr != null ) {
-              for(String subnetId : rtbSubArr) {
-                if(subnetId.equals(testSubnetId)){
-                  match = true;
+            if( rtb != null ) {
+              tm.out("Route Table subnets", rtb.getProviderSubnetIds());
+              String[] rtbSubArr = rtb.getProviderSubnetIds();
+              if( rtbSubArr != null ) {
+                for(String subnetId : rtbSubArr) {
+                  if(subnetId.equals(testSubnetId)){
+                    match = true;
+                  }
                 }
               }
             }
@@ -1053,274 +1015,12 @@ public class StatelessVLANTests {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {
-              fail("No test route table was found for running the stateless test: " + name.getMethodName());
-            }
-          }
-        }
-        else {
-          tm.ok("No VLAN support in this cloud");
-        }
-      }
-      else {
-        tm.ok("No network services in this cloud");
-      }
-    }
-
-    @Test
-    public void addRouteToVM() throws CloudException, InternalException {
-      NetworkServices services = tm.getProvider().getNetworkServices();
-
-      if( services != null ) {
-        ComputeServices computeServices = tm.getProvider().getComputeServices();
-
-        if( computeServices != null ) {
-          VLANSupport support = services.getVlanSupport();
-
-          if( support != null ) {
-            VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
-
-            if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
-                  RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
-                  tm.out("Route Table", rtb);
-                  assertNotNull("The test route table was not found in the cloud", rtb);
-
-                  VirtualMachine vm = computeSupport.getVirtualMachine(testVLANVMId);
-                  tm.out("Virtual Machine", vm);
-                  assertNotNull("Did not find the test virtual machine " + testVLANVMId, vm);
-
-                  String successfulCidr = "";
-                  for( String destinationCidr : cidrs ) {
-                    try {
-                      support.addRouteToVirtualMachine(testRoutingTableId, IPVersion.IPV4, destinationCidr, vm.getProviderVirtualMachineId());
-                      successfulCidr = destinationCidr;
-                      break;
-                    }
-                    catch(Exception e) {
-                      // ignore
-                    }
-                  }
-
-                  if( !successfulCidr.equalsIgnoreCase("") ) {
-                    try { Thread.sleep(5000L); }
-                    catch( InterruptedException ignore ) { }
-
-                    rtb = support.getRoutingTable(testRoutingTableId);
-                    tm.out("Route Table", rtb);
-                    assertNotNull("The test route table was not found in the cloud", rtb);
-
-                    Route[] routes = rtb.getRoutes();
-                    Boolean rightRoute = false;
-                    for( Route route : routes ) {
-                      String vmId = route.getGatewayVirtualMachineId();
-                      String destCidr = route.getDestinationCidr();
-
-                      if( destCidr.equalsIgnoreCase(successfulCidr) && vmId != null ) {
-                        if( vmId.equalsIgnoreCase(vm.getProviderVirtualMachineId()) ) {
-                          rightRoute = true;
-                        }
-                      }
-                    }
-                    assertTrue("The created route was not found in the route table", rightRoute);
-                  }
-                  else {
-                    fail("Unable to add route for: " + name.getMethodName());
-                  }
-                }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateless test: " + name.getMethodName());
-                  }
-                }
+              if( testSubnetId == null ) {
+                fail("No test subnet was found for running the stateful test: " + name.getMethodName());
               }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
+              else {
+                fail("No test route table was found for running the stateful test: " + name.getMethodName());
               }
-            }
-            else {
-              tm.ok("No virtual machine support in this cloud");
-            }
-          }
-          else {
-            tm.ok("No VLAN support in this cloud");
-          }
-        }
-        else {
-          tm.ok("No compute services in this cloud");
-        }
-      }
-      else {
-        tm.ok("No network services in this cloud");
-      }
-    }
-
-    @Test
-    public void addRouteToNetworkInterface() throws CloudException, InternalException {
-      NetworkServices services = tm.getProvider().getNetworkServices();
-
-      if( services != null ) {
-        ComputeServices computeServices = tm.getProvider().getComputeServices();
-
-        if( computeServices != null ) {
-          VLANSupport support = services.getVlanSupport();
-
-          if( support != null ) {
-            VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
-
-            if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
-                  RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
-                  tm.out("Route Table", rtb);
-                  assertNotNull("The test route table was not found in the cloud", rtb);
-
-                  VirtualMachine vm = computeSupport.getVirtualMachine(testVLANVMId);
-                  tm.out("Virtual Machine", vm);
-                  assertNotNull("Did not find the test virtual machine " + testVLANVMId, vm);
-
-                  String successfulCidr = "";
-                  for( String destinationCidr : cidrs ) {
-                    try {
-                      support.addRouteToNetworkInterface(testRoutingTableId, IPVersion.IPV4, destinationCidr, vm.getProviderNetworkInterfaceIds()[0]);
-                      successfulCidr = destinationCidr;
-                      break;
-                    }
-                    catch(Exception e) {
-                      // ignore
-                    }
-                  }
-
-                  if( !successfulCidr.equalsIgnoreCase("") ) {
-                    try { Thread.sleep(5000L); }
-                    catch( InterruptedException ignore ) { }
-
-                    rtb = support.getRoutingTable(testRoutingTableId);
-                    tm.out("Route Table", rtb);
-                    assertNotNull("The test route table was not found in the cloud", rtb);
-
-                    Route[] routes = rtb.getRoutes();
-                    Boolean rightRoute = false;
-                    for( Route route : routes ) {
-                      String eniId = route.getGatewayNetworkInterfaceId();
-                      String destCidr = route.getDestinationCidr();
-
-                      if( destCidr.equalsIgnoreCase(successfulCidr) && eniId != null ) {
-                        if( eniId.equalsIgnoreCase(vm.getProviderNetworkInterfaceIds()[0]) ) {
-                          rightRoute = true;
-                        }
-                      }
-                    }
-                    assertTrue("The created route was not found in the route table", rightRoute);
-                  }
-                  else {
-                    fail("Unable to add route for: " + name.getMethodName());
-                  }
-                }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateless test: " + name.getMethodName());
-                  }
-                }
-              }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
-              }
-            }
-            else {
-              tm.ok("No virtual machine support in this cloud");
-            }
-          }
-          else {
-            tm.ok("No VLAN support in this cloud");
-          }
-        }
-        else {
-          tm.ok("No compute services in this cloud");
-        }
-      }
-      else {
-        tm.ok("No network services in this cloud");
-      }
-    }
-
-    @Test
-    public void addRouteToGateway() throws CloudException, InternalException {
-      NetworkServices services = tm.getProvider().getNetworkServices();
-
-      if( services != null ) {
-        VLANSupport support = services.getVlanSupport();
-
-        if( support != null ) {
-          if( testRoutingTableId != null ) {
-
-            RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
-            tm.out("Route Table", rtb);
-            assertNotNull("The test route table was not found in the cloud", rtb);
-
-            InternetGateway ig = support.getInternetGatewayById(testInternetGatewayId);
-            tm.out("Internet Gateway", ig);
-            assertNotNull("Did not find the test internet gateway " + testInternetGatewayId, ig);
-
-            String successfulCidr = "";
-            for( String destinationCidr : cidrs ) {
-              try {
-                support.addRouteToGateway(testRoutingTableId, IPVersion.IPV4, destinationCidr, testInternetGatewayId);
-                successfulCidr = destinationCidr;
-                break;
-              }
-              catch(Exception e) {
-                // ignore
-              }
-            }
-
-            if( !successfulCidr.equalsIgnoreCase("") ) {
-              try { Thread.sleep(5000L); }
-              catch( InterruptedException ignore ) { }
-
-              rtb = support.getRoutingTable(testRoutingTableId);
-              tm.out("Route Table", rtb);
-              assertNotNull("The test route table was not found in the cloud", rtb);
-
-              Route[] routes = rtb.getRoutes();
-              Boolean rightRoute = false;
-              for( Route route : routes ) {
-                String igId = route.getGatewayId();
-                String destCidr = route.getDestinationCidr();
-
-                if( destCidr.equalsIgnoreCase(successfulCidr) && igId != null ) {
-                  if( igId.equalsIgnoreCase(testInternetGatewayId) ) {
-                    rightRoute = true;
-                  }
-                }
-              }
-              assertTrue("The created route was not found in the route table", rightRoute);
-            }
-            else {
-              fail("Unable to add route for: " + name.getMethodName());
-            }
-          }
-          else {
-            if( !support.isSubscribed() ) {
-              tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-            }
-            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
-              tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-            }
-            else {
-              fail("No test route table was found for running the stateless test: " + name.getMethodName());
             }
           }
         }
