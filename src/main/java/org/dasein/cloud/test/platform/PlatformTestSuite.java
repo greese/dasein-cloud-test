@@ -32,6 +32,7 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
+        StatefulPushNotificationTests.class,
         StatefulMonitoringTests.class,
         StatefulRDBMSTests.class,
         StatefulCDNTests.class,
