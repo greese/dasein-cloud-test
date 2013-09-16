@@ -29,25 +29,10 @@ import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.Direction;
-import org.dasein.cloud.network.Firewall;
-import org.dasein.cloud.network.FirewallRule;
-import org.dasein.cloud.network.FirewallSupport;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Permission;
-import org.dasein.cloud.network.Protocol;
-import org.dasein.cloud.network.RuleTarget;
-import org.dasein.cloud.network.RuleTargetType;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
@@ -386,6 +371,8 @@ public class StatefulFirewallTests {
                 }
                 Assert.assertNotNull("Unknown target type: " + dest.getRuleTargetType(), source);
                 support.revoke(testFirewallId, direction, permission, source, test.getProtocol(), test.getSourceEndpoint(), test.getStartPort(), test.getEndPort());
+                try { Thread.sleep(2000L); } // give provider time to propagate rule change
+                catch( InterruptedException ignore ) { }
             }
         }
         boolean found = false;
@@ -570,7 +557,6 @@ public class StatefulFirewallTests {
     public void revokeVLANEgressDeny() throws CloudException, InternalException {
         checkRemoveRule(Direction.EGRESS, Permission.DENY, true, false);
     }
-
 
     @Test
     public void revokeGeneralIngressAllowOldStyle() throws CloudException, InternalException {

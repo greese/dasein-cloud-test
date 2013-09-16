@@ -24,34 +24,11 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
+import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.DNSRecord;
-import org.dasein.cloud.network.DNSRecordType;
-import org.dasein.cloud.network.DNSSupport;
-import org.dasein.cloud.network.DNSZone;
-import org.dasein.cloud.network.Firewall;
-import org.dasein.cloud.network.FirewallCreateOptions;
-import org.dasein.cloud.network.FirewallSupport;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.IpAddress;
-import org.dasein.cloud.network.IpAddressSupport;
-import org.dasein.cloud.network.LbEndpointType;
-import org.dasein.cloud.network.LbListener;
-import org.dasein.cloud.network.LoadBalancer;
-import org.dasein.cloud.network.LoadBalancerAddressType;
-import org.dasein.cloud.network.LoadBalancerCreateOptions;
-import org.dasein.cloud.network.LoadBalancerState;
-import org.dasein.cloud.network.LoadBalancerSupport;
-import org.dasein.cloud.network.NetworkFirewallSupport;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.SubnetCreateOptions;
-import org.dasein.cloud.network.SubnetState;
-import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.network.VLANState;
-import org.dasein.cloud.network.VLANSupport;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
 
@@ -84,9 +61,16 @@ public class NetworkResources {
     private final HashMap<String,String> testLBs              = new HashMap<String, String>();
     private final HashMap<String,String> testNetworkFirewalls = new HashMap<String,String>();
     private final HashMap<String,String> testSubnets          = new HashMap<String, String>();
+    private final HashMap<String,String> testInternetGateways = new HashMap<String, String>();
     private final HashMap<String,String> testVLANs            = new HashMap<String, String>();
+    private final HashMap<String,String> testRouteTables      = new HashMap<String, String>();
     private final HashMap<String,String> testVLANFirewalls    = new HashMap<String, String>();
     private final HashMap<String,String> testZones            = new HashMap<String, String>();
+    // make subnet creation more predicatable
+    private final String[] cidrs = new String[]{ "192.168.1.0/28", "192.168.1.20/28", "192.168.1.40/28", "192.168.1.60/28", "192.168.1.80/28",
+      "192.168.1.100/28", "192.168.1.120/28", "192.168.1.140/28", "192.168.1.160/28", "192.168.1.180/28", "192.168.1.200/28",
+      "192.168.1.220/28", "192.168.1.240/28" };
+    private Integer cidrCount = 0;
 
     public NetworkResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
@@ -513,6 +497,39 @@ public class NetworkResources {
 
                 if( vlanSupport != null ) {
                     try {
+                      for( Map.Entry<String,String> entry : testInternetGateways.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                          InternetGateway ig = vlanSupport.getInternetGatewayById(entry.getValue());
+
+                          if( ig != null ) {
+                            try {
+                              vlanSupport.removeInternetGatewayById(entry.getValue());
+                              count++;
+                            }
+                            catch( Throwable t ) {
+                              logger.warn("Failed to de-provision internetgateway (1) " + entry.getValue() + " post-test: " + t.getMessage());
+                              try { Thread.sleep(30000L); }
+                              catch( InterruptedException ignore ) { }
+                              try {
+                                vlanSupport.removeInternetGatewayById(entry.getValue());
+                                count++;
+                              }
+                              catch( Throwable t2 ) {
+                                logger.warn("Failed to de-provision internetgateway (final) " + entry.getValue() + " post-test: " + t2.getMessage());
+                              }
+                            }
+                          }
+                          else {
+                            count++;
+                          }
+                        }
+
+                      }
+                    }
+                    catch( Throwable ignore ) {
+                      // ignore
+                    }
+                    try {
                         for( Map.Entry<String,String> entry : testSubnets.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                                 Subnet s = vlanSupport.getSubnet(entry.getValue());
@@ -545,7 +562,39 @@ public class NetworkResources {
                     catch( Throwable ignore ) {
                         // ignore
                     }
+                    try {
+                      for( Map.Entry<String,String> entry : testRouteTables.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                          RoutingTable rtb = vlanSupport.getRoutingTable(entry.getValue());
 
+                          if( rtb != null ) {
+                            try {
+                              vlanSupport.removeRoutingTable(entry.getValue());
+                              count++;
+                            }
+                            catch( Throwable t ) {
+                              logger.warn("Failed to de-provision routetable (1) " + entry.getValue() + " post-test: " + t.getMessage());
+                              try { Thread.sleep(30000L); }
+                              catch( InterruptedException ignore ) { }
+                              try {
+                                vlanSupport.removeRoutingTable(entry.getValue());
+                                count++;
+                              }
+                              catch( Throwable t2 ) {
+                                logger.warn("Failed to de-provision routetable (final) " + entry.getValue() + " post-test: " + t2.getMessage());
+                              }
+                            }
+                          }
+                          else {
+                            count++;
+                          }
+                        }
+
+                      }
+                    }
+                    catch( Throwable ignore ) {
+                      // ignore
+                    }
                     try {
                         for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
@@ -601,6 +650,19 @@ public class NetworkResources {
                                 }
                                 catch( Throwable t ) {
                                     logger.warn("Failed to de-provision subnets for test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                                try {
+                                  for( RoutingTable routeTable : vlanSupport.listRoutingTablesForVlan(entry.getValue()) ) {
+                                    try {
+                                      vlanSupport.removeRoutingTable(routeTable.getProviderRoutingTableId());
+                                    }
+                                    catch( Throwable t ) {
+                                      logger.warn("Failed to de-provision route table " + routeTable.getProviderRoutingTableId() + " for test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
+                                    }
+                                  }
+                                }
+                                catch( Throwable t ) {
+                                  logger.warn("Failed to de-provision route tables for test VLAN " + entry.getValue() + " post-test: " + t.getMessage());
                                 }
                                 try {
                                     vlanSupport.removeVlan(entry.getValue());
@@ -864,27 +926,48 @@ public class NetworkResources {
                 if( vlanSupport != null && vlanSupport.isSubscribed() ) {
                     VLAN defaultVlan = null;
                     Subnet defaultSubnet = null;
-
+                    InternetGateway defaultInternetGateway = null;
+                    RoutingTable defaultRouteTable = null;
                     for( VLAN vlan : vlanSupport.listVlans() ) {
                         if( defaultVlan == null || VLANState.AVAILABLE.equals(vlan.getCurrentState()) ) {
                             Subnet foundSubnet = null;
-
-                            if( !vlanSupport.getSubnetSupport().equals(Requirement.NONE) ) {
-                                for( Subnet subnet : vlanSupport.listSubnets(vlan.getProviderVlanId()) ) {
-                                    if( foundSubnet == null || SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
-                                        foundSubnet = subnet;
-                                        if( SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
-                                            defaultVlan = vlan;
-                                            defaultSubnet = foundSubnet;
-                                            break;
-                                        }
-                                    }
-                                }
+                            // other tests depend on this being correct
+                            if( vlan.getCidr().contains("192.168.1.")) {
+                              if( !vlanSupport.getSubnetSupport().equals(Requirement.NONE) ) {
+                                  for( Subnet subnet : vlanSupport.listSubnets(vlan.getProviderVlanId()) ) {
+                                      if( foundSubnet == null || SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
+                                          foundSubnet = subnet;
+                                          if( SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
+                                              InternetGateway foundInternetGateway = null;
+                                              if( vlanSupport.isConnectedViaInternetGateway( vlan.getProviderVlanId() ) ) {
+                                                for( InternetGateway igateway : vlanSupport.listInternetGateways( vlan.getProviderVlanId() ) ) {
+                                                  if( foundInternetGateway == null ) {
+                                                    foundInternetGateway = vlanSupport.getInternetGatewayById( igateway.getProviderInternetGatewayId() );
+                                                    if( foundInternetGateway != null ) {
+                                                      if( defaultRouteTable == null ) {
+                                                        for( RoutingTable rtb : vlanSupport.listRoutingTablesForVlan( vlan.getProviderVlanId() ) ) {
+                                                          defaultRouteTable = vlanSupport.getRoutingTable( rtb.getProviderRoutingTableId() );
+                                                          defaultVlan = vlan;
+                                                          defaultSubnet = foundSubnet;
+                                                          defaultInternetGateway = foundInternetGateway;
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                          }
+                                      }
+                                  }
+                              }
                             }
                             if( defaultVlan == null ) {
+                              // other tests demend on this being correct
+                              if( vlan.getCidr().contains("192.168.1.")) {
                                 defaultVlan = vlan;
+                              }
                             }
-                            if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
+                            if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && defaultInternetGateway != null && defaultRouteTable != null && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
                                 break;
                             }
                         }
@@ -897,6 +980,12 @@ public class NetworkResources {
                     }
                     if( defaultSubnet != null ) {
                         testSubnets.put(DaseinTestManager.STATELESS, defaultSubnet.getProviderSubnetId());
+                    }
+                    if( defaultInternetGateway != null ) {
+                        testInternetGateways.put(DaseinTestManager.STATELESS, defaultInternetGateway.getProviderInternetGatewayId());
+                    }
+                    if( defaultRouteTable != null ) {
+                        testRouteTables.put(DaseinTestManager.STATELESS, defaultRouteTable.getProviderRoutingTableId());
                     }
                     return id;
                 }
@@ -970,7 +1059,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, null);
+                    return provisionLoadBalancer(label, null, false);
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -1113,10 +1202,11 @@ public class NetworkResources {
     }
 
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+        String id = null;
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testSubnets.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
-                    String id = entry.getValue();
+                    id = entry.getValue();
 
                     if( id != null ) {
                         return id;
@@ -1124,9 +1214,8 @@ public class NetworkResources {
                 }
             }
             findStatelessVLAN();
-            return testSubnets.get(DaseinTestManager.STATELESS);
         }
-        String id = testSubnets.get(label);
+        id = testSubnets.get(label);
 
         if( id != null ) {
             return id;
@@ -1148,7 +1237,11 @@ public class NetworkResources {
                                 }
                             }
                         }
-                        return provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
+                        id = provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
+                        // wait for subnet to be ready for describe
+                        try { Thread.sleep(1000L); }
+                        catch( InterruptedException ignore ) { }
+                        return id;
                     }
                     catch( Throwable t ) {
                         logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
@@ -1159,21 +1252,74 @@ public class NetworkResources {
         return null;
     }
 
+    public @Nullable String getTestInternetGatewayId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+      if( label.equals(DaseinTestManager.STATELESS) ) {
+        for( Map.Entry<String,String> entry : testInternetGateways.entrySet() ) {
+          if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
+            String id = entry.getValue();
+
+            if( id != null ) {
+              return id;
+            }
+          }
+        }
+      }
+      String id = testInternetGateways.get(label);
+
+      if( id != null ) {
+        return id;
+      }
+      if( provisionIfNull ) {
+        NetworkServices services = provider.getNetworkServices();
+
+        if( services != null ) {
+          VLANSupport support = services.getVlanSupport();
+
+          if( support != null ) {
+            try {
+              if( vlanId == null ) {
+                vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+                if( vlanId == null ) {
+                  vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                  if( vlanId == null ) {
+                    return null;
+                  }
+                }
+              }
+              else {
+                String internetGatewayId = support.getAttachedInternetGatewayId( vlanId );
+                if( internetGatewayId != null ) {
+                  return internetGatewayId;
+                }
+              }
+              return provisionInternetGateway(support, label, vlanId);
+            }
+            catch( Throwable t ) {
+              logger.warn("Failed to provision test internet gateway for " + vlanId + ": " + t.getMessage());
+            }
+          }
+        }
+      }
+      return null;
+    }
+
     public @Nullable String getTestVLANId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        String id = null;
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testVLANs.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
-                    String id = entry.getValue();
-
+                    id = entry.getValue();
                     if( id != null ) {
                         return id;
                     }
                 }
             }
-            return findStatelessVLAN();
+            id = findStatelessVLAN();
         }
-        String id = testVLANs.get(label);
-
+        if( id != null ) {
+          return id;
+        }
+        id = testVLANs.get(label);
         if( id != null ) {
             return id;
         }
@@ -1194,6 +1340,73 @@ public class NetworkResources {
             }
         }
         return null;
+    }
+
+    public @Nullable String getTestRoutingTableId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+      NetworkServices services = provider.getNetworkServices();
+      String id = null;
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+        if( support != null ) {
+          if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testRouteTables.entrySet() ) {
+              if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                id = entry.getValue();
+                try {
+                  RoutingTable rtb = support.getRoutingTable(id);
+                  if( rtb != null ) {
+                    if( vlanId != null ) {
+                      if( rtb.getProviderVlanId().equalsIgnoreCase(vlanId) ) {
+                        return id;
+                      }
+                    } else {
+                      return id;
+                    }
+                  }
+                }
+                catch(Exception e) {
+                  // ignore
+                }
+              }
+            }
+          }
+          id = testRouteTables.get(label);
+          try {
+            RoutingTable rtb = support.getRoutingTable(id);
+            if( rtb != null ) {
+              if( vlanId != null ) {
+                if( rtb.getProviderVlanId().equalsIgnoreCase(vlanId) ) {
+                  return id;
+                }
+              } else {
+                return id;
+              }
+            }
+          }
+          catch(Exception e) {
+            // ignore
+          }
+          if( provisionIfNull ) {
+            try {
+              if( vlanId == null ) {
+                String vId = getTestVLANId(label, true, preferredDataCenterId);
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+                if( vId != null ) {
+                  return provisionRoutingTable(support, vId, label, "dsnrtb");
+                }
+              }
+              else {
+                return provisionRoutingTable(support, vlanId, label, "dsnrtb");
+              }
+            }
+            catch( Throwable ignore ) {
+              return null;
+            }
+          }
+        }
+      }
+      return null;
     }
 
     public @Nullable String getTestZoneId(@Nonnull String label, boolean provisionIfNull) {
@@ -1309,7 +1522,7 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix) throws CloudException, InternalException {
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -1368,6 +1581,7 @@ public class NetworkResources {
             options.havingListeners(LbListener.getInstance(1000 + random.nextInt(10000), 1000 + random.nextInt(10000)));
         }
         String[] dcIds = new String[2];
+        String testSubnetId = null;
 
         if( support.identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             Iterable<LbEndpointType> types = support.listSupportedEndpointTypes();
@@ -1379,11 +1593,42 @@ public class NetworkResources {
                     break;
                 }
             }
+            if( !internal ) {
+                options.asType( LbType.EXTERNAL );
+            }
+            else {
+              options.asType( LbType.INTERNAL );
+            }
             if( vmBased ) {
                 ComputeResources c = DaseinTestManager.getComputeResources();
 
                 if( c != null ) {
-                    String server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+                    String server1 = null;
+                    if( !internal ) {
+                      server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+                    }
+                    else {
+                      String vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                      try { Thread.sleep(750L); }
+                      catch( InterruptedException ignore ) { }
+                      VLAN vlan = services.getVlanSupport().getVlan(vlanId);
+                      if(vlan == null) {
+                        throw new CloudException("No such VLAN: " + vlanId);
+                      }
+                      String subnetId = getTestSubnetId(DaseinTestManager.STATEFUL, true, vlanId, vlan.getProviderDataCenterId());
+                      try { Thread.sleep(750L); }
+                      catch( InterruptedException ignore ) { }
+                      Subnet subnet = services.getVlanSupport().getSubnet(subnetId);
+                      if(subnet == null) {
+                        throw new CloudException("No such Subnet: " + subnetId);
+                      }
+                      testSubnetId = subnetId;
+                      String productId = c.getTestVMProductId();
+                      String imageId = c.getTestImageId(DaseinTestManager.STATELESS, false);
+                      VMLaunchOptions vmOptions = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+                      vmOptions.inVlan(null, vlan.getProviderDataCenterId(), subnet.getProviderSubnetId());
+                      server1 = c.provisionVM(provider.getComputeServices().getVirtualMachineSupport(), "internalLbLaunch", vmOptions, vlan.getProviderDataCenterId());
+                    }
 
                     if( server1 != null ) {
                         @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(server1);
@@ -1392,18 +1637,21 @@ public class NetworkResources {
                             dcIds[0] = vm.getProviderDataCenterId();
                         }
                     }
-                    @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
-                    String targetDC = dcIds[0];
+                    String server2 = null;
+                    if( !internal ) {
+                      @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
+                      String targetDC = dcIds[0];
 
-                    if( it.hasNext() ) {
-                        String dcId = it.next().getProviderDataCenterId();
+                      if( it.hasNext() ) {
+                          String dcId = it.next().getProviderDataCenterId();
 
-                        if( !dcId.equals(dcIds[0]) ) {
-                            dcIds[1] = dcId;
-                            targetDC = dcId;
-                        }
+                          if( !dcId.equals(dcIds[0]) ) {
+                              dcIds[1] = dcId;
+                              targetDC = dcId;
+                          }
+                      }
+                      server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
                     }
-                    String server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
 
                     if( server1 != null && server2 != null ) {
                         options.withVirtualMachines(server1, server2);
@@ -1434,6 +1682,9 @@ public class NetworkResources {
                     options.limitedTo(it.next().getProviderDataCenterId());
                 }
             }
+        }
+        if( internal && testSubnetId != null ) {
+          options.withProviderSubnetIds(testSubnetId);
         }
 
         String id = options.build(provider);
@@ -1506,11 +1757,12 @@ public class NetworkResources {
         SubnetCreateOptions options;
 
         if( preferredDataCenterId == null ) {
-            options = SubnetCreateOptions.getInstance(vlanId, "192.168.1." + random.nextInt(200) + "/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
+            options = SubnetCreateOptions.getInstance(vlanId, cidrs[cidrCount], namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
         }
         else {
-            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, "192.168.1." + random.nextInt(200) + "/27", namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
+            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, cidrs[cidrCount], namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration test subnet");
         }
+        cidrCount++;
         HashMap<String,Object> tags = new HashMap<String, Object>();
 
         tags.put("dsntestcase", "true");
@@ -1536,6 +1788,23 @@ public class NetworkResources {
         return id;
     }
 
+    public @Nullable String provisionInternetGateway(@Nonnull VLANSupport support, @Nonnull String label, @Nonnull String vlanId) throws CloudException, InternalException {
+      if( support.isSubnetDataCenterConstrained() ) {
+        VLAN vlan = support.getVlan(vlanId);
+        if( vlan == null ) {
+          throw new CloudException("No such VLAN: " + vlanId);
+        }
+      }
+      String id = support.createInternetGateway( vlanId );
+      synchronized( testInternetGateways ) {
+        while( testInternetGateways.containsKey(label) ) {
+          label = label + random.nextInt(9);
+        }
+        testInternetGateways.put(label, id);
+      }
+      return id;
+    }
+
     public @Nonnull String provisionVLAN(@Nonnull VLANSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
         String id;
 
@@ -1553,6 +1822,20 @@ public class NetworkResources {
             testVLANs.put(label, id);
         }
         return id;
+    }
+
+    public @Nonnull String provisionRoutingTable(@Nonnull VLANSupport support, @Nonnull String vlanId, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
+      String id = support.createRoutingTable(vlanId, namePrefix + (System.currentTimeMillis()%10000), "Test Routing Table for the Dasein Cloud Integration tests");
+      if( id == null ) {
+        throw new CloudException("No Routing Table was created");
+      }
+      synchronized( testRouteTables ) {
+        while( testRouteTables.containsKey(label) ) {
+          label = label + random.nextInt(9);
+        }
+        testRouteTables.put(label, id);
+      }
+      return id;
     }
 
     public @Nonnull String provisionDNSZone(@Nonnull DNSSupport support, @Nonnull String label, @Nonnull String domainPrefix, @Nonnull String tld) throws CloudException, InternalException {

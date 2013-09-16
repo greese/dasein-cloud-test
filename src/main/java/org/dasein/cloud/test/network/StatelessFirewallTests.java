@@ -104,6 +104,7 @@ public class StatelessFirewallTests {
         }
         assertNotNull("The firewall tags may not be null", firewall.getTags());
         assertEquals("The firewall is in the wrong region", tm.getContext().getRegionId(), firewall.getRegionId());
+        assertNotNull("The firewall rules may not be null", firewall.getRules());
     }
 
     private void assertRule(@Nonnull String fwId, @Nonnull FirewallRule rule) {
@@ -126,6 +127,7 @@ public class StatelessFirewallTests {
         tm.out("Region ID", firewall.getRegionId());
         tm.out("VLAN ID", firewall.getProviderVlanId());
         tm.out("Subnets", Arrays.toString(firewall.getSubnetAssociations()));
+        tm.out("Rules", Arrays.toString(firewall.getRules().toArray()));
         Map<String,String> tags = firewall.getTags();
 
         //noinspection ConstantConditions
@@ -491,7 +493,6 @@ public class StatelessFirewallTests {
             tm.ok("No network services in " + tm.getProvider().getCloudName());
         }
     }
-
 
     @Test
     public void compareFirewallListAndStatus() throws CloudException, InternalException {
