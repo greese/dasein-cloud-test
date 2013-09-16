@@ -146,7 +146,14 @@ public class StatefulOfflineStoreTests {
                 OfflineStoreRequest gotRequest = offlineStore.getRequest(bucket, listRequest.getRequestId());
                 assertListRequest(bucket, gotRequest);
 
-                tm.out("Successfully made list request for bucket " + bucket);
+                // since we know this bucket is inventoried, we can take this opportunity
+                // to assert that it has an object size.
+                assertNotNull(bucketBlob.getSize());
+                long size = bucketBlob.getSize().longValue();
+                assertTrue(size >= 0);
+
+                tm.out("Successfully made list request for bucket " + bucket + " (size: " + size + ")");
+
             }
             catch (CloudException e) {
                 assertEquals(404, e.getHttpCode());
