@@ -771,6 +771,102 @@ public class StatefulImageTests {
     }
 
     @Test
+    public void captureReboot() throws CloudException, InternalException {
+      if( capturedOnce ) {
+        try { Thread.sleep(CalendarWrapper.MINUTE * 2L); }
+        catch( InterruptedException ignore ) { }
+      }
+      else {
+        capturedOnce = true;
+      }
+      ComputeServices services = tm.getProvider().getComputeServices();
+
+      if( services != null ) {
+        VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+        MachineImageSupport support = services.getImageSupport();
+
+        if( support != null && vmSupport != null ) {
+          if( testVMId != null ) {
+            VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+
+            assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
+            ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + (System.currentTimeMillis() % 10000), "Dasein Capture Image Test", false);
+
+            options.withMetaData("dsntestcase", "true");
+
+            String imageId = vm.getProviderMachineImageId();
+            MachineImageType type = null;
+
+            MachineImage source = support.getImage(imageId);
+
+            if( source != null ) {
+              type = source.getType();
+            }
+            else {
+              for( MachineImageType t : support.listSupportedImageTypes() ) {
+                type = t; // pray
+              }
+            }
+            if( type == null ) {
+              type = MachineImageType.VOLUME; // or not; qui sait?
+            }
+            if( support.supportsImageCapture(type) ) {
+              provisionedImage = options.build(tm.getProvider());
+              tm.out("New Image", provisionedImage);
+              assertNotNull("The image ID returned from provisioning the image was null", provisionedImage);
+
+              long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+
+              while( timeout > System.currentTimeMillis() ) {
+                try {
+                  MachineImage image = support.getImage(provisionedImage);
+
+                  assertNotNull("The image disappeared after it was created, but before it became available", image);
+                  assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(image.getCurrentState()));
+                  tm.out("--> Current State", image.getCurrentState());
+                  if( MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
+                    break;
+                  }
+                }
+                catch( Throwable t ) {
+                  tm.warn("Error fetching captured image " + provisionedImage);
+                }
+                try { Thread.sleep(15000L); }
+                catch( InterruptedException ignore ) { }
+              }
+              MachineImage image = support.getImage(provisionedImage);
+
+              assertNotNull("The image disappeared after it was created, but before it became available", image);
+              assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
+            }
+            else {
+              try {
+                provisionedImage = options.build(tm.getProvider());
+              }
+              catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.warn("No test VM was identified for image capture, so this test is not valid");
+            }
+            else {
+              fail("No test VM exists for the " + name.getMethodName() + " test");
+            }
+          }
+        }
+        else {
+          tm.ok("No image support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No compute services in this cloud");
+      }
+    }
+
+    @Test
     public void bundleVM() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
@@ -869,7 +965,6 @@ public class StatefulImageTests {
             tm.ok("No compute services in this cloud");
         }
     }
-
 
     @Test
     public void bundleVMAsync() throws Throwable {
