@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
@@ -32,12 +33,15 @@ import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
 
+import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Random;
+
+import static org.junit.Assert.fail;
 
 /**
  * Caching of and access to network resources used in the various test cases.
@@ -50,6 +54,8 @@ public class NetworkResources {
     static private final Logger logger = Logger.getLogger(NetworkResources.class);
 
     static private final Random random = new Random();
+
+    static public final String TEST_CIDR = "209.98.98.98/32";
 
     private CloudProvider   provider;
 
@@ -1489,17 +1495,59 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionFirewall(@Nonnull String label, @Nullable String vlanId) throws CloudException, InternalException {
-        String tmp = String.valueOf(random.nextInt(10000));
-        FirewallCreateOptions options;
-        String name = "dsnfw" + tmp;
-        String description = "Dasein Cloud Integration Test Firewall";
+    public @Nonnull FirewallRuleCreateOptions constructRuleCreateOptions(int port, Direction direction, Permission permission) throws CloudException, InternalException {
+        NetworkServices services = provider.getNetworkServices();
 
-        if( vlanId == null ) {
-            options = FirewallCreateOptions.getInstance(name, description);
+        if( services == null ) {
+            throw new OperationNotSupportedException("No network services in cloud");
+        }
+
+        FirewallSupport support = services.getFirewallSupport();
+
+        if( support == null ) {
+            throw new OperationNotSupportedException("No firewall support in cloud");
+        }
+        if( support.supportsRules(direction, permission, false) ) {
+            throw new OperationNotSupportedException("Firewall rules are not supported for " + direction + "/" + permission);
+        }
+        RuleTarget sourceEndpoint, destinationEndpoint;
+
+        if( direction.equals(Direction.INGRESS) ) {
+            sourceEndpoint = RuleTarget.getCIDR(TEST_CIDR);
+            destinationEndpoint = null;
         }
         else {
-            options = FirewallCreateOptions.getInstance(vlanId, name, description);
+            destinationEndpoint = RuleTarget.getCIDR(TEST_CIDR);
+            sourceEndpoint = null;
+        }
+        return FirewallRuleCreateOptions.getInstance(direction, permission, sourceEndpoint, Protocol.TCP, destinationEndpoint, port, port);
+    }
+
+    public @Nonnull String provisionFirewall(@Nonnull String label, @Nullable String vlanId) throws CloudException, InternalException {
+        return provisionFirewall(label, vlanId, null);
+    }
+
+    public @Nonnull String provisionFirewall(@Nonnull String label, @Nullable String vlanId, @Nullable FirewallRuleCreateOptions firstRule) throws CloudException, InternalException {
+        String tmp = String.valueOf(random.nextInt(10000));
+        String name = "dsnfw" + tmp;
+        String description = "Dasein Cloud Integration Test Firewall";
+        FirewallCreateOptions options;
+
+        if( vlanId == null ) {
+            if( firstRule == null ) {
+                options = FirewallCreateOptions.getInstance(name, description);
+            }
+            else {
+                options = FirewallCreateOptions.getInstance(name, description, firstRule);
+            }
+        }
+        else {
+            if( firstRule == null ) {
+                options = FirewallCreateOptions.getInstance(vlanId, name, description);
+            }
+            else {
+                options = FirewallCreateOptions.getInstance(vlanId, name, description, firstRule);
+            }
         }
         String id = options.build(provider, false);
 

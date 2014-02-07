@@ -427,6 +427,71 @@ public class StatefulFirewallTests {
     }
 
     @Test
+    public void createGeneralFirewallWithRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            if( support != null ) {
+                NetworkResources net = DaseinTestManager.getNetworkResources();
+
+                if( net != null ) {
+                    int p = port++;
+
+                    if( support.supportsFirewallCreation(false) ) {
+                        String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+
+                        tm.out("New Firewall", id);
+                        assertNotNull("No firewall was created by this test", id);
+                        Iterable<FirewallRule> rules = support.getRules(id);
+
+                        tm.out("Initial rules", rules);
+                        assertNotNull("Firewall rules are null post firewall create of " + id, rules);
+                        boolean hasRule = false;
+
+                        for( FirewallRule rule : support.getRules(id) ) {
+                            tm.out("\tRule", rule);
+                            RuleTarget source = rule.getSourceEndpoint();
+                            RuleTarget dest = rule.getDestinationEndpoint();
+
+                            if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
+                                if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
+                                    if( id.equals(dest.getProviderFirewallId()) ) {
+                                        if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
+                                            hasRule = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        assertTrue("The initial rule was not created with the test firewall", hasRule);
+                    }
+                    else {
+                        try {
+                            net.provisionFirewall(name.getMethodName(), null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+                            fail("Firewall provisioning completed even though general firewall creation is not supported");
+                        }
+                        catch( OperationNotSupportedException expected ) {
+                            tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
+                        }
+                    }
+                }
+                else {
+                    fail("Network resources failed to initialize for " + tm.getProvider().getCloudName());
+                }
+            }
+            else {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+            }
+        }
+        else {
+            tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
     public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
