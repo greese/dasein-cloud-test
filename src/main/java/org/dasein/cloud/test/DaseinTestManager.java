@@ -43,12 +43,7 @@ import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -156,6 +151,19 @@ public class DaseinTestManager {
             prop = System.getProperty("regionId");
             if( prop != null ) {
                 ctx.setRegionId(prop);
+            }
+            prop = System.getProperty("p12Certificate");
+            if(prop != null){
+                InputStream inputStream = new FileInputStream(prop);
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                DataOutputStream dos = new DataOutputStream(baos);
+                byte[] data = new byte[4096];
+                int count = inputStream.read(data);
+                while(count != -1) {
+                    dos.write(data, 0, count);
+                    count = inputStream.read(data);
+                }
+                ctx.setP12Certificate(baos.toByteArray());
             }
             prop = System.getProperty("customProperties");
             if( prop != null ) {
@@ -459,7 +467,7 @@ public class DaseinTestManager {
             }
             out("---> Total Calls", total);
         }
-        out("Duration", (((float)(System.currentTimeMillis()-startTimestamp))/1000f) + " seconds");
+        out("Duration", (((float) (System.currentTimeMillis() - startTimestamp)) / 1000f) + " seconds");
         out("<<< END   ----------------------------------------------------------------------------------------------<<<");
         out("");
         APITrace.report(prefix);
