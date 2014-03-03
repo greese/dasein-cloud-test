@@ -22,11 +22,7 @@ package org.dasein.cloud.test.compute;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.VMFilterOptions;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -135,6 +131,9 @@ public class StatefulVMTests {
         }
         else if( name.getMethodName().equals("stop") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+        }
+        else if( name.getMethodName().equals("modifyInstance") ) {
+          testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
         }
         else if( name.getMethodName().equals("pause") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
@@ -337,6 +336,45 @@ public class StatefulVMTests {
         else {
             tm.ok("No compute services in this cloud");
         }
+    }
+
+    @Test
+    public void modifyInstance() throws CloudException, InternalException {
+      assumeTrue(!tm.isTestSkipped());
+      ComputeServices services = tm.getProvider().getComputeServices();
+
+      if( services != null ) {
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support != null ) {
+          if( testVmId != null ) {
+            VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+            if( vm != null ) {
+              tm.out( "Before", vm.getProductId() );
+              String modifiedProductId = "m1.large";
+              support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+              try { Thread.sleep(5000L); }
+              catch( InterruptedException ignore ) { }
+              vm = support.getVirtualMachine(testVmId);
+              tm.out( "After", vm.getProductId() );
+              assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
+            }
+            else {
+              tm.warn("Test virtual machine " + testVmId + " no longer exists");
+            }
+          }
+          else {
+            tm.warn("No test virtual machine was found for this test");
+          }
+        }
+        else {
+          tm.ok("No virtual machine support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No compute services in this cloud");
+      }
     }
 
     @Test

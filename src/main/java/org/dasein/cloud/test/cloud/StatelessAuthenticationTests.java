@@ -25,16 +25,12 @@ import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import static org.junit.Assert.*;
-import static org.junit.Assume.*;
+import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 /**
  * General authentication tests to verify the ability of a Dasein Cloud implementation to authenticate with the cloud
@@ -63,6 +59,7 @@ public class StatelessAuthenticationTests {
     public final TestName name = new TestName();
 
     private CloudProvider provider;
+    private String initialAccount;
 
     public StatelessAuthenticationTests() { }
 
@@ -71,11 +68,16 @@ public class StatelessAuthenticationTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
+        initialAccount = System.getProperty("accountNumber");
+
         if( name.getMethodName().equals("invalidPassword") ) {
             provider = DaseinTestManager.constructProvider(null, null, "ThisCannotPossiblyBeASecretKey");
         }
         else if( name.getMethodName().equals("invalidAccount") ) {
-            provider = DaseinTestManager.constructProvider("MyWibblesAreTribbles", "MyWibblesAreTribbles", null);
+            provider = DaseinTestManager.constructProvider("MyWibblesAreTribbles", null, null);
+        }
+        else if( name.getMethodName().equals("invalidSharedKey") ) {
+            provider = DaseinTestManager.constructProvider(null, "MyWibblesAreTribbles", null);
         }
         else if( name.getMethodName().equals("reconnect") ) {
             provider = DaseinTestManager.constructProvider();
@@ -121,8 +123,20 @@ public class StatelessAuthenticationTests {
     }
 
     @Test
-    public void invalidAccount() throws CloudException, InternalException {
+    public void invalidSharedKey() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         assertNull("Connection succeeded with fake account", provider.testContext());
+    }
+
+    @Test
+    public void invalidAccount() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        String accountNumber = provider.testContext();
+
+        // Null may indicate that unlike in AWS in this particular provider
+        // the account number must be correct to authenticate a call, so we
+        // can not test any further.
+        assumeNotNull(accountNumber);
+        assertEquals("Returned account number is not the same as the configured one", accountNumber, initialAccount);
     }
 }
