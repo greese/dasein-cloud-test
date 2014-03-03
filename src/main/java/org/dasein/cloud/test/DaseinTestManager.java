@@ -163,7 +163,7 @@ public class DaseinTestManager {
                     dos.write(data, 0, count);
                     count = inputStream.read(data);
                 }
-                ctx.setP12Certificate(baos.toByteArray());
+                ctx.setAccessPrivate(baos.toByteArray());
             }
             prop = System.getProperty("customProperties");
             if( prop != null ) {
