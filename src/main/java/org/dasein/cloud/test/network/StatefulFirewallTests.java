@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -29,25 +29,10 @@ import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.Direction;
-import org.dasein.cloud.network.Firewall;
-import org.dasein.cloud.network.FirewallRule;
-import org.dasein.cloud.network.FirewallSupport;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Permission;
-import org.dasein.cloud.network.Protocol;
-import org.dasein.cloud.network.RuleTarget;
-import org.dasein.cloud.network.RuleTargetType;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.compute.ComputeResources;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
@@ -167,7 +152,7 @@ public class StatefulFirewallTests {
                         if( direction != null && permission != null ) {
                             RuleTargetType type = RuleTargetType.CIDR;
 
-                            if( name.getMethodName().contains("Global") ) {
+                            if( name.getMethodName().contains("Global") && !name.getMethodName().contains("OldStyle") ) {
                                 type = RuleTargetType.GLOBAL;
                             }
                             if( direction.equals(Direction.INGRESS) ) {
@@ -386,6 +371,8 @@ public class StatefulFirewallTests {
                 }
                 Assert.assertNotNull("Unknown target type: " + dest.getRuleTargetType(), source);
                 support.revoke(testFirewallId, direction, permission, source, test.getProtocol(), test.getSourceEndpoint(), test.getStartPort(), test.getEndPort());
+                try { Thread.sleep(2000L); } // give provider time to propagate rule change
+                catch( InterruptedException ignore ) { }
             }
         }
         boolean found = false;
@@ -419,6 +406,71 @@ public class StatefulFirewallTests {
                     else {
                         try {
                             net.provisionFirewall(name.getMethodName(), null);
+                            fail("Firewall provisioning completed even though general firewall creation is not supported");
+                        }
+                        catch( OperationNotSupportedException expected ) {
+                            tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
+                        }
+                    }
+                }
+                else {
+                    fail("Network resources failed to initialize for " + tm.getProvider().getCloudName());
+                }
+            }
+            else {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+            }
+        }
+        else {
+            tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void createGeneralFirewallWithRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            if( support != null ) {
+                NetworkResources net = DaseinTestManager.getNetworkResources();
+
+                if( net != null ) {
+                    int p = port++;
+
+                    if( support.supportsFirewallCreation(false) ) {
+                        String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+
+                        tm.out("New Firewall", id);
+                        assertNotNull("No firewall was created by this test", id);
+                        Iterable<FirewallRule> rules = support.getRules(id);
+
+                        tm.out("Initial rules", rules);
+                        assertNotNull("Firewall rules are null post firewall create of " + id, rules);
+                        boolean hasRule = false;
+
+                        for( FirewallRule rule : support.getRules(id) ) {
+                            tm.out("\tRule", rule);
+                            RuleTarget source = rule.getSourceEndpoint();
+                            RuleTarget dest = rule.getDestinationEndpoint();
+
+                            if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
+                                if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
+                                    if( id.equals(dest.getProviderFirewallId()) ) {
+                                        if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
+                                            hasRule = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        assertTrue("The initial rule was not created with the test firewall", hasRule);
+                    }
+                    else {
+                        try {
+                            net.provisionFirewall(name.getMethodName(), null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
                             fail("Firewall provisioning completed even though general firewall creation is not supported");
                         }
                         catch( OperationNotSupportedException expected ) {
@@ -570,7 +622,6 @@ public class StatefulFirewallTests {
     public void revokeVLANEgressDeny() throws CloudException, InternalException {
         checkRemoveRule(Direction.EGRESS, Permission.DENY, true, false);
     }
-
 
     @Test
     public void revokeGeneralIngressAllowOldStyle() throws CloudException, InternalException {

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -24,6 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.network.Direction;
 import org.dasein.cloud.network.Firewall;
+import org.dasein.cloud.network.FirewallConstraints;
 import org.dasein.cloud.network.FirewallRule;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.network.NetworkServices;
@@ -104,6 +105,7 @@ public class StatelessFirewallTests {
         }
         assertNotNull("The firewall tags may not be null", firewall.getTags());
         assertEquals("The firewall is in the wrong region", tm.getContext().getRegionId(), firewall.getRegionId());
+        assertNotNull("The firewall rules may not be null", firewall.getRules());
     }
 
     private void assertRule(@Nonnull String fwId, @Nonnull FirewallRule rule) {
@@ -126,6 +128,7 @@ public class StatelessFirewallTests {
         tm.out("Region ID", firewall.getRegionId());
         tm.out("VLAN ID", firewall.getProviderVlanId());
         tm.out("Subnets", Arrays.toString(firewall.getSubnetAssociations()));
+        tm.out("Rules", Arrays.toString(firewall.getRules().toArray()));
         Map<String,String> tags = firewall.getTags();
 
         //noinspection ConstantConditions
@@ -138,6 +141,7 @@ public class StatelessFirewallTests {
 
         assertFirewall(firewall, vlan);
         assertEquals("The requested firewall ID does not match the actual firewall ID", id, firewall.getProviderFirewallId());
+
     }
 
     @Test
@@ -182,6 +186,21 @@ public class StatelessFirewallTests {
                 tm.out("Supported Destination Types (General)", support.listSupportedDestinationTypes(false));
                 tm.out("Supported Destination Types (VLAN)", support.listSupportedDestinationTypes(true));
 
+                FirewallConstraints constraints = support.getFirewallConstraintsForCloud();
+
+                assertNotNull("Firewall constraints may not be null", constraints);
+
+                Iterable<FirewallConstraints.Constraint> cfields = constraints.getConstraints();
+
+                tm.out("Constrained fields", cfields);
+                assertNotNull("Firewall constraints may not define empty files (may be an empty list)", cfields);
+
+                for( FirewallConstraints.Constraint c : FirewallConstraints.Constraint.values() ) {
+                    FirewallConstraints.Level l = constraints.getConstraintLevel(c);
+
+                    tm.out("Constraint " + c.name(), l);
+                    assertNotNull("Constraint level may not be null, but it was for " + c, l);
+                }
                 if( !general ) {
                     assertFalse("General firewalls are not supported, so it makes no sense that you can create them", support.supportsFirewallCreation(false));
                 }
@@ -396,6 +415,42 @@ public class StatelessFirewallTests {
     }
 
     @Test
+    public void firewallConstraints() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            if( support != null ) {
+                if( testGeneralFirewallId != null ) {
+                    Firewall fw = support.getFirewall(testGeneralFirewallId);
+
+                    assertNotNull("Unable to find the test firewall", fw);
+                    Map<FirewallConstraints.Constraint,Object> constraints = support.getActiveConstraintsForFirewall(testGeneralFirewallId);
+
+                    tm.out("Firewall constraints (" + testGeneralFirewallId + "): ", constraints);
+                    assertNotNull("Unable to load firewall constraints for " + testGeneralFirewallId, constraints);
+
+                }
+                else {
+                    if( support.listSupportedDirections(false).iterator().hasNext() ) {
+                        fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports general firewalls");
+                    }
+                    else {
+                        tm.ok("No general firewalls in " + tm.getProvider().getCloudName());
+                    }
+                }
+            }
+            else {
+                tm.ok("No firewall support in " + tm.getProvider().getCloudName());
+            }
+        }
+        else {
+            tm.ok("No network services in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
     public void vlanFirewallContent() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -491,7 +546,6 @@ public class StatelessFirewallTests {
             tm.ok("No network services in " + tm.getProvider().getCloudName());
         }
     }
-
 
     @Test
     public void compareFirewallListAndStatus() throws CloudException, InternalException {

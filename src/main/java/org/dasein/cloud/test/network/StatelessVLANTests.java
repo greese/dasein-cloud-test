@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -23,28 +23,14 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Networkable;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.network.VLANSupport;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -74,7 +60,9 @@ public class StatelessVLANTests {
     public final TestName name = new TestName();
 
     private String testSubnetId;
+    private String testInternetGatewayId;
     private String testVLANId;
+    private String testRoutingTableId;
 
     public StatelessVLANTests() { }
 
@@ -83,7 +71,29 @@ public class StatelessVLANTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+        if( testVLANId == null ) {
+          testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, true, null);
+          try { Thread.sleep(15000L); }
+          catch( InterruptedException ignore ) { }
+        }
         testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATELESS, false, null, null);
+        if( testSubnetId == null ) {
+          testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
+        }
+        testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, false, null, null);
+        if( testInternetGatewayId == null ) {
+          testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
+        }
+        testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATELESS, false, null, null);
+        if( testRoutingTableId == null ) {
+          testRoutingTableId = tm.getTestRoutingTableId(DaseinTestManager.STATELESS, true, null, null);
+          try { Thread.sleep(5000L); }
+          catch( InterruptedException ignore ) { }
+        }
     }
 
     @After
@@ -120,6 +130,18 @@ public class StatelessVLANTests {
         }
     }
 
+    private void assertInternetGatewayContent(@Nonnull InternetGateway internetGateway, @Nullable String vlanId) throws CloudException, InternalException {
+      assertNotNull("The internet gateway ID may not be null", internetGateway.getProviderInternetGatewayId());
+      assertNotNull("The internet gateway owner may not be null", internetGateway.getProviderOwnerId());
+      assertNotNull("The internet gateway region ID may not be null", internetGateway.getProviderRegionId());
+      assertNotNull("The internet gateway VLAN ID may not be null", internetGateway.getProviderVlanId());
+      assertEquals("The internet gateway in question does not belong in the current region", tm.getContext().getRegionId(), internetGateway.getProviderRegionId());
+      assertNotNull("The internet gateway state cannot be null", internetGateway.getAttachmentState());
+      if( vlanId != null ) {
+        assertEquals("The test VLAN ID does not match the VLAN of the internet gateway", vlanId, internetGateway.getProviderVlanId());
+      }
+    }
+
     private void assertVLANContent(@Nonnull VLANSupport support, @Nonnull VLAN network) throws CloudException, InternalException {
         assertNotNull("VLAN ID may not be null", network.getProviderVlanId());
         assertNotNull("Account owner may not be null", network.getProviderOwnerId());
@@ -142,6 +164,14 @@ public class StatelessVLANTests {
         assertNotNull("VLAN NTP servers may not be null", network.getNtpServers());
         assertNotNull("VLAN meta-data tags must not be null", network.getTags());
         assertEquals("The VLAN in question does not belong in the current region", tm.getContext().getRegionId(), network.getProviderRegionId());
+    }
+
+    private void assertRouteTableContent(@Nonnull RoutingTable rtb) throws CloudException, InternalException {
+      assertNotNull("Routing Table ID may not be null", rtb.getProviderRoutingTableId());
+      assertNotNull("Account owner may not be null", rtb.getProviderOwnerId());
+      assertNotNull("Region ID may not be null", rtb.getProviderRegionId());
+      assertNotNull("Routing Table name may not be null", rtb.getName());
+      assertNotNull("Routing Table description may not be null", rtb.getDescription());
     }
 
     @Test
@@ -343,6 +373,106 @@ public class StatelessVLANTests {
     }
 
     @Test
+    public void listRoutingTablesForVlan() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+
+          if( testVLANId != null ) {
+            Iterable<RoutingTable> rtbs = support.listRoutingTablesForVlan(testVLANId);
+            int count = 0;
+
+            assertNotNull("The list of Routing Tables may not be null (though it can be empty)", rtbs);
+            for( RoutingTable rtb : rtbs ) {
+              count++;
+              tm.out("Routing Table", rtb);
+            }
+            tm.out("Total Routing Table Count", count);
+
+            if( !support.isSubscribed() ) {
+              assertTrue("The call to list Route Tables returned Route Tables even though the account is marked as not subscribed", count == 0);
+            }
+            else if( count == 0 ) {
+              tm.warn("No Route Tables appeared in the list and thus the test may not be valid");
+            }
+            if( count > 0 ) {
+              for( RoutingTable rtb : support.listRoutingTablesForVlan(testVLANId) )  {
+                assertRouteTableContent(rtb);
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test VLAN was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
+    public void listRoutingTablesForSubnet() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+
+          if( testSubnetId != null ) {
+            Iterable<RoutingTable> rtbs = support.listRoutingTablesForSubnet(testSubnetId);
+            int count = 0;
+
+            assertNotNull("The list of Routing Tables may not be null (though it can be empty)", rtbs);
+            for( RoutingTable rtb : rtbs ) {
+              count++;
+              tm.out("Routing Table", rtb);
+            }
+            tm.out("Total Routing Table Count", count);
+
+            if( !support.isSubscribed() ) {
+              assertTrue("The call to list Route Tables returned Route Tables even though the account is marked as not subscribed", count == 0);
+            }
+            else if( count == 0 ) {
+              tm.warn("No Route Tables appeared in the list and thus the test may not be valid");
+            }
+            if( count > 0 ) {
+              for( RoutingTable rtb : support.listRoutingTablesForVlan(testVLANId) )  {
+                assertRouteTableContent(rtb);
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN/Subnet was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test Subnet was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
     public void listVLANStatus() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -483,6 +613,119 @@ public class StatelessVLANTests {
     }
 
     @Test
+    public void getBogusRouteTable() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          RoutingTable rtb = support.getRoutingTable(UUID.randomUUID().toString());
+
+          tm.out("Bogus Route Table", rtb);
+          assertNull("Bogus route table was supposed to be null, but got a valid route table", rtb);
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
+    public void getRouteTable() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testRoutingTableId != null ) {
+            RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
+
+            tm.out("Route Table", rtb);
+            assertNotNull("The test route table was not found in the cloud", rtb);
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+              tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+            }
+            else {
+              fail("No test route table was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
+    public void getBogusInternetGateway() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          InternetGateway internetGateway = support.getInternetGatewayById(UUID.randomUUID().toString());
+
+          tm.out("Bogus Internet Gateway", internetGateway);
+          assertNull("Bogus internet gateway was supposed to be null, but got a valid internet gateway", internetGateway);
+        }
+        else {
+          tm.ok("No internet gateway support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
+    public void getInternetGateway() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testInternetGatewayId != null ) {
+            InternetGateway iGateway = support.getInternetGatewayById(testInternetGatewayId);
+            tm.out("Internet Gateway", iGateway);
+            assertNotNull("The test internet gateway was not found in the cloud", iGateway);
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test internet gatway was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if( support.supportsInternetGatewayCreation() ) {
+              tm.ok("Internet Gateways are not supported so there is no test for " + name.getMethodName());
+            }
+            else {
+              fail("No test internet gateway was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
     public void subnetContent() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -590,6 +833,55 @@ public class StatelessVLANTests {
     }
 
     @Test
+    public void listInternetGateways() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testVLANId != null ) {
+            Iterable<InternetGateway> internetGateways = support.listInternetGateways(testVLANId);
+            int count = 0;
+
+            assertNotNull("The list of internet gateways may not be null (though it can be empty)", internetGateways);
+            for( InternetGateway internetgateway : internetGateways ) {
+              count++;
+              tm.out("Internet Gateway", internetgateway);
+            }
+            tm.out("Total Internet Gateway Count for " + testVLANId, count);
+
+            if( !support.isSubscribed() ) {
+              assertTrue("The call to list internet gateways returned internet gateways even though the account is marked as not subscribed", count == 0);
+            }
+            else if( count == 0 ) {
+              tm.warn("No internet gateways appeared in the list and thus the test may not be valid");
+            }
+            if( count > 0 ) {
+              for( InternetGateway internetgateway : internetGateways )  {
+                assertInternetGatewayContent(internetgateway, testVLANId);
+              }
+            }
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else {
+              fail("No test VLAN was found for running the stateless test: " + name.getMethodName());
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
     public void listResources() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -631,4 +923,114 @@ public class StatelessVLANTests {
             tm.ok("No network services in this cloud");
         }
     }
+
+    @Test
+    public void assignRouteTableToSubnet() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testSubnetId != null && testRoutingTableId != null ) {
+            RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
+            tm.out("Route Table", rtb);
+            assertNotNull("The test route table was not found in the cloud", rtb);
+            Subnet subnet = support.getSubnet(testSubnetId);
+            tm.out("Subnet", subnet);
+            assertNotNull("The test subnet was not found in the cloud", subnet);
+            support.assignRoutingTableToSubnet(testSubnetId, testRoutingTableId);
+            try { Thread.sleep(1000L); }
+            catch( InterruptedException ignore ) { }
+            rtb = support.getRoutingTable(testRoutingTableId);
+            tm.out("Route Table", rtb);
+            assertNotNull("The test route table was not found in the cloud", rtb);
+            tm.out("Route Table subnets", rtb.getProviderSubnetIds());
+            assertTrue("The test route table subnets should not be empty", rtb.getProviderSubnetIds().length > 0);
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+              tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+            }
+            else {
+              if( testSubnetId == null ) {
+                fail("No test subnet was found for running the stateful test: " + name.getMethodName());
+              }
+              else {
+                fail("No test route table was found for running the stateful test: " + name.getMethodName());
+              }
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
+    @Test
+    public void disassociateRouteTableFromSubnet() throws CloudException, InternalException {
+      NetworkServices services = tm.getProvider().getNetworkServices();
+
+      if( services != null ) {
+        VLANSupport support = services.getVlanSupport();
+
+        if( support != null ) {
+          if( testSubnetId != null && testRoutingTableId != null ) {
+            RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
+            tm.out("Route Table", rtb);
+            assertNotNull("The test route table was not found in the cloud", rtb);
+            Subnet subnet = support.getSubnet(testSubnetId);
+            tm.out("Subnet", subnet);
+            assertNotNull("The test subnet was not found in the cloud", subnet);
+            support.disassociateRoutingTableFromSubnet(testSubnetId, testRoutingTableId);
+            try { Thread.sleep(3000L); }
+            catch( InterruptedException ignore ) { }
+            rtb = support.getRoutingTable(testRoutingTableId);
+            Boolean match = false;
+            if( rtb != null ) {
+              tm.out("Route Table subnets", rtb.getProviderSubnetIds());
+              String[] rtbSubArr = rtb.getProviderSubnetIds();
+              if( rtbSubArr != null ) {
+                for(String subnetId : rtbSubArr) {
+                  if(subnetId.equals(testSubnetId)){
+                    match = true;
+                  }
+                }
+              }
+            }
+            assertFalse("The test route table subnets should not not contain test subnet id", match);
+          }
+          else {
+            if( !support.isSubscribed() ) {
+              tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+              tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+            }
+            else {
+              if( testSubnetId == null ) {
+                fail("No test subnet was found for running the stateful test: " + name.getMethodName());
+              }
+              else {
+                fail("No test route table was found for running the stateful test: " + name.getMethodName());
+              }
+            }
+          }
+        }
+        else {
+          tm.ok("No VLAN support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No network services in this cloud");
+      }
+    }
+
 }

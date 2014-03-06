@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -570,6 +570,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestSubnetId(label, provisionIfNull, vlanId, preferredDataCenterId));
     }
 
+    public @Nullable String getTestInternetGatewayId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+      return (networkResources == null ? null : networkResources.getTestInternetGatewayId(label, provisionIfNull, vlanId, preferredDataCenterId));
+    }
+
     public @Nullable String getTestTopicId(@Nonnull String label, boolean provisionIfNull) {
         return (platformResources == null ? null : platformResources.getTestTopicId(label, provisionIfNull));
     }
@@ -618,11 +622,22 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestVLANId(label, provisionIfNull, preferredDataCenterId));
     }
 
+    public @Nullable String getTestRoutingTableId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+      return (networkResources == null ? null : networkResources.getTestRoutingTableId(label, provisionIfNull, vlanId, preferredDataCenterId));
+    }
+
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;
         }
         return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
+    }
+
+    public @Nullable String getTestVLANVMId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+      if( computeResources == null ) {
+        return null;
+      }
+      return computeResources.getTestVLANVmId(label, desiredState, vlanId, provisionIfNull, preferredDataCenterId);
     }
 
     public @Nullable String getTestVMProductId() {

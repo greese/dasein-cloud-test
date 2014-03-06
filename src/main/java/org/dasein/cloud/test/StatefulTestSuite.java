@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -33,7 +33,7 @@ import org.dasein.cloud.test.network.StatefulStaticIPTests;
 import org.dasein.cloud.test.platform.StatefulCDNTests;
 import org.dasein.cloud.test.platform.StatefulMonitoringTests;
 import org.dasein.cloud.test.network.StatefulVLANTests;
-import org.dasein.cloud.test.platform.StatefulNotificationsTests;
+import org.dasein.cloud.test.platform.StatefulPushNotificationTests;
 import org.dasein.cloud.test.platform.StatefulRDBMSTests;
 import org.dasein.cloud.test.storage.StatefulObjectStoreTests;
 import org.dasein.cloud.test.storage.StatefulOfflineStoreTests;
@@ -65,7 +65,7 @@ import org.junit.runners.Suite;
         StatefulIAMTests.class,
         StatefulDNSTests.class,
         StatefulCDNTests.class,
-        StatefulNotificationsTests.class
+        StatefulPushNotificationTests.class
 })
 public class StatefulTestSuite {
 }

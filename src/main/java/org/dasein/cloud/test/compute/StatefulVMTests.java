@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -22,11 +22,7 @@ package org.dasein.cloud.test.compute;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.VMFilterOptions;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -135,6 +131,9 @@ public class StatefulVMTests {
         }
         else if( name.getMethodName().equals("stop") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+        }
+        else if( name.getMethodName().equals("modifyInstance") ) {
+          testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
         }
         else if( name.getMethodName().equals("pause") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
@@ -246,6 +245,47 @@ public class StatefulVMTests {
     }
 
     @Test
+    public void launchMany() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( support.isSubscribed() ) {
+                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "Dasein Test Launch", "dsnlaunch", null, 2);
+                    int count = 0;
+
+                    for( String id : ids ) {
+                        tm.out("Launched", id);
+                        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+                        assertNotNull("Could not find the newly created virtual machine", support.getVirtualMachine(id));
+                        count++;
+                    }
+                    assertEquals("Two virtual machines were not launched", 2, count);
+                }
+                else {
+                    try {
+                        //noinspection ConstantConditions
+                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                        fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+                    }
+                    catch( CloudException ok ) {
+                        tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                    }
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
     public void filterVMs() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
@@ -304,7 +344,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsStartStop(vm) ) {
+                        if( support.getCapabilities().canStop(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.stop(testVmId, true);
                             vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
@@ -340,6 +380,47 @@ public class StatefulVMTests {
     }
 
     @Test
+    public void modifyInstance() throws CloudException, InternalException {
+      assumeTrue(!tm.isTestSkipped());
+      ComputeServices services = tm.getProvider().getComputeServices();
+
+      if( services != null ) {
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support != null ) {
+          if( testVmId != null ) {
+            VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+            if( vm != null ) {
+              tm.out( "Before", vm.getProductId() );
+              String modifiedProductId = "m1.large";
+              support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+              try { Thread.sleep(5000L); }
+              catch( InterruptedException ignore ) { }
+              vm = support.getVirtualMachine(testVmId);
+                if( vm != null ) {
+                    tm.out( "After", vm.getProductId() );
+                    assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
+                }
+            }
+            else {
+              tm.warn("Test virtual machine " + testVmId + " no longer exists");
+            }
+          }
+          else {
+            tm.warn("No test virtual machine was found for this test");
+          }
+        }
+        else {
+          tm.ok("No virtual machine support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No compute services in this cloud");
+      }
+    }
+
+    @Test
     public void start() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
@@ -352,7 +433,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsStartStop(vm) ) {
+                        if( support.getCapabilities().canStart(vm.getCurrentState())) {
                             tm.out("Before", vm.getCurrentState());
                             support.start(testVmId);
                             vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
@@ -400,7 +481,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsPauseUnpause(vm) ) {
+                        if( support.getCapabilities().canPause(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.pause(testVmId);
                             vm = awaitState(vm, VmState.PAUSED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
@@ -448,7 +529,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsPauseUnpause(vm) ) {
+                        if( support.getCapabilities().canUnpause(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.unpause(testVmId);
                             vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
@@ -496,7 +577,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsSuspendResume(vm) ) {
+                        if( support.getCapabilities().canSuspend(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.suspend(testVmId);
                             vm = awaitState(vm, VmState.SUSPENDED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
@@ -544,7 +625,7 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.supportsSuspendResume(vm) ) {
+                        if( support.getCapabilities().canResume(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.resume(testVmId);
                             vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));

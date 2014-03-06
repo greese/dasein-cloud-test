@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -371,6 +371,34 @@ public class StatelessVMTests {
         else {
             tm.ok("No compute services in this cloud");
         }
+    }
+
+    @Test
+    public void getVMPassword() throws CloudException, InternalException {
+      assumeTrue(!tm.isTestSkipped());
+      ComputeServices services = tm.getProvider().getComputeServices();
+
+      if( services != null ) {
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support != null ) {
+          if( testVMId != null ) {
+            String pass = support.getPassword(testVMId);
+
+            tm.out("Password for vm: ", pass);
+            assertNotNull("Did not find the password for test virtual machine " + testVMId, pass);
+          }
+          else if( support.isSubscribed() ) {
+            fail("No test virtual machine exists and thus no test could be run for getVMPassword");
+          }
+        }
+        else {
+          tm.ok("No virtual machine support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No compute services in this cloud");
+      }
     }
 
     @Test
