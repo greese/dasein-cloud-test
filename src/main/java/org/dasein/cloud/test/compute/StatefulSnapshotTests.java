@@ -100,7 +100,7 @@ public class StatefulSnapshotTests {
             if( testVolumeId != null ) {
                 if( support != null ) {
                     try {
-                        if( support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+                        if( support.getCapabilities().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
                             String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, null);
 
                             if( vmId != null ) {
@@ -110,7 +110,7 @@ public class StatefulSnapshotTests {
                                     VolumeSupport volumeSupport = services.getVolumeSupport();
 
                                     if( volumeSupport != null ) {
-                                        for( String deviceId : volumeSupport.listPossibleDeviceIds(vm.getPlatform()) ) {
+                                        for( String deviceId : volumeSupport.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
                                             try {
                                                 volumeSupport.attach(testVolumeId, vmId, deviceId);
                                                 break;
@@ -369,7 +369,7 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( !support.supportsSnapshotCopying() ) {
+        if( !support.getCapabilities().supportsSnapshotCopying() ) {
             if( testSnapshotId == null ) {
                 testSnapshotId = "nonsense";
             }
@@ -444,24 +444,29 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            Snapshot snapshot = support.getSnapshot(testSnapshotId);
+        if( support.getCapabilities().supportsSnapshotSharing() ) {
+            if( testSnapshotId != null ) {
+                Snapshot snapshot = support.getSnapshot(testSnapshotId);
 
-            assertNotNull("Failed to find the test snapshot among possible snapshots", snapshot);
-            Iterable<String> shares = support.listShares(testSnapshotId);
+                assertNotNull("Failed to find the test snapshot among possible snapshots", snapshot);
+                Iterable<String> shares = support.listShares(testSnapshotId);
 
-            tm.out("Image Shares", shares);
-            assertNotNull("Snapshot shares may not be null", shares);
-        }
-        else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified, so this test is not valid");
+                tm.out("Image Shares", shares);
+                assertNotNull("Snapshot shares may not be null", shares);
             }
             else {
-                fail("No test snapshot exists for " + name.getMethodName());
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified, so this test is not valid");
+                }
+                else {
+                    fail("No test snapshot exists for " + name.getMethodName());
+                }
             }
         }
-
+        else {
+            Iterable<String> shares = support.listShares(testSnapshotId);
+            assertTrue("Snapshot sharing not supported, result should be empty list", !shares.iterator().hasNext());
+        }
     }
 
     @Test
@@ -483,7 +488,7 @@ public class StatefulSnapshotTests {
                 Iterable<String> shares = support.listShares(testSnapshotId);
 
                 tm.out("Before", shares);
-                if( support.supportsSnapshotSharing() ) {
+                if( support.getCapabilities().supportsSnapshotSharing() ) {
                     support.addSnapshotShare(testSnapshotId, testShareAccount);
 
                     boolean found = false;
@@ -541,7 +546,7 @@ public class StatefulSnapshotTests {
                 Iterable<String> shares = support.listShares(testSnapshotId);
 
                 tm.out("Before", shares);
-                if( support.supportsSnapshotSharing() ) {
+                if( support.getCapabilities().supportsSnapshotSharing() ) {
                     support.removeSnapshotShare(testSnapshotId, testShareAccount);
 
                     boolean found = false;
@@ -595,7 +600,7 @@ public class StatefulSnapshotTests {
             return;
         }
         if( testSnapshotId != null ) {
-            if( support.supportsSnapshotSharingWithPublic() ) {
+            if( support.getCapabilities().supportsSnapshotSharingWithPublic() ) {
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.addPublicShare(testSnapshotId);
                 boolean shared = support.isPublic(testSnapshotId);
@@ -637,7 +642,7 @@ public class StatefulSnapshotTests {
             return;
         }
         if( testSnapshotId != null ) {
-            if( support.supportsSnapshotSharingWithPublic() ) {
+            if( support.getCapabilities().supportsSnapshotSharingWithPublic() ) {
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.removePublicShare(testSnapshotId);
                 boolean shared = support.isPublic(testSnapshotId);

@@ -99,7 +99,7 @@ public class StatelessLoadBalancerTests {
 
         boolean ok = false;
 
-        for( LbAlgorithm algorithm : support.listSupportedAlgorithms() ) {
+        for( LbAlgorithm algorithm : support.getCapabilities().listSupportedAlgorithms() ) {
             if( algorithm.equals(listener.getAlgorithm()) ) {
                 ok = true;
             }
@@ -109,7 +109,7 @@ public class StatelessLoadBalancerTests {
         ok = false;
         assertNotNull("The listener network protocol may not be null", listener.getNetworkProtocol());
 
-        for( LbProtocol protocol : support.listSupportedProtocols() ) {
+        for( LbProtocol protocol : support.getCapabilities().listSupportedProtocols() ) {
             if( protocol.equals(listener.getNetworkProtocol()) ) {
                 ok = true;
             }
@@ -119,7 +119,7 @@ public class StatelessLoadBalancerTests {
         ok = false;
         assertNotNull("The listener session persistence may not be null", listener.getPersistence());
 
-        for( LbPersistence p : support.listSupportedPersistenceOptions() ) {
+        for( LbPersistence p : support.getCapabilities().listSupportedPersistenceOptions() ) {
             if( p.equals(listener.getPersistence()) ) {
                 ok = true;
             }
@@ -143,7 +143,7 @@ public class StatelessLoadBalancerTests {
         String[] dcs = lb.getProviderDataCenterIds();
 
         assertNotNull("The list of data centers to which the load balancer is assigned may not be null", dcs);
-        if( support.isDataCenterLimited() ) {
+        if( support.getCapabilities().isDataCenterLimited() ) {
             assertTrue("There must be at least one data center associated with the load balancer", dcs.length > 0);
         }
         assertNotNull("The load balancer address type may not be null", lb.getAddressType());
@@ -162,7 +162,7 @@ public class StatelessLoadBalancerTests {
 
         assertNotNull("The list of listeners may not be null", listeners);
 
-        if( support.identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+        if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             assertTrue("There must be at least one public port associated with the load balancer", ports.length > 0);
             assertTrue("There must be at least one listener associated with the load balancer", listeners.length > 0);
         }
@@ -187,51 +187,51 @@ public class StatelessLoadBalancerTests {
             return;
         }
         tm.out("Subscribed", support.isSubscribed());
-        tm.out("Term for Load Balancer", support.getProviderTermForLoadBalancer(Locale.getDefault()));
-        tm.out("Data Center Limited", support.isDataCenterLimited());
-        tm.out("Address Type", support.getAddressType());
-        tm.out("Provider-assigned Address", support.isAddressAssignedByProvider());
-        tm.out("Endpoints on Create", support.identifyEndpointsOnCreateRequirement());
-        tm.out("Listeners on Create", support.identifyListenersOnCreateRequirement());
-        tm.out("Max Public Ports", support.getMaxPublicPorts() == 0 ? "Unlimited" : String.valueOf(support.getMaxPublicPorts()));
-        tm.out("Endpoint Types", support.listSupportedEndpointTypes());
-        tm.out("Algorithms", support.listSupportedAlgorithms());
-        tm.out("Protocols", support.listSupportedProtocols());
-        tm.out("Persistence Options", support.listSupportedPersistenceOptions());
-        tm.out("Supported Traffic", support.listSupportedIPVersions());
-        tm.out("Supports Monitoring", support.supportsMonitoring());
-        tm.out("Can Add Endpoints", support.supportsAddingEndpoints());
-        tm.out("Supports Multiple IP Versions", support.supportsMultipleTrafficTypes());
+        tm.out("Term for Load Balancer", support.getCapabilities().getProviderTermForLoadBalancer(Locale.getDefault()));
+        tm.out("Data Center Limited", support.getCapabilities().isDataCenterLimited());
+        tm.out("Address Type", support.getCapabilities().getAddressType());
+        tm.out("Provider-assigned Address", support.getCapabilities().isAddressAssignedByProvider());
+        tm.out("Endpoints on Create", support.getCapabilities().identifyEndpointsOnCreateRequirement());
+        tm.out("Listeners on Create", support.getCapabilities().identifyListenersOnCreateRequirement());
+        tm.out("Max Public Ports", support.getCapabilities().getMaxPublicPorts() == 0 ? "Unlimited" : String.valueOf(support.getCapabilities().getMaxPublicPorts()));
+        tm.out("Endpoint Types", support.getCapabilities().listSupportedEndpointTypes());
+        tm.out("Algorithms", support.getCapabilities().listSupportedAlgorithms());
+        tm.out("Protocols", support.getCapabilities().listSupportedProtocols());
+        tm.out("Persistence Options", support.getCapabilities().listSupportedPersistenceOptions());
+        tm.out("Supported Traffic", support.getCapabilities().listSupportedIPVersions());
+        tm.out("Supports Monitoring", support.getCapabilities().supportsMonitoring());
+        tm.out("Can Add Endpoints", support.getCapabilities().supportsAddingEndpoints());
+        tm.out("Supports Multiple IP Versions", support.getCapabilities().supportsMultipleTrafficTypes());
 
         assertNotNull("The provider term for a load balancer may not be null", support.getProviderTermForLoadBalancer(Locale.getDefault()));
-        assertNotNull("The address type may not be null", support.getAddressType());
-        if( LoadBalancerAddressType.DNS.equals(support.getAddressType()) ) {
-            assertTrue("DNS-based load balancers must have the load balancer address assigned by the cloud provider", support.isAddressAssignedByProvider());
+        assertNotNull("The address type may not be null", support.getCapabilities().getAddressType());
+        if( LoadBalancerAddressType.DNS.equals(support.getCapabilities().getAddressType()) ) {
+            assertTrue("DNS-based load balancers must have the load balancer address assigned by the cloud provider", support.getCapabilities().isAddressAssignedByProvider());
         }
-        else if( !support.isAddressAssignedByProvider() ) {
+        else if( !support.getCapabilities().isAddressAssignedByProvider() ) {
             IpAddressSupport ipSupport = services.getIpAddressSupport();
 
             assertNotNull("If IP addresses are not assigned by a provider, there must be IP address support", ipSupport);
 
             boolean requestable = false;
 
-            for( IPVersion v : support.listSupportedIPVersions() ) {
-                if( ipSupport.isRequestable(v) ) {
+            for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
+                if( ipSupport.getCapabilities().isRequestable(v) ) {
                     requestable = true;
                     break;
                 }
             }
             assertTrue("IP addresses must be requestable when IP addresses for load balancers are not provider assigned", requestable);
         }
-        assertNotNull("The requirement level for having endpoints when creating a load balancer cannot be null", support.identifyEndpointsOnCreateRequirement());
-        assertNotNull("The requirement level for having listeners when creating a load balancer cannot be null", support.identifyListenersOnCreateRequirement());
-        assertTrue("The maximum number of public ports must be a positive number or 0 for unlimited", support.getMaxPublicPorts() >= 0);
-        assertTrue("There must be at least one supported endpoint type", support.listSupportedEndpointTypes().iterator().hasNext());
-        assertTrue("There must be at least one supported algorithm", support.listSupportedAlgorithms().iterator().hasNext());
-        assertTrue("There must be at least one supported protocol", support.listSupportedProtocols().iterator().hasNext());
-        assertTrue("There must be at least one supported persistence option", support.listSupportedPersistenceOptions().iterator().hasNext());
-        assertTrue("There must be at least one supported IP version", support.listSupportedIPVersions().iterator().hasNext());
-        assertTrue("If you are not creating endpoints at LB create, you need the ability to add them after load balancer creation", support.identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) || support.supportsAddingEndpoints());
+        assertNotNull("The requirement level for having endpoints when creating a load balancer cannot be null", support.getCapabilities().identifyEndpointsOnCreateRequirement());
+        assertNotNull("The requirement level for having listeners when creating a load balancer cannot be null", support.getCapabilities().identifyListenersOnCreateRequirement());
+        assertTrue("The maximum number of public ports must be a positive number or 0 for unlimited", support.getCapabilities().getMaxPublicPorts() >= 0);
+        assertTrue("There must be at least one supported endpoint type", support.getCapabilities().listSupportedEndpointTypes().iterator().hasNext());
+        assertTrue("There must be at least one supported algorithm", support.getCapabilities().listSupportedAlgorithms().iterator().hasNext());
+        assertTrue("There must be at least one supported protocol", support.getCapabilities().listSupportedProtocols().iterator().hasNext());
+        assertTrue("There must be at least one supported persistence option", support.getCapabilities().listSupportedPersistenceOptions().iterator().hasNext());
+        assertTrue("There must be at least one supported IP version", support.getCapabilities().listSupportedIPVersions().iterator().hasNext());
+        assertTrue("If you are not creating endpoints at LB create, you need the ability to add them after load balancer creation", support.getCapabilities().identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) || support.getCapabilities().supportsAddingEndpoints());
     }
 
     @Test
@@ -352,7 +352,7 @@ public class StatelessLoadBalancerTests {
             int count = 0;
 
             assertNotNull("The list of load balancer endpoints may not be null", endpoints);
-            if( support.identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            if( support.getCapabilities().identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
                 assertTrue("There must be at least one endpoint associated with this load balancer", endpoints.iterator().hasNext());
             }
             for( LoadBalancerEndpoint endpoint : endpoints ) {
