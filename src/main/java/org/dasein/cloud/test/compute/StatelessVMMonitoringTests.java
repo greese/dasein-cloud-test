@@ -95,8 +95,8 @@ public class StatelessVMMonitoringTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                tm.out("Basic Analytics", support.isBasicAnalyticsSupported());
-                tm.out("Extended Analytics", support.isExtendedAnalyticsSupported());
+                tm.out("Basic Analytics", support.getCapabilities().isBasicAnalyticsSupported());
+                tm.out("Extended Analytics", support.getCapabilities().isExtendedAnalyticsSupported());
             }
             else {
                 tm.ok("No virtual machine support in this cloud");

@@ -392,15 +392,20 @@ public class StatefulVMTests {
             VirtualMachine vm = support.getVirtualMachine(testVmId);
 
             if( vm != null ) {
-              tm.out( "Before", vm.getProductId() );
-              String modifiedProductId = "m1.large";
-              support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
-              try { Thread.sleep(5000L); }
-              catch( InterruptedException ignore ) { }
-              vm = support.getVirtualMachine(testVmId);
-                if( vm != null ) {
-                    tm.out( "After", vm.getProductId() );
-                    assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
+                if (support.getCapabilities().canAlter(vm.getCurrentState())) {
+                  tm.out( "Before", vm.getProductId() );
+                  String modifiedProductId = "m1.large";
+                  support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                  try { Thread.sleep(5000L); }
+                  catch( InterruptedException ignore ) { }
+                  vm = support.getVirtualMachine(testVmId);
+                    if( vm != null ) {
+                        tm.out( "After", vm.getProductId() );
+                        assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
+                    }
+                }
+                else {
+                    tm.ok("Alter vm not supported for vm state "+vm.getCurrentState());
                 }
             }
             else {
