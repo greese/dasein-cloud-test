@@ -925,10 +925,10 @@ public class ComputeResources {
         if( preferredDataCenter != null ) {
             options.inDataCenter(preferredDataCenter);
         }
-        if( options.getBootstrapUser() == null && Requirement.REQUIRED.equals(support.identifyPasswordRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapUser() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyPasswordRequirement(testImagePlatform)) ) {
             options.withBootstrapUser("dasein", "x" + random.nextInt(100000) + System.currentTimeMillis());
         }
-        if( options.getBootstrapKey() == null && Requirement.REQUIRED.equals(support.identifyShellKeyRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapKey() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyShellKeyRequirement(testImagePlatform)) ) {
             IdentityResources identity = DaseinTestManager.getIdentityResources();
 
             if( identity != null ) {
@@ -939,7 +939,7 @@ public class ComputeResources {
                 }
             }
         }
-        if( options.getVlanId() == null && Requirement.REQUIRED.equals(support.identifyVlanRequirement()) ) {
+        if( options.getVlanId() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyVlanRequirement()) ) {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
@@ -991,7 +991,7 @@ public class ComputeResources {
                 }
             }
         }
-        if( options.getStaticIpIds().length < 1 && Requirement.REQUIRED.equals(support.identifyStaticIPRequirement()) ) {
+        if( options.getStaticIpIds().length < 1 && Requirement.REQUIRED.equals(support.getCapabilities().identifyStaticIPRequirement()) ) {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
@@ -1008,7 +1008,7 @@ public class ComputeResources {
                 }
             }
         }
-        if( options.getRootVolumeProductId() == null && Requirement.REQUIRED.equals(support.identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
+        if( options.getRootVolumeProductId() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyRootVolumeRequirement()) && testVolumeProductId != null ) {
             options.withRootVolumeProduct(testVolumeProductId);
         }
         options.withMetaData("dsntestcase", "true");

@@ -103,7 +103,7 @@ public class StatefulStaticIPTests {
                 VLANSupport support = services.getVlanSupport();
 
                 try {
-                    if( support != null && support.supportsInternetGatewayCreation() && !support.isConnectedViaInternetGateway(testVlanId) ) {
+                    if( support != null && support.getCapabilities().supportsInternetGatewayCreation() && !support.isConnectedViaInternetGateway(testVlanId) ) {
                         support.createInternetGateway(testVlanId);
                     }
                 }
@@ -342,7 +342,7 @@ public class StatefulStaticIPTests {
                 tm.ok("Caught a cloud exception attempting to request an address of type " + version + " in an account where there is no subscription");
             }
         }
-        else if( support.isRequestable(version) && (!forVLAN || support.supportsVLANAddresses(version)) ) {
+        else if( support.isRequestable(version) && (!forVLAN || support.getCapabilities().supportsVLANAddresses(version)) ) {
             String addressId;
 
             if( !forVLAN ) {
@@ -407,14 +407,14 @@ public class StatefulStaticIPTests {
             if( !support.isSubscribed() ) {
                 tm.ok("No IP address subscription exists for this account in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
-            else if( !support.isAssignablePostLaunch(version) ) {
+            else if( !support.getCapabilities().isAssignablePostLaunch(version) ) {
                 tm.ok("Unable to assign new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
-            else if( !support.isRequestable(version) ) {
+            else if( !support.getCapabilities().isRequestable(version) ) {
                 tm.warn("Unable to provision new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
             else {
-                if( name.getMethodName().contains("VLAN") && !support.supportsVLANAddresses(version) ) {
+                if( name.getMethodName().contains("VLAN") && !support.getCapabilities().supportsVLANAddresses(version) ) {
                     tm.ok("No VLAN IP addresses are supported");
                 }
                 else {
@@ -426,7 +426,7 @@ public class StatefulStaticIPTests {
         if( testVMId == null ) {
             fail("Unable to get a test VM for running the test " + name.getMethodName());
         }
-        if( support.isAssignablePostLaunch(version) ) {
+        if( support.getCapabilities().isAssignablePostLaunch(version) ) {
             @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = tm.getProvider().getComputeServices().getVirtualMachineSupport();
             IpAddress address = support.getIpAddress(testIpAddress);
 
@@ -507,7 +507,7 @@ public class StatefulStaticIPTests {
             return;
         }
         if( testIpAddress == null ) {
-            if( !support.isRequestable(IPVersion.IPV4) && !support.isRequestable(IPVersion.IPV6) ) {
+            if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
             else {
@@ -540,7 +540,7 @@ public class StatefulStaticIPTests {
             return;
         }
         if( testIpAddress == null ) {
-            if( !support.isRequestable(IPVersion.IPV4) && !support.isRequestable(IPVersion.IPV6) ) {
+            if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
             else {
@@ -588,7 +588,7 @@ public class StatefulStaticIPTests {
                 assertNull("The virtual machine associated with the IP address is still set", address.getServerId());
             }
             else {
-                if( !support.isAssignablePostLaunch(address.getVersion()) ) {
+                if( !support.getCapabilities().isAssignablePostLaunch(address.getVersion()) ) {
                     tm.ok("Dynamic IP address assignment is not supported");
                 }
                 else {
@@ -612,7 +612,7 @@ public class StatefulStaticIPTests {
             return;
         }
 
-        if( support.isForwarding(version) ) {
+        if( support.getCapabilities().isForwarding(version) ) {
             if( testIpAddress != null ) {
                 assertNotNull("Test VM is null", testVMId);
 
@@ -638,7 +638,7 @@ public class StatefulStaticIPTests {
                 assertTrue("Did not find the newly created rule", found);
             }
             else {
-                if( !support.isRequestable(version) ) {
+                if( !support.getCapabilities().isRequestable(version) ) {
                     tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
                 }
                 else {
@@ -675,7 +675,7 @@ public class StatefulStaticIPTests {
             return;
         }
 
-        if( support.isForwarding(version) ) {
+        if( support.getCapabilities().isForwarding(version) ) {
             if( testRuleId != null ) {
                 support.stopForward(testRuleId);
                 long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
@@ -700,7 +700,7 @@ public class StatefulStaticIPTests {
                 assertNotNull("The target rule still exists among the forwarding rules", exists);
             }
             else {
-                if( !support.isRequestable(version) ) {
+                if( !support.getCapabilities().isRequestable(version) ) {
                     tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
                 }
                 else {

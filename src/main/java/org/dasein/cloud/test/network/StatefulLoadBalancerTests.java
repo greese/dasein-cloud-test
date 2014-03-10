@@ -142,7 +142,7 @@ public class StatefulLoadBalancerTests {
 
                     if( support != null ) {
                         try {
-                            if( support.isDataCenterLimited() ) {
+                            if( support.getCapabilities().isDataCenterLimited() ) {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
@@ -195,7 +195,7 @@ public class StatefulLoadBalancerTests {
 
                     if( support != null ) {
                         try {
-                            if( support.isDataCenterLimited() ) {
+                            if( support.getCapabilities().isDataCenterLimited() ) {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
@@ -347,7 +347,7 @@ public class StatefulLoadBalancerTests {
             return;
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
-            if( support.isDataCenterLimited() ) {
+            if( support.getCapabilities().isDataCenterLimited() ) {
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                 assertNotNull("The test load balancer disappeared prior to the test", lb);
@@ -408,14 +408,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean ips = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.IP) ) {
                 ips = true;
                 break;
             }
         }
         if( testLoadBalancerId != null ) {
-            if( support.supportsAddingEndpoints() && ips ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && ips ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addIPEndpoints(testLoadBalancerId, "196.91.70.2");
 
@@ -470,14 +470,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean vms = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.VM) ) {
                 vms = true;
                 break;
             }
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
-            if( support.supportsAddingEndpoints() && vms ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && vms ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addServers(testLoadBalancerId, testVirtualMachineId);
 
@@ -531,7 +531,7 @@ public class StatefulLoadBalancerTests {
             return;
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
-            if( support.isDataCenterLimited() ) {
+            if( support.getCapabilities().isDataCenterLimited() ) {
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                 assertNotNull("The test load balancer disappeared during the test", lb);
@@ -591,14 +591,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean ips = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.IP) ) {
                 ips = true;
                 break;
             }
         }
         if( testLoadBalancerId != null ) {
-            if( support.supportsAddingEndpoints() && ips ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && ips ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
 
                 support.removeIPEndpoints(testLoadBalancerId, "197.41.20.2");
@@ -655,14 +655,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean vms = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.VM) ) {
                 vms = true;
                 break;
             }
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
-            if( support.supportsAddingEndpoints() && vms ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && vms ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
 
                 support.removeServers(testLoadBalancerId, testVirtualMachineId);
