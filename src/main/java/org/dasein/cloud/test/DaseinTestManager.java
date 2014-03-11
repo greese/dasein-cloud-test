@@ -20,8 +20,7 @@
 package org.dasein.cloud.test;
 
 import org.apache.log4j.Logger;
-import org.dasein.cloud.CloudProvider;
-import org.dasein.cloud.ProviderContext;
+import org.dasein.cloud.*;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
 import org.dasein.cloud.network.Firewall;
@@ -44,10 +43,7 @@ import org.json.JSONObject;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Properties;
-import java.util.TreeSet;
+import java.util.*;
 
 /**
  * Consolidates and manages cloud resources shared across many different tests.
@@ -84,17 +80,89 @@ public class DaseinTestManager {
 
     static public @Nonnull CloudProvider constructProvider(@Nullable String overrideAccount, @Nullable String overrideShared, @Nullable String overrideSecret) {
         String cname = System.getProperty("providerClass");
-        CloudProvider provider;
+        CloudProvider provider = null;
 
         if( cname == null ) {
             throw new RuntimeException("Invalid class name for provider: " + cname);
         }
+        /*
         try {
             provider = (CloudProvider)Class.forName(cname).newInstance();
         }
         catch( Exception e ) {
             throw new RuntimeException("Invalid class name " + cname + " for provider: " + e.getMessage());
         }
+        */
+
+        try{
+            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "";
+
+            prop = overrideAccount == null ? System.getProperty("accountNumber") : overrideAccount;
+            if( prop != null ) {
+                account = prop;
+            }
+            prop= System.getProperty("cloudName");
+            if( prop != null ) {
+                cloudName = prop;
+            }
+            prop = System.getProperty("endpoint");
+            if( prop != null ) {
+                endpoint = prop;
+            }
+            prop = System.getProperty("providerName");
+            if( prop != null ) {
+                providerName = prop;
+            }
+            prop = System.getProperty("regionId");
+            if( prop != null ) {
+                regionId = prop;
+            }
+
+            Cloud cloud = Cloud.register(providerName, cloudName, endpoint, (Class<? extends CloudProvider>) Class.forName(cname));
+
+            ContextRequirements requirements = cloud.buildProvider().getContextRequirements();
+            List<ContextRequirements.Field> fields = requirements.getConfigurableValues();
+
+            ProviderContext.Value[] values = new ProviderContext.Value[fields.size()];
+            int i = 0;
+
+            for(ContextRequirements.Field f : fields ) {
+                if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
+                    String shared = System.getProperty(f.name + "Shared");
+                    String secret = System.getProperty(f.name + "Secret");
+                    values[i] = ProviderContext.Value.parseValue(f, shared, secret);
+                }
+                else {
+                    String value = System.getProperty(f.name);
+                    values[i] = ProviderContext.Value.parseValue(f, value);
+                }
+                i++;
+            }
+
+            ProviderContext ctx = cloud.createContext(account, regionId, values);
+            provider = ctx.connect();
+        }
+        catch( ClassNotFoundException e ) {
+            throw new RuntimeException("No such class: " + e.getMessage());
+        }
+        catch( IllegalAccessException e ) {
+
+        }
+        catch( InstantiationException e) {
+
+        }
+        catch( UnsupportedEncodingException e ) {
+
+        }
+        catch( InternalException e ) {
+
+        }
+        catch( CloudException e ) {
+
+        }
+        return provider;
+
+        /*
         ProviderContext ctx = new ProviderContext();
 
         try {
@@ -193,7 +261,7 @@ public class DaseinTestManager {
             throw new RuntimeException("Failed to understand custom properties JSON: " + e.getMessage());
         }
         provider.connect(ctx);
-        return provider;
+        return provider;*/
     }
 
     static public @Nullable ComputeResources getComputeResources() {
