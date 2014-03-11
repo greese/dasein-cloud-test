@@ -492,7 +492,7 @@ public class StatefulFirewallTests {
     }
 
     @Test
-    public void createVLANFirewall() throws CloudException, InternalException {
+     public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services != null ) {
@@ -518,6 +518,77 @@ public class StatefulFirewallTests {
 
                         try {
                             net.provisionFirewall(name.getMethodName(), id);
+                            fail("Firewall provisioning completed even though VLAN firewall creation is not supported");
+                        }
+                        catch( OperationNotSupportedException expected ) {
+                            tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
+                        }
+                    }
+                }
+                else {
+                    fail("Network resources failed to initialize for " + tm.getProvider().getCloudName());
+                }
+            }
+            else {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+            }
+        }
+        else {
+            tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void createVLANFirewallWithRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            if( support != null ) {
+                NetworkResources net = DaseinTestManager.getNetworkResources();
+
+                if( net != null ) {
+                    int p = port++;
+                    if( support.supportsFirewallCreation(true) ) {
+                        if( testVLANId != null ) {
+                            String id = net.provisionFirewall("provision", testVLANId, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+
+                            tm.out("New VLAN Firewall", id);
+                            assertNotNull("No VLAN firewall was created by this test", id);
+
+                            Iterable<FirewallRule> rules = support.getRules(id);
+                            tm.out("Initial rules", rules);
+                            assertNotNull("Firewall rules are null post firewall create of " + id, rules);
+                            boolean hasRule = false;
+
+                            for( FirewallRule rule : support.getRules(id) ) {
+                                tm.out("\tRule", rule);
+                                RuleTarget source = rule.getSourceEndpoint();
+                                RuleTarget dest = rule.getDestinationEndpoint();
+
+                                if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
+                                    if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
+                                        if( id.equals(dest.getProviderFirewallId()) ) {
+                                            if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
+                                                hasRule = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            assertTrue("The initial rule was not created with the test firewall", hasRule);
+                        }
+                        else {
+                            fail("Firewall creation in VLANs is supposedly supported, but there's not test VLAN ID");
+                        }
+                    }
+                    else {
+                        String id = (testVLANId == null ? UUID.randomUUID().toString() : testVLANId);
+
+                        try {
+                            net.provisionFirewall(name.getMethodName(), id, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
                             fail("Firewall provisioning completed even though VLAN firewall creation is not supported");
                         }
                         catch( OperationNotSupportedException expected ) {
