@@ -100,7 +100,7 @@ public class StatelessVolumeTests {
 
         Storage<Gigabyte> size = product.getVolumeSize();
 
-        if( support.isVolumeSizeDeterminedByProduct() ) {
+        if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
             assertNotNull("Volume size may not be null when the volume size is determined by the product", size);
             assertTrue("Volume size must be a positive number when the volume size is determined by the product", size.floatValue() >= 0.01f);
         }
@@ -120,7 +120,7 @@ public class StatelessVolumeTests {
         }
         assertNotNull("Volume region ID may not be null", volume.getProviderRegionId());
         assertNotNull("Volume data center ID may not be null", volume.getProviderDataCenterId());
-        if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
+        if( support.getCapabilities().getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
             assertNotNull("Volume product may not be null when a product requirement is REQUIRED", volume.getProviderProductId());
         }
         if( volume.isAttached() ) {
@@ -166,39 +166,39 @@ public class StatelessVolumeTests {
 
                 tm.out("Subscribed", subscribed);
 
-                tm.out("Term for Volume", support.getProviderTermForVolume(Locale.getDefault()));
+                tm.out("Term for Volume", support.getCapabilities().getProviderTermForVolume(Locale.getDefault()));
 
-                int maxVolumes = support.getMaximumVolumeCount();
+                int maxVolumes = support.getCapabilities().getMaximumVolumeCount();
 
                 tm.out("Max Volume Count", (maxVolumes == -2 ? "Unknown" : (maxVolumes == -1 ? "Unlimited" : String.valueOf(maxVolumes))));
 
-                Storage<Gigabyte> maxSize = support.getMaximumVolumeSize();
+                Storage<Gigabyte> maxSize = support.getCapabilities().getMaximumVolumeSize();
 
                 tm.out("Max Volume Size", maxSize == null ? "Unknown" : maxSize);
-                tm.out("Min Volume Size", support.getMinimumVolumeSize());
-                tm.out("Product Required", support.getVolumeProductRequirement());
-                tm.out("Product Determines Size", support.isVolumeSizeDeterminedByProduct());
+                tm.out("Min Volume Size", support.getCapabilities().getMinimumVolumeSize());
+                tm.out("Product Required", support.getCapabilities().getVolumeProductRequirement());
+                tm.out("Product Determines Size", support.getCapabilities().isVolumeSizeDeterminedByProduct());
 
-                Iterable<VolumeFormat> formats = support.listSupportedFormats();
+                Iterable<VolumeFormat> formats = support.getCapabilities().listSupportedFormats();
 
                 tm.out("Supported Formats", formats);
 
                 for( Platform platform : Platform.values() ) {
-                    Iterable<String> deviceIds = support.listPossibleDeviceIds(platform);
+                    Iterable<String> deviceIds = support.getCapabilities().listPossibleDeviceIds(platform);
 
                     tm.out("Device IDs [" + platform + "]", deviceIds);
                 }
-                assertNotNull("The provider term for a volume must not be null", support.getProviderTermForVolume(Locale.getDefault()));
+                assertNotNull("The provider term for a volume must not be null", support.getCapabilities().getProviderTermForVolume(Locale.getDefault()));
                 assertTrue("Maximum volumes must be -2 or greater", maxVolumes >= -2);
                 assertTrue("Maximum volume size must be non-negative", maxSize == null || maxSize.intValue() > -1);
-                assertNotNull("Minimum volume size may not be null", support.getMinimumVolumeSize());
-                assertTrue("Minimum volume size must be at least 1K", support.getMinimumVolumeSize().intValue() >= 0.01f);
-                assertNotNull("Product requirement must not be null", support.getVolumeProductRequirement());
+                assertNotNull("Minimum volume size may not be null", support.getCapabilities().getMinimumVolumeSize());
+                assertTrue("Minimum volume size must be at least 1K", support.getCapabilities().getMinimumVolumeSize().intValue() >= 0.01f);
+                assertNotNull("Product requirement must not be null", support.getCapabilities().getVolumeProductRequirement());
                 assertNotNull("Supported formats must be non-null and have at least one member when subscribed", formats);
                 assertTrue("There must be at least one supported format when subscribed", !subscribed || formats.iterator().hasNext());
 
                 for( Platform platform : Platform.values() ) {
-                    Iterable<String> deviceIds = support.listPossibleDeviceIds(platform);
+                    Iterable<String> deviceIds = support.getCapabilities().listPossibleDeviceIds(platform);
 
                     assertNotNull("The list of device IDs for " + platform + " may not be null", deviceIds);
                     assertTrue("There must be at least one device ID for " + platform, deviceIds.iterator().hasNext());
@@ -247,7 +247,7 @@ public class StatelessVolumeTests {
                     assertProductContent(support, product);
                 }
                 else {
-                    if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
+                    if( support.getCapabilities().getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                         fail("No test product exists for this test even though products are supported");
                     }
                     else {
@@ -285,10 +285,10 @@ public class StatelessVolumeTests {
                 if( !support.isSubscribed() ) {
                     assertTrue("The account is not subscribed, but the volume count is non-zero", count == 0);
                 }
-                else if( support.getVolumeProductRequirement().equals(Requirement.NONE) ) {
+                else if( support.getCapabilities().getVolumeProductRequirement().equals(Requirement.NONE) ) {
                     assertEquals("This cloud does not support volume products, but there's at least one product", 0, count);
                 }
-                else if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
+                else if( support.getCapabilities().getVolumeProductRequirement().equals(Requirement.REQUIRED) ) {
                     assertTrue("There must be at least one product in this cloud", count > 0);
                 }
                 for( VolumeProduct product : products ) {

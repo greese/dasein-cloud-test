@@ -153,40 +153,40 @@ public class StatelessFirewallTests {
 
             if( support != null ) {
                 tm.out("Subscribed", support.isSubscribed());
-                tm.out("Term for Firewall", support.getProviderTermForFirewall(Locale.getDefault()));
-                tm.out("Supports Firewall Creation (General)", support.supportsFirewallCreation(false));
-                tm.out("Supports Firewall Creation (VLAN)", support.supportsFirewallCreation(true));
+                tm.out("Term for Firewall", support.getCapabilities().getProviderTermForFirewall(Locale.getDefault()));
+                tm.out("Supports Firewall Creation (General)", support.getCapabilities().supportsFirewallCreation(false));
+                tm.out("Supports Firewall Creation (VLAN)", support.getCapabilities().supportsFirewallCreation(true));
                 boolean general = false;
                 boolean vlan = false;
 
                 for( Direction direction : Direction.values() ) {
                     for( Permission permission : Permission.values() ) {
-                        boolean b = support.supportsRules(direction, permission, false);
+                        boolean b = support.getCapabilities().supportsRules(direction, permission, false);
 
                         if( b ) {
                             general = true;
                         }
                         tm.out("Supports " + direction + "/" + permission + " (General)", b);
-                        b = support.supportsRules(direction, permission, true);
+                        b = support.getCapabilities().supportsRules(direction, permission, true);
                         if( b ) {
                             vlan = true;
                         }
                         tm.out("Supports " + direction + "/" + permission + " (VLAN)", b);
                     }
                 }
-                tm.out("Rule Precedence Req (General)", support.identifyPrecedenceRequirement(false));
-                tm.out("Rule Precedence Req (VLAN)", support.identifyPrecedenceRequirement(true));
-                tm.out("Zero Highest Precedence", support.isZeroPrecedenceHighest());
-                tm.out("Supported Directions (General)", support.listSupportedDirections(false));
-                tm.out("Supported Directions (VLAN)", support.listSupportedDirections(true));
-                tm.out("Supported Permissions (General)", support.listSupportedPermissions(false));
-                tm.out("Supported Permissions (VLAN)", support.listSupportedPermissions(true));
-                tm.out("Supported Source Types (General)", support.listSupportedSourceTypes(false));
-                tm.out("Supported Source Types (VLAN)", support.listSupportedSourceTypes(true));
+                tm.out("Rule Precedence Req (General)", support.getCapabilities().identifyPrecedenceRequirement(false));
+                tm.out("Rule Precedence Req (VLAN)", support.getCapabilities().identifyPrecedenceRequirement(true));
+                tm.out("Zero Highest Precedence", support.getCapabilities().isZeroPrecedenceHighest());
+                tm.out("Supported Directions (General)", support.getCapabilities().listSupportedDirections(false));
+                tm.out("Supported Directions (VLAN)", support.getCapabilities().listSupportedDirections(true));
+                tm.out("Supported Permissions (General)", support.getCapabilities().listSupportedPermissions(false));
+                tm.out("Supported Permissions (VLAN)", support.getCapabilities().listSupportedPermissions(true));
+                tm.out("Supported Source Types (General)", support.getCapabilities().listSupportedSourceTypes(false));
+                tm.out("Supported Source Types (VLAN)", support.getCapabilities().listSupportedSourceTypes(true));
                 tm.out("Supported Destination Types (General)", support.listSupportedDestinationTypes(false));
-                tm.out("Supported Destination Types (VLAN)", support.listSupportedDestinationTypes(true));
+                tm.out("Supported Destination Types (VLAN)", support.getCapabilities().listSupportedDestinationTypes(true));
 
-                FirewallConstraints constraints = support.getFirewallConstraintsForCloud();
+                FirewallConstraints constraints = support.getCapabilities().getFirewallConstraintsForCloud();
 
                 assertNotNull("Firewall constraints may not be null", constraints);
 
@@ -202,16 +202,16 @@ public class StatelessFirewallTests {
                     assertNotNull("Constraint level may not be null, but it was for " + c, l);
                 }
                 if( !general ) {
-                    assertFalse("General firewalls are not supported, so it makes no sense that you can create them", support.supportsFirewallCreation(false));
+                    assertFalse("General firewalls are not supported, so it makes no sense that you can create them", support.getCapabilities().supportsFirewallCreation(false));
                 }
                 if( !vlan ) {
-                    assertFalse("VLAN firewalls are not supported, so it makes no sense that you can create them", support.supportsFirewallCreation(true));
+                    assertFalse("VLAN firewalls are not supported, so it makes no sense that you can create them", support.getCapabilities().supportsFirewallCreation(true));
                 }
                 assertNotNull("The provider term for firewall may not be null for any locale", Locale.getDefault());
-                assertNotNull("Requirement for precedence in general firewall rules may not be null", support.identifyPrecedenceRequirement(false));
-                assertNotNull("Requirement for precedence in VLAN firewall rules may not be null", support.identifyPrecedenceRequirement(true));
+                assertNotNull("Requirement for precedence in general firewall rules may not be null", support.getCapabilities().identifyPrecedenceRequirement(false));
+                assertNotNull("Requirement for precedence in VLAN firewall rules may not be null", support.getCapabilities().identifyPrecedenceRequirement(true));
 
-                Iterable<RuleTargetType> types = support.listSupportedSourceTypes(false);
+                Iterable<RuleTargetType> types = support.getCapabilities().listSupportedSourceTypes(false);
 
                 assertNotNull("Supported source types for general firewall rules may not be null", types);
                 if( general ) {
@@ -221,7 +221,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for general firewall rules, so no source types should exist", types.iterator().hasNext());
                 }
 
-                types = support.listSupportedSourceTypes(true);
+                types = support.getCapabilities().listSupportedSourceTypes(true);
                 assertNotNull("Supported source types for VLAN firewall rules may not be null", types);
                 if( vlan ) {
                     assertTrue("There must be at least one source type for VLAN firewall rules", types.iterator().hasNext());
@@ -230,7 +230,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for VLAN firewall rules, so no source types should exist", types.iterator().hasNext());
                 }
 
-                types = support.listSupportedDestinationTypes(false);
+                types = support.getCapabilities().listSupportedDestinationTypes(false);
                 assertNotNull("Supported destination types for general firewall rules may not be null", types);
                 if( general ) {
                     assertTrue("There must be at least one destination type for general firewall rules", types.iterator().hasNext());
@@ -239,7 +239,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for general firewall rules, so no destination types should exist", types.iterator().hasNext());
                 }
 
-                types = support.listSupportedDestinationTypes(true);
+                types = support.getCapabilities().listSupportedDestinationTypes(true);
                 assertNotNull("Supported destination types for VLAN firewall rules may not be null", types);
                 if( vlan ) {
                     assertTrue("There must be at least one destination type for VLAN firewall rules", types.iterator().hasNext());
@@ -248,7 +248,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for VLAN firewall rules, so no destination types should exist", types.iterator().hasNext());
                 }
 
-                Iterable<Direction> directions = support.listSupportedDirections(false);
+                Iterable<Direction> directions = support.getCapabilities().listSupportedDirections(false);
 
                 assertNotNull("Supported directions for general firewall rules may not be null", directions);
                 if( general ) {
@@ -258,7 +258,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for general firewall rules, so no directions should be enumerated", directions.iterator().hasNext());
                 }
 
-                directions = support.listSupportedDirections(true);
+                directions = support.getCapabilities().listSupportedDirections(true);
                 assertNotNull("Supported directions for VLAN firewall rules may not be null", directions);
                 if( vlan ) {
                     assertTrue("There must be at least one direction available for VLAN firewall rules", directions.iterator().hasNext());
@@ -267,7 +267,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for VLAN firewall rules, so no directions should be enumerated", directions.iterator().hasNext());
                 }
 
-                Iterable<Permission> permissions = support.listSupportedPermissions(false);
+                Iterable<Permission> permissions = support.getCapabilities().listSupportedPermissions(false);
 
                 assertNotNull("Supported permissions for general firewall rules may not be null", permissions);
                 if( general ) {
@@ -277,7 +277,7 @@ public class StatelessFirewallTests {
                     assertFalse("There is no support for general firewall rules, so no permissions should be enumerated", permissions.iterator().hasNext());
                 }
 
-                permissions = support.listSupportedPermissions(true);
+                permissions = support.getCapabilities().listSupportedPermissions(true);
                 assertNotNull("Supported permissions for VLAN firewall rules may not be null", permissions);
                 if( vlan ) {
                     assertTrue("There must be at least one permission available for VLAN firewall rules", permissions.iterator().hasNext());
@@ -333,7 +333,7 @@ public class StatelessFirewallTests {
                     assertNotNull("Unable to find the test firewall", fw);
                 }
                 else {
-                    if( support.listSupportedDirections(false).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports general firewalls");
                     }
                     else {
@@ -365,7 +365,7 @@ public class StatelessFirewallTests {
                     assertNotNull("Unable to find the test firewall", fw);
                 }
                 else {
-                    if( support.listSupportedDirections(true).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(true).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports VLAN firewalls");
                     }
                     else {
@@ -397,7 +397,7 @@ public class StatelessFirewallTests {
                     content(testGeneralFirewallId, fw, false);
                 }
                 else {
-                    if( support.listSupportedDirections(false).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports general firewalls");
                     }
                     else {
@@ -433,7 +433,7 @@ public class StatelessFirewallTests {
 
                 }
                 else {
-                    if( support.listSupportedDirections(false).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports general firewalls");
                     }
                     else {
@@ -465,7 +465,7 @@ public class StatelessFirewallTests {
                     content(testVLANFirewallId, fw, true);
                 }
                 else {
-                    if( support.listSupportedDirections(true).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(true).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports VLAN firewalls");
                     }
                     else {
@@ -623,7 +623,7 @@ public class StatelessFirewallTests {
                     }
                 }
                 else {
-                    if( support.listSupportedDirections(false).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports general firewalls");
                     }
                     else {
@@ -667,7 +667,7 @@ public class StatelessFirewallTests {
                     }
                 }
                 else {
-                    if( support.listSupportedDirections(true).iterator().hasNext() ) {
+                    if( support.getCapabilities().listSupportedDirections(true).iterator().hasNext() ) {
                         fail("No test firewall has been established, but " + tm.getProvider().getCloudName() + " supports VLAN firewalls");
                     }
                     else {
@@ -720,7 +720,7 @@ public class StatelessFirewallTests {
                 if( !support.isSubscribed() ) {
                     tm.ok("This account is not subscribed for firewalls");
                 }
-                else if( support.listSupportedDirections(false).iterator().hasNext() || support.listSupportedDirections(true).iterator().hasNext() ) {
+                else if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() || support.getCapabilities().listSupportedDirections(true).iterator().hasNext() ) {
                     tm.warn("No firewall rules exist in this cloud currently, so this test may not be valid");
                 }
                 else {
