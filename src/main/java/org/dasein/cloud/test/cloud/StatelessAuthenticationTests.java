@@ -84,9 +84,7 @@ public class StatelessAuthenticationTests {
             ProviderContext ctx = provider.getContext();
 
             Assert.assertNotNull("Context cannot be null at this point", ctx);
-            String id = provider.testContext();
-
-            ctx.setAccountNumber(id);
+            provider.testContext();
         }
         else {
             provider = DaseinTestManager.constructProvider();
