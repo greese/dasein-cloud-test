@@ -440,33 +440,38 @@ public class StatefulFirewallTests {
                     int p = port++;
 
                     if( support.getCapabilities().supportsFirewallCreation(false) ) {
-                        String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+                        if (support.getCapabilities().requiresRulesOnCreation()) {
+                            String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
-                        tm.out("New Firewall", id);
-                        assertNotNull("No firewall was created by this test", id);
-                        Iterable<FirewallRule> rules = support.getRules(id);
+                            tm.out("New Firewall", id);
+                            assertNotNull("No firewall was created by this test", id);
+                            Iterable<FirewallRule> rules = support.getRules(id);
 
-                        tm.out("Initial rules", rules);
-                        assertNotNull("Firewall rules are null post firewall create of " + id, rules);
-                        boolean hasRule = false;
+                            tm.out("Initial rules", rules);
+                            assertNotNull("Firewall rules are null post firewall create of " + id, rules);
+                            boolean hasRule = false;
 
-                        for( FirewallRule rule : support.getRules(id) ) {
-                            tm.out("\tRule", rule);
-                            RuleTarget source = rule.getSourceEndpoint();
-                            RuleTarget dest = rule.getDestinationEndpoint();
+                            for( FirewallRule rule : support.getRules(id) ) {
+                                tm.out("\tRule", rule);
+                                RuleTarget source = rule.getSourceEndpoint();
+                                RuleTarget dest = rule.getDestinationEndpoint();
 
-                            if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
-                                if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
-                                    if( id.equals(dest.getProviderFirewallId()) ) {
-                                        if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
-                                            hasRule = true;
-                                            break;
+                                if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
+                                    if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
+                                        if( id.equals(dest.getProviderFirewallId()) ) {
+                                            if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
+                                                hasRule = true;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
                             }
+                            assertTrue("The initial rule was not created with the test firewall", hasRule);
                         }
-                        assertTrue("The initial rule was not created with the test firewall", hasRule);
+                        else {
+                            tm.ok("Creating a rule on firewall creation is not supported in "+tm.getProvider().getCloudName());
+                        }
                     }
                     else {
                         try {
