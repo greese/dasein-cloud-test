@@ -322,7 +322,7 @@ public class StatefulFirewallTests {
                     }
                 }
                 else {
-                    for( RuleTargetType t : support.listSupportedDestinationTypes(vlanTest) ) {
+                    for( RuleTargetType t : support.getCapabilities().listSupportedDestinationTypes(vlanTest) ) {
                         if( t.equals(type) ) {
                             supported = true;
                             break;
