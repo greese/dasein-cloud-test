@@ -106,7 +106,7 @@ public class StatelessVLANTests {
         assertNotNull("The subnet owner may not be null", subnet.getProviderOwnerId());
         assertNotNull("The subnet region ID may not be null", subnet.getProviderRegionId());
         assertNotNull("The subnet VLAN ID may not be null", subnet.getProviderVlanId());
-        if( support.isSubnetDataCenterConstrained() ) {
+        if( support.getCapabilities().isSubnetDataCenterConstrained() ) {
             assertNotNull("The subnet data center ID may not be null when subnets are data center constrained", subnet.getProviderDataCenterId());
         }
         assertNotNull("The subnet's current state may not be null", subnet.getCurrentState());
@@ -118,7 +118,7 @@ public class StatelessVLANTests {
 
         assertNotNull("The list of supported IP traffic may not be null", traffic);
         assertTrue("The subnet must support at least one version of IP traffic", traffic.length > 0);
-        if( !support.allowsMultipleTrafficTypesOverSubnet() ) {
+        if( !support.getCapabilities().allowsMultipleTrafficTypesOverSubnet() ) {
             assertTrue("The subnet can support exactly one version of IP traffic", traffic.length == 1);
         }
         assertTrue("The count of available IP addresses must be -1 for unknown or non-negative", subnet.getAvailableIpAddresses() >= -1);
@@ -146,7 +146,7 @@ public class StatelessVLANTests {
         assertNotNull("VLAN ID may not be null", network.getProviderVlanId());
         assertNotNull("Account owner may not be null", network.getProviderOwnerId());
         assertNotNull("Region ID may not be null", network.getProviderRegionId());
-        if( support.isVlanDataCenterConstrained() ) {
+        if( support.getCapabilities().isVlanDataCenterConstrained() ) {
             assertNotNull("Data center ID may not be null when VLANs are data center constrained", network.getProviderDataCenterId());
         }
         assertNotNull("VLAN state may not be null", network.getCurrentState());
@@ -157,7 +157,7 @@ public class StatelessVLANTests {
 
         assertNotNull("VLAN supported network traffic may not be null", traffic);
         assertTrue("The VLAN must support at least one version of IP traffic", traffic.length > 0);
-        if( !support.allowsMultipleTrafficTypesOverVlan() ) {
+        if( !support.getCapabilities().allowsMultipleTrafficTypesOverVlan() ) {
             assertTrue("The VLAN can support exactly one version of IP traffic", traffic.length == 1);
         }
         assertNotNull("VLAN DNS servers may not be null", network.getDnsServers());
@@ -183,31 +183,31 @@ public class StatelessVLANTests {
 
             if( support != null ) {
                 tm.out("Subscribed", support.isSubscribed());
-                tm.out("Term for VLAN", support.getProviderTermForVlan(Locale.getDefault()));
-                tm.out("Term for Subnet", support.getProviderTermForSubnet(Locale.getDefault()));
-                tm.out("Max VLAN Count", support.getMaxVlanCount() == -2 ? "Unknown" : (support.getMaxVlanCount() == -1 ? "Unlimited" : support.getMaxVlanCount()));
-                tm.out("VLAN DC Constrained", support.isVlanDataCenterConstrained());
-                tm.out("Subnet DC Constrained", support.isSubnetDataCenterConstrained());
-                tm.out("Specify DC for Subnet", support.identifySubnetDCRequirement());
-                tm.out("Supports Subnets", support.getSubnetSupport());
-                tm.out("Allows VLAN Creation", support.allowsNewVlanCreation());
-                tm.out("Allows Subnet Creation", support.allowsNewSubnetCreation());
+                tm.out("Term for VLAN", support.getCapabilities().getProviderTermForVlan(Locale.getDefault()));
+                tm.out("Term for Subnet", support.getCapabilities().getProviderTermForSubnet(Locale.getDefault()));
+                tm.out("Max VLAN Count", support.getCapabilities().getMaxVlanCount() == -2 ? "Unknown" : (support.getCapabilities().getMaxVlanCount() == -1 ? "Unlimited" : support.getCapabilities().getMaxVlanCount()));
+                tm.out("VLAN DC Constrained", support.getCapabilities().isVlanDataCenterConstrained());
+                tm.out("Subnet DC Constrained", support.getCapabilities().isSubnetDataCenterConstrained());
+                tm.out("Specify DC for Subnet", support.getCapabilities().identifySubnetDCRequirement());
+                tm.out("Supports Subnets", support.getCapabilities().getSubnetSupport());
+                tm.out("Allows VLAN Creation", support.getCapabilities().allowsNewVlanCreation());
+                tm.out("Allows Subnet Creation", support.getCapabilities().allowsNewSubnetCreation());
 
-                Iterable<IPVersion> versions = support.listSupportedIPVersions();
+                Iterable<IPVersion> versions = support.getCapabilities().listSupportedIPVersions();
 
                 tm.out("Supported Traffic", versions);
 
-                tm.out("Multiple Traffic Types per VLAN", support.allowsMultipleTrafficTypesOverVlan());
-                tm.out("Multiple Traffic Types per Subnet", support.allowsMultipleTrafficTypesOverSubnet());
+                tm.out("Multiple Traffic Types per VLAN", support.getCapabilities().allowsMultipleTrafficTypesOverVlan());
+                tm.out("Multiple Traffic Types per Subnet", support.getCapabilities().allowsMultipleTrafficTypesOverSubnet());
 
-                assertNotNull("The term for a VLAN may not be null", support.getProviderTermForVlan(Locale.getDefault()));
-                assertNotNull("The term for a subnet may not be null", support.getProviderTermForSubnet(Locale.getDefault()));
-                assertNotNull("Specify DC for subnet may not be null", support.identifySubnetDCRequirement());
-                assertTrue("isSubnetDataCenterConstrained() value conflicts with DC specification requirement", support.isSubnetDataCenterConstrained() || support.identifySubnetDCRequirement().equals(Requirement.NONE));
-                assertTrue("The maximum VLAN count must be -2 (Unknown), -1 (Unlimited), or non-negative", support.getMaxVlanCount() >= -2);
-                assertNotNull("Subnet requirement must be non-null", support.getSubnetSupport());
-                if( support.allowsNewSubnetCreation() ) {
-                    assertTrue("The cloud allows new subnet creation, but VLAN subnet requirement is NONE", !support.getSubnetSupport().equals(Requirement.NONE));
+                assertNotNull("The term for a VLAN may not be null", support.getCapabilities().getProviderTermForVlan(Locale.getDefault()));
+                assertNotNull("The term for a subnet may not be null", support.getCapabilities().getProviderTermForSubnet(Locale.getDefault()));
+                assertNotNull("Specify DC for subnet may not be null", support.getCapabilities().identifySubnetDCRequirement());
+                assertTrue("isSubnetDataCenterConstrained() value conflicts with DC specification requirement", support.getCapabilities().isSubnetDataCenterConstrained() || support.identifySubnetDCRequirement().equals(Requirement.NONE));
+                assertTrue("The maximum VLAN count must be -2 (Unknown), -1 (Unlimited), or non-negative", support.getCapabilities().getMaxVlanCount() >= -2);
+                assertNotNull("Subnet requirement must be non-null", support.getCapabilities().getSubnetSupport());
+                if( support.getCapabilities().allowsNewSubnetCreation() ) {
+                    assertTrue("The cloud allows new subnet creation, but VLAN subnet requirement is NONE", !support.getCapabilities().getSubnetSupport().equals(Requirement.NONE));
                 }
                 assertNotNull("The supported IP versions list may not be null", versions);
                 assertTrue("There must be at least one IP version with supported traffic", versions.iterator().hasNext());
@@ -595,7 +595,7 @@ public class StatelessVLANTests {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test subnet was identified for tests due to a lack of subscription to VLAN support");
                     }
-                    else if( support.getSubnetSupport().equals(Requirement.NONE) ) {
+                    else if( support.getCapabilities().getSubnetSupport().equals(Requirement.NONE) ) {
                         tm.ok("Subnets are not supported so there is no test for " + name.getMethodName());
                     }
                     else {
@@ -652,7 +652,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+            else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {
@@ -708,7 +708,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test internet gatway was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.supportsInternetGatewayCreation() ) {
+            else if( support.getCapabilities().supportsInternetGatewayCreation() ) {
               tm.ok("Internet Gateways are not supported so there is no test for " + name.getMethodName());
             }
             else {
@@ -766,7 +766,7 @@ public class StatelessVLANTests {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test subnet was identified for tests due to a lack of subscription to VLAN support");
                     }
-                    else if( support.getSubnetSupport().equals(Requirement.NONE) ) {
+                    else if( support.getCapabilities().getSubnetSupport().equals(Requirement.NONE) ) {
                         tm.ok("Subnets are not supported so there is no test for " + name.getMethodName());
                     }
                     else {
@@ -952,7 +952,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+            else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {
@@ -1011,7 +1011,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+            else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {

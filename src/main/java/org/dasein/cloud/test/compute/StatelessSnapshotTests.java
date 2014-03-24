@@ -100,13 +100,13 @@ public class StatelessSnapshotTests {
             return;
         }
         tm.out("Subscribed", support.isSubscribed());
-        tm.out("Term for Snapshot", support.getProviderTermForSnapshot(Locale.getDefault()));
-        tm.out("Volume Attached During Snapshot", support.identifyAttachmentRequirement());
-        tm.out("Snapshot Creation", support.supportsSnapshotCreation());
-        tm.out("Snapshot Copying", support.supportsSnapshotCopying());
-        tm.out("Snapshot Sharing", support.supportsSnapshotSharing());
-        tm.out("    -> with Public?", support.supportsSnapshotSharingWithPublic());
-        assertNotNull("The provider term for a snapshot may not be null", support.getProviderTermForSnapshot(Locale.getDefault()));
+        tm.out("Term for Snapshot", support.getCapabilities().getProviderTermForSnapshot(Locale.getDefault()));
+        tm.out("Volume Attached During Snapshot", support.getCapabilities().identifyAttachmentRequirement());
+        tm.out("Snapshot Creation", support.getCapabilities().supportsSnapshotCreation());
+        tm.out("Snapshot Copying", support.getCapabilities().supportsSnapshotCopying());
+        tm.out("Snapshot Sharing", support.getCapabilities().supportsSnapshotSharing());
+        tm.out("    -> with Public?", support.getCapabilities().supportsSnapshotSharingWithPublic());
+        assertNotNull("The provider term for a snapshot may not be null", support.getCapabilities().getProviderTermForSnapshot(Locale.getDefault()));
     }
 
     @Test

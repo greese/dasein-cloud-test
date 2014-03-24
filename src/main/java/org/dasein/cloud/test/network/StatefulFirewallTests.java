@@ -88,7 +88,7 @@ public class StatefulFirewallTests {
 
             try {
                 support = (services == null ? null : services.getVirtualMachineSupport());
-                boolean vlan = (support != null && support.identifyVlanRequirement().equals(Requirement.REQUIRED));
+                boolean vlan = (support != null && support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED));
 
                 if( vlan ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -219,10 +219,10 @@ public class StatefulFirewallTests {
             return;
         }
         if( testFirewallId == null ) {
-            if( !support.supportsFirewallCreation(vlanTest) ) {
+            if( !support.getCapabilities().supportsFirewallCreation(vlanTest) ) {
                 tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
             }
-            else if( support.supportsRules(direction, permission, vlanTest) ) {
+            else if( support.getCapabilities().supportsRules(direction, permission, vlanTest) ) {
                 fail("No test firewall even though these type of rules are supported");
             }
             else {
@@ -244,7 +244,7 @@ public class StatefulFirewallTests {
         }
         boolean supported = false;
 
-        for( RuleTargetType t : support.listSupportedSourceTypes(vlanTest) ) {
+        for( RuleTargetType t : support.getCapabilities().listSupportedSourceTypes(vlanTest) ) {
             if( t.equals(sourceEndpoint.getRuleTargetType()) ) {
                 supported = true;
                 break;
@@ -255,7 +255,7 @@ public class StatefulFirewallTests {
             return;
         }
         supported = false;
-        for( RuleTargetType t : support.listSupportedDestinationTypes(vlanTest) ) {
+        for( RuleTargetType t : support.getCapabilities().listSupportedDestinationTypes(vlanTest) ) {
             if( t.equals(destinationEndpoint.getRuleTargetType()) ) {
                 supported = true;
                 break;
@@ -265,7 +265,7 @@ public class StatefulFirewallTests {
             tm.ok("Destination type " + destinationEndpoint.getRuleTargetType() + " is not supported");
             return;
         }
-        if( support.supportsRules(direction, permission, vlanTest) ) {
+        if( support.getCapabilities().supportsRules(direction, permission, vlanTest) ) {
             String ruleId = support.authorize(testFirewallId, direction, permission, sourceEndpoint, Protocol.TCP, destinationEndpoint, p, p, 0);
             boolean found = false;
 
@@ -305,7 +305,7 @@ public class StatefulFirewallTests {
             return;
         }
         if( testRuleId == null ) {
-            if( support.supportsRules(direction, permission, vlanTest) ) {
+            if( support.getCapabilities().supportsRules(direction, permission, vlanTest) ) {
                 RuleTargetType type = RuleTargetType.CIDR;
 
                 if( name.getMethodName().contains("Global") ) {
@@ -314,7 +314,7 @@ public class StatefulFirewallTests {
                 boolean supported = false;
 
                 if( direction.equals(Direction.INGRESS) ) {
-                    for( RuleTargetType t : support.listSupportedSourceTypes(vlanTest) ) {
+                    for( RuleTargetType t : support.getCapabilities().listSupportedSourceTypes(vlanTest) ) {
                         if( t.equals(type) ) {
                             supported = true;
                             break;
@@ -322,7 +322,7 @@ public class StatefulFirewallTests {
                     }
                 }
                 else {
-                    for( RuleTargetType t : support.listSupportedDestinationTypes(vlanTest) ) {
+                    for( RuleTargetType t : support.getCapabilities().listSupportedDestinationTypes(vlanTest) ) {
                         if( t.equals(type) ) {
                             supported = true;
                             break;
@@ -397,7 +397,7 @@ public class StatefulFirewallTests {
                 NetworkResources net = DaseinTestManager.getNetworkResources();
 
                 if( net != null ) {
-                    if( support.supportsFirewallCreation(false) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(false) ) {
                         String id = net.provisionFirewall("provisionKeypair", null);
 
                         tm.out("New Firewall", id);
@@ -439,7 +439,7 @@ public class StatefulFirewallTests {
                 if( net != null ) {
                     int p = port++;
 
-                    if( support.supportsFirewallCreation(false) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(false) ) {
                         String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
                         tm.out("New Firewall", id);
@@ -492,7 +492,7 @@ public class StatefulFirewallTests {
     }
 
     @Test
-    public void createVLANFirewall() throws CloudException, InternalException {
+     public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services != null ) {
@@ -502,7 +502,7 @@ public class StatefulFirewallTests {
                 NetworkResources net = DaseinTestManager.getNetworkResources();
 
                 if( net != null ) {
-                    if( support.supportsFirewallCreation(true) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
                             String id = net.provisionFirewall("provision", testVLANId);
 
@@ -518,6 +518,77 @@ public class StatefulFirewallTests {
 
                         try {
                             net.provisionFirewall(name.getMethodName(), id);
+                            fail("Firewall provisioning completed even though VLAN firewall creation is not supported");
+                        }
+                        catch( OperationNotSupportedException expected ) {
+                            tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
+                        }
+                    }
+                }
+                else {
+                    fail("Network resources failed to initialize for " + tm.getProvider().getCloudName());
+                }
+            }
+            else {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+            }
+        }
+        else {
+            tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void createVLANFirewallWithRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+
+            if( support != null ) {
+                NetworkResources net = DaseinTestManager.getNetworkResources();
+
+                if( net != null ) {
+                    int p = port++;
+                    if( support.supportsFirewallCreation(true) ) {
+                        if( testVLANId != null ) {
+                            String id = net.provisionFirewall("provision", testVLANId, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+
+                            tm.out("New VLAN Firewall", id);
+                            assertNotNull("No VLAN firewall was created by this test", id);
+
+                            Iterable<FirewallRule> rules = support.getRules(id);
+                            tm.out("Initial rules", rules);
+                            assertNotNull("Firewall rules are null post firewall create of " + id, rules);
+                            boolean hasRule = false;
+
+                            for( FirewallRule rule : support.getRules(id) ) {
+                                tm.out("\tRule", rule);
+                                RuleTarget source = rule.getSourceEndpoint();
+                                RuleTarget dest = rule.getDestinationEndpoint();
+
+                                if( source.getRuleTargetType().equals(RuleTargetType.CIDR) ) {
+                                    if( dest.getRuleTargetType().equals(RuleTargetType.GLOBAL) ) {
+                                        if( id.equals(dest.getProviderFirewallId()) ) {
+                                            if( NetworkResources.TEST_CIDR.equals(source.getCidr()) ) {
+                                                hasRule = true;
+                                                break;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            assertTrue("The initial rule was not created with the test firewall", hasRule);
+                        }
+                        else {
+                            fail("Firewall creation in VLANs is supposedly supported, but there's not test VLAN ID");
+                        }
+                    }
+                    else {
+                        String id = (testVLANId == null ? UUID.randomUUID().toString() : testVLANId);
+
+                        try {
+                            net.provisionFirewall(name.getMethodName(), id, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
                             fail("Firewall provisioning completed even though VLAN firewall creation is not supported");
                         }
                         catch( OperationNotSupportedException expected ) {
@@ -726,7 +797,7 @@ public class StatefulFirewallTests {
                     assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
                 }
                 else {
-                    if( !support.supportsFirewallCreation(true) && !support.supportsFirewallCreation(false) ) {
+                    if( !support.getCapabilities().supportsFirewallCreation(true) && !support.getCapabilities().supportsFirewallCreation(false) ) {
                         tm.ok("Firewall creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                     else if( support.isSubscribed() ) {
@@ -764,7 +835,7 @@ public class StatefulFirewallTests {
             tm.ok("No compute services in " + tm.getProvider().getCloudName());
             return;
         }
-        boolean inVlan = support.identifyVlanRequirement().equals(Requirement.REQUIRED);
+        boolean inVlan = support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED);
         String testSubnetId = null;
 
         if( inVlan && testVLANId == null ) {
@@ -822,7 +893,7 @@ public class StatefulFirewallTests {
                 FirewallSupport fw = (net == null ? null : net.getFirewallSupport());
 
                 if( fw != null && fw.isSubscribed()  ) {
-                    if( fw.supportsFirewallCreation(inVlan) ) {
+                    if( fw.getCapabilities().supportsFirewallCreation(inVlan) ) {
                         fail("No test firewall was established for testing");
                     }
                     else {
