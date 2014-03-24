@@ -861,11 +861,11 @@ public class StatelessImageTests {
                 }
                 assertListEquals("The deprecated searchMachineImages(null,UBUNTU,null) method should match listImages(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE)", expected, support.searchMachineImages(null, Platform.UBUNTU, null));
                 tm.out("searchMachineImages(String)", "Matches listImages(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE) + searchPublicImage(ImageFilterOptions=Platform.UBUNTU,ImageClass=MACHINE)");
-                boolean customSupported = support.supportsDirectImageUpload();
+                boolean customSupported = support.getCapabilities().supportsDirectImageUpload();
 
                 if( !customSupported ) {
                     for( MachineImageType type : MachineImageType.values() ) {
-                        if( support.supportsImageCapture(type) ) {
+                        if( support.getCapabilities().supportsImageCapture(type) ) {
                             customSupported = true;
                             break;
                         }
