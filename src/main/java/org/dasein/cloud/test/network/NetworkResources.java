@@ -1426,7 +1426,7 @@ public class NetworkResources {
         if( support == null ) {
             throw new OperationNotSupportedException("No firewall support in cloud");
         }
-        if( support.supportsRules(direction, permission, false) ) {
+        if( !support.supportsRules(direction, permission, false) ) {
             throw new OperationNotSupportedException("Firewall rules are not supported for " + direction + "/" + permission);
         }
         RuleTarget sourceEndpoint, destinationEndpoint;

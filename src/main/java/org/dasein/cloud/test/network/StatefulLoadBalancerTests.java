@@ -24,12 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.LbEndpointType;
-import org.dasein.cloud.network.LoadBalancer;
-import org.dasein.cloud.network.LoadBalancerEndpoint;
-import org.dasein.cloud.network.LoadBalancerState;
-import org.dasein.cloud.network.LoadBalancerSupport;
-import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -736,6 +731,42 @@ public class StatefulLoadBalancerTests {
             else {
                 tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
             }
+        }
+    }
+
+    @Test
+    public void createLoadBalancerHealthCheck() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if(support.healthCheckRequiresLoadBalancer()){
+            testLoadBalancerId = "dsncrlbtest4233";//TODO: Get rid of me
+            if(testLoadBalancerId != null){
+                LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
+                assertNotNull("The load balancer is null prior to the test", lb);
+                //TODO: Clean these values up
+                support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.TCP, 80, "/ping", 5.0, 5.0, 2, 2));
+            }
+            else{
+                if( support.isSubscribed() ) {
+                    fail("No test load balancer for " + name.getMethodName());
+                }
+                else {
+                    tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
+                }
+            }
+        }
+        else{
+            //TODO: do test
         }
     }
 }
