@@ -14,34 +14,35 @@
   ~ limitations under the License.
   -->
 
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.dasein</groupId>
   <artifactId>dasein-cloud-test</artifactId>
   <version>2014.03.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>dasein-cloud-test</name>
-  <description>Unit tests for testing implementations of the Dasein Cloud API.</description>
-  <inceptionYear>2009</inceptionYear>
-  <url>http://github.com/greese/dasein-cloud-aws</url>
+    <name>dasein-cloud-test</name>
+    <description>Unit tests for testing implementations of the Dasein Cloud API.</description>
+    <inceptionYear>2009</inceptionYear>
+    <url>http://github.com/greese/dasein-cloud-aws</url>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-  
-  <licenses>
-    <license>
-        <name>Apache License 2.0</name>
-        <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-    </license>
-  </licenses>
-  
-  <organization>
-    <name>Dell, Inc.</name>
-    <url>http://software.dell.com</url>
-  </organization>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Dell, Inc.</name>
+        <url>http://software.dell.com</url>
+    </organization>
 
     <scm>
         <connection>scm:git:git://github.com/greese/dasein-cloud-test.git</connection>
@@ -235,5 +236,5 @@
         <url>http://www.jclouds.org</url>
         <timezone>-8</timezone>
     </developer>
-  </developers>  
+  </developers>
 </project>

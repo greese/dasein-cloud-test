@@ -96,6 +96,7 @@ public class StatefulStaticIPTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+
         if( testVlanId != null ) {
             NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -342,7 +343,7 @@ public class StatefulStaticIPTests {
                 tm.ok("Caught a cloud exception attempting to request an address of type " + version + " in an account where there is no subscription");
             }
         }
-        else if( support.isRequestable(version) && (!forVLAN || support.getCapabilities().supportsVLANAddresses(version)) ) {
+        else if( support.getCapabilities().isRequestable(version) && (!forVLAN || support.getCapabilities().supportsVLANAddresses(version)) ) {
             String addressId;
 
             if( !forVLAN ) {
@@ -418,7 +419,7 @@ public class StatefulStaticIPTests {
                     tm.ok("No VLAN IP addresses are supported");
                 }
                 else {
-                    fail("Unable to get a test IP address for running the test " + name.getMethodName());
+                    fail(String.format("Unable to get a test %s address for running the test %s", version == IPVersion.IPV4?"IPv4":"IPv6", name.getMethodName()));
                 }
             }
             return;
@@ -517,7 +518,7 @@ public class StatefulStaticIPTests {
         else {
             IpAddress address = support.getIpAddress(testIpAddress);
 
-            assertNotNull("Test IP addresss " + address + " does not exist", address);
+            assertNotNull("Test IP addresss " + testIpAddress + " does not exist", address);
             support.releaseFromPool(testIpAddress);
             address = support.getIpAddress(testIpAddress);
             tm.out("Result", address);
