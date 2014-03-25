@@ -126,8 +126,8 @@ public class DaseinTestManager {
 
             for(ContextRequirements.Field f : fields ) {
                 if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
-                    String shared = System.getProperty(f.name + "Shared");
-                    String secret = System.getProperty(f.name + "Secret");
+                    String shared = overrideShared == null ? System.getProperty(f.name + "Shared") : overrideShared;
+                    String secret = overrideSecret == null ? System.getProperty(f.name + "Secret") : overrideSecret;
                     if( shared != null && secret != null ) {
                         values.add(ProviderContext.Value.parseValue(f, shared, secret));
                     } else {
