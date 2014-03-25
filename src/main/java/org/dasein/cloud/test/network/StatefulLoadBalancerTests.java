@@ -503,7 +503,14 @@ public class StatefulLoadBalancerTests {
                 tm.ok("Load balancers in this cloud do not support virtual machine endpoints");
             }
             else if( support.isSubscribed() ) {
-                fail("No test load balancer for " + name.getMethodName());
+                StringBuilder sb = new StringBuilder();
+                if( testLoadBalancerId == null ) {
+                    sb.append("No test load balancer for " + name.getMethodName()).append(". ");
+                }
+                if( testVirtualMachineId == null ) {
+                    sb.append("No test VM for " + name.getMethodName()).append(".");
+                }
+                fail(sb.toString());
             }
             else {
                 tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
