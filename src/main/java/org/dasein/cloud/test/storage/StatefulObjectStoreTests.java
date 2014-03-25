@@ -697,7 +697,7 @@ public class StatefulObjectStoreTests {
             //noinspection ConstantConditions
             support.clearBucket(bucket.getBucketName());
 
-            long timeout = System.currentTimeMillis() + CalendarWrapper.MINUTE;
+            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*5l);
 
             while( timeout > System.currentTimeMillis() ) {
                 try {

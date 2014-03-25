@@ -79,15 +79,6 @@ public class StatelessAuthenticationTests {
         else if( name.getMethodName().equals("invalidSharedKey") ) {
             provider = DaseinTestManager.constructProvider(null, "MyWibblesAreTribbles", null);
         }
-        else if( name.getMethodName().equals("reconnect") ) {
-            provider = DaseinTestManager.constructProvider();
-            ProviderContext ctx = provider.getContext();
-
-            Assert.assertNotNull("Context cannot be null at this point", ctx);
-            String id = provider.testContext();
-
-            ctx.setAccountNumber(id);
-        }
         else {
             provider = DaseinTestManager.constructProvider();
         }
@@ -105,15 +96,6 @@ public class StatelessAuthenticationTests {
 
         tm.out("Account", id);
         assertNotNull("Connection test failed", id);
-    }
-
-    @Test
-    public void reconnect() throws CloudException, InternalException {
-        assumeTrue(!tm.isTestSkipped());
-        String id = provider.testContext();
-
-        //noinspection ConstantConditions
-        assertEquals("New account number fails connection", id, provider.getContext().getAccountNumber());
     }
 
     @Test
