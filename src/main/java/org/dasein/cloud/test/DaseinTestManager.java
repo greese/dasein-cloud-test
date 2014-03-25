@@ -101,7 +101,7 @@ public class DaseinTestManager {
             if( prop != null ) {
                 account = prop;
             }
-            prop= System.getProperty("cloudName");
+            prop = System.getProperty("cloudName");
             if( prop != null ) {
                 cloudName = prop;
             }
@@ -123,23 +123,30 @@ public class DaseinTestManager {
             ContextRequirements requirements = cloud.buildProvider().getContextRequirements();
             List<ContextRequirements.Field> fields = requirements.getConfigurableValues();
 
-            ProviderContext.Value[] values = new ProviderContext.Value[fields.size()];
-            int i = 0;
+            List<ProviderContext.Value> values = new ArrayList<ProviderContext.Value>(fields.size());
 
             for(ContextRequirements.Field f : fields ) {
                 if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
                     String shared = System.getProperty(f.name + "Shared");
                     String secret = System.getProperty(f.name + "Secret");
-                    values[i] = ProviderContext.Value.parseValue(f, shared, secret);
+                    if( shared != null && secret != null ) {
+                        values.add(ProviderContext.Value.parseValue(f, shared, secret));
+                    } else {
+                        String error = String.format("Keypair parameters are not set up correctly: " +
+                                        "%sShared = %s, %sSecret = %s. Check the Maven profile and pom.xml.",
+                                f.name, shared, f.name, secret);
+                        Logger logger = Logger.getLogger(DaseinTestManager.class);
+                        logger.fatal(error);
+                        throw new RuntimeException(error);
+                    }
                 }
                 else {
                     String value = System.getProperty(f.name);
-                    values[i] = ProviderContext.Value.parseValue(f, value);
+                    values.add(ProviderContext.Value.parseValue(f, value));
                 }
-                i++;
             }
 
-            ProviderContext ctx = cloud.createContext(account, regionId, values);
+            ProviderContext ctx = cloud.createContext(account, regionId, values.toArray(new ProviderContext.Value[0]));
             provider = ctx.connect();
         }
         catch( ClassNotFoundException e ) {
