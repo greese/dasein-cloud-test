@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -108,29 +108,29 @@ public class StatelessNetworkFirewallTests {
         boolean subscribed = support.isSubscribed();
 
         tm.out("Subscribed", subscribed);
-        tm.out("Term for Network Firewall", support.getProviderTermForNetworkFirewall(Locale.getDefault()));
-        tm.out("Precedence Requirement", support.identifyPrecedenceRequirement());
-        tm.out("Zero Precedence Highest", support.isZeroPrecedenceHighest());
-        tm.out("Supports Network Firewall Creation", support.supportsNetworkFirewallCreation());
+        tm.out("Term for Network Firewall", support.getCapabilities().getProviderTermForNetworkFirewall(Locale.getDefault()));
+        tm.out("Precedence Requirement", support.getCapabilities().identifyPrecedenceRequirement());
+        tm.out("Zero Precedence Highest", support.getCapabilities().isZeroPrecedenceHighest());
+        tm.out("Supports Network Firewall Creation", support.getCapabilities().supportsNetworkFirewallCreation());
 
-        Iterable<RuleTargetType> sources = support.listSupportedSourceTypes();
+        Iterable<RuleTargetType> sources = support.getCapabilities().listSupportedSourceTypes();
 
         tm.out("Source Types", sources);
 
-        Iterable<RuleTargetType> destinations = support.listSupportedDestinationTypes();
+        Iterable<RuleTargetType> destinations = support.getCapabilities().listSupportedDestinationTypes();
 
         tm.out("Destination Types", destinations);
 
-        Iterable<Direction> directions = support.listSupportedDirections();
+        Iterable<Direction> directions = support.getCapabilities().listSupportedDirections();
 
         tm.out("Directions", directions);
 
-        Iterable<Permission> permissions = support.listSupportedPermissions();
+        Iterable<Permission> permissions = support.getCapabilities().listSupportedPermissions();
 
         tm.out("Permissions", permissions);
 
-        assertNotNull("The provider term for a network firewall may not be null", support.getProviderTermForNetworkFirewall(Locale.getDefault()));
-        assertNotNull("Precedence requirement may not be null", support.identifyPrecedenceRequirement());
+        assertNotNull("The provider term for a network firewall may not be null", support.getCapabilities().getProviderTermForNetworkFirewall(Locale.getDefault()));
+        assertNotNull("Precedence requirement may not be null", support.getCapabilities().identifyPrecedenceRequirement());
         assertNotNull("List of source types may not be null", sources);
         assertNotNull("List of destination types may not be null", destinations);
         assertNotNull("List of supported directions may not be null", directions);

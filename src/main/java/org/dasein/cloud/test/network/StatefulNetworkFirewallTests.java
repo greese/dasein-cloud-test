@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -203,7 +203,7 @@ public class StatefulNetworkFirewallTests {
             return;
         }
         if( testFirewallId == null ) {
-            if( !support.supportsNetworkFirewallCreation() ) {
+            if( !support.getCapabilities().supportsNetworkFirewallCreation() ) {
                 tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
             }
             else {
@@ -283,7 +283,7 @@ public class StatefulNetworkFirewallTests {
         NetworkResources net = DaseinTestManager.getNetworkResources();
 
         if( net != null ) {
-            if( support.supportsNetworkFirewallCreation() ) {
+            if( support.getCapabilities().supportsNetworkFirewallCreation() ) {
                 if( testVLANId != null ) {
                     String id = net.provisionNetworkFirewall("provisionKeypair", testVLANId);
 
@@ -436,7 +436,7 @@ public class StatefulNetworkFirewallTests {
             }
             else {
                 //noinspection ConstantConditions
-                if( services.getVlanSupport() != null && services.getVlanSupport().allowsNewSubnetCreation() ) {
+                if( services.getVlanSupport() != null && services.getVlanSupport().getCapabilities().allowsNewSubnetCreation() ) {
                     fail("Unable to identify a test subnet for the test " + name.getMethodName());
                 }
                 else {
@@ -445,7 +445,7 @@ public class StatefulNetworkFirewallTests {
             }
         }
         else {
-            if( !support.supportsNetworkFirewallCreation() ) {
+            if( !support.getCapabilities().supportsNetworkFirewallCreation() ) {
                 tm.ok("Firewall creation/deletion is not supported in " + tm.getProvider().getCloudName());
             }
             if( support.isSubscribed() ) {

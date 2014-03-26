@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -24,12 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.LbEndpointType;
-import org.dasein.cloud.network.LoadBalancer;
-import org.dasein.cloud.network.LoadBalancerEndpoint;
-import org.dasein.cloud.network.LoadBalancerState;
-import org.dasein.cloud.network.LoadBalancerSupport;
-import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -142,7 +137,7 @@ public class StatefulLoadBalancerTests {
 
                     if( support != null ) {
                         try {
-                            if( support.isDataCenterLimited() ) {
+                            if( support.getCapabilities().isDataCenterLimited() ) {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
@@ -195,7 +190,7 @@ public class StatefulLoadBalancerTests {
 
                     if( support != null ) {
                         try {
-                            if( support.isDataCenterLimited() ) {
+                            if( support.getCapabilities().isDataCenterLimited() ) {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
@@ -347,7 +342,7 @@ public class StatefulLoadBalancerTests {
             return;
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
-            if( support.isDataCenterLimited() ) {
+            if( support.getCapabilities().isDataCenterLimited() ) {
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                 assertNotNull("The test load balancer disappeared prior to the test", lb);
@@ -408,14 +403,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean ips = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.IP) ) {
                 ips = true;
                 break;
             }
         }
         if( testLoadBalancerId != null ) {
-            if( support.supportsAddingEndpoints() && ips ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && ips ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addIPEndpoints(testLoadBalancerId, "196.91.70.2");
 
@@ -470,14 +465,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean vms = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.VM) ) {
                 vms = true;
                 break;
             }
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
-            if( support.supportsAddingEndpoints() && vms ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && vms ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
                 support.addServers(testLoadBalancerId, testVirtualMachineId);
 
@@ -508,7 +503,14 @@ public class StatefulLoadBalancerTests {
                 tm.ok("Load balancers in this cloud do not support virtual machine endpoints");
             }
             else if( support.isSubscribed() ) {
-                fail("No test load balancer for " + name.getMethodName());
+                StringBuilder sb = new StringBuilder();
+                if( testLoadBalancerId == null ) {
+                    sb.append("No test load balancer for " + name.getMethodName()).append(". ");
+                }
+                if( testVirtualMachineId == null ) {
+                    sb.append("No test VM for " + name.getMethodName()).append(".");
+                }
+                fail(sb.toString());
             }
             else {
                 tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
@@ -531,7 +533,7 @@ public class StatefulLoadBalancerTests {
             return;
         }
         if( testLoadBalancerId != null && testDataCenterId != null ) {
-            if( support.isDataCenterLimited() ) {
+            if( support.getCapabilities().isDataCenterLimited() ) {
                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                 assertNotNull("The test load balancer disappeared during the test", lb);
@@ -591,14 +593,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean ips = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.IP) ) {
                 ips = true;
                 break;
             }
         }
         if( testLoadBalancerId != null ) {
-            if( support.supportsAddingEndpoints() && ips ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && ips ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
 
                 support.removeIPEndpoints(testLoadBalancerId, "197.41.20.2");
@@ -655,14 +657,14 @@ public class StatefulLoadBalancerTests {
         }
         boolean vms = false;
 
-        for( LbEndpointType t :support.listSupportedEndpointTypes() ) {
+        for( LbEndpointType t :support.getCapabilities().listSupportedEndpointTypes() ) {
             if( t.equals(LbEndpointType.VM) ) {
                 vms = true;
                 break;
             }
         }
         if( testLoadBalancerId != null && testVirtualMachineId != null ) {
-            if( support.supportsAddingEndpoints() && vms ) {
+            if( support.getCapabilities().supportsAddingEndpoints() && vms ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
 
                 support.removeServers(testLoadBalancerId, testVirtualMachineId);
@@ -736,6 +738,42 @@ public class StatefulLoadBalancerTests {
             else {
                 tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
             }
+        }
+    }
+
+    @Test
+    public void createLoadBalancerHealthCheck() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if(support.healthCheckRequiresLoadBalancer()){
+            testLoadBalancerId = "dsncrlbtest4233";//TODO: Get rid of me
+            if(testLoadBalancerId != null){
+                LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
+                assertNotNull("The load balancer is null prior to the test", lb);
+                //TODO: Clean these values up
+                support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.TCP, 80, "/ping", 5.0, 5.0, 2, 2));
+            }
+            else{
+                if( support.isSubscribed() ) {
+                    fail("No test load balancer for " + name.getMethodName());
+                }
+                else {
+                    tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
+                }
+            }
+        }
+        else{
+            //TODO: do test
         }
     }
 }

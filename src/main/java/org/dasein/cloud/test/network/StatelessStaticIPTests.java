@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -161,7 +161,7 @@ public class StatelessStaticIPTests {
             tm.ok("Static IP address services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        for( IPVersion v : support.listSupportedIPVersions() ) {
+        for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
             if( v.equals(version) ) {
                 supported = true;
                 break;
@@ -197,7 +197,7 @@ public class StatelessStaticIPTests {
             tm.ok("Static IP address services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        for( IPVersion v : support.listSupportedIPVersions() ) {
+        for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
             if( v.equals(version) ) {
                 supported = true;
                 break;
@@ -283,19 +283,19 @@ public class StatelessStaticIPTests {
             return;
         }
         tm.out("Subscribed", support.isSubscribed());
-        tm.out("Term for Static IP", support.getProviderTermForIpAddress(Locale.getDefault()));
-        tm.out("Specify VLAN for VLAN IP", support.identifyVlanForVlanIPRequirement());
+        tm.out("Term for Static IP", support.getCapabilities().getProviderTermForIpAddress(Locale.getDefault()));
+        tm.out("Specify VLAN for VLAN IP", support.getCapabilities().identifyVlanForVlanIPRequirement());
 
-        Iterable<IPVersion> versions = support.listSupportedIPVersions();
+        Iterable<IPVersion> versions = support.getCapabilities().listSupportedIPVersions();
 
         tm.out("IP Versions", versions);
 
         for( IPVersion v : IPVersion.values() ) {
-            tm.out("Requestable [" + v + "]", support.isRequestable(v));
-            tm.out("Assignable [" + v + "]", support.isAssigned(v));
-            tm.out("Assignable Post-launch [" + v + "]", support.isAssignablePostLaunch(v));
-            tm.out("Forwarding [" + v + "]", support.isForwarding(v));
-            tm.out("VLAN Addresses [" + v + "]", support.supportsVLANAddresses(v));
+            tm.out("Requestable [" + v + "]", support.getCapabilities().isRequestable(v));
+            tm.out("Assignable [" + v + "]", support.getCapabilities().isAssigned(v));
+            tm.out("Assignable Post-launch [" + v + "]", support.getCapabilities().isAssignablePostLaunch(v));
+            tm.out("Forwarding [" + v + "]", support.getCapabilities().isForwarding(v));
+            tm.out("VLAN Addresses [" + v + "]", support.getCapabilities().supportsVLANAddresses(v));
         }
         assertNotNull("IP versions may not be null", versions);
         assertTrue("Static IP address support must provide support for at least one IP version", versions.iterator().hasNext());
@@ -357,7 +357,7 @@ public class StatelessStaticIPTests {
         }
         boolean supported = false;
 
-        for( IPVersion v : support.listSupportedIPVersions() ) {
+        for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
             if( v.equals(IPVersion.IPV4) ) {
                 supported = true;
             }
@@ -402,7 +402,7 @@ public class StatelessStaticIPTests {
         }
         boolean supported = false;
 
-        for( IPVersion v : support.listSupportedIPVersions() ) {
+        for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
             if( v.equals(IPVersion.IPV6) ) {
                 supported = true;
             }
@@ -494,18 +494,18 @@ public class StatelessStaticIPTests {
             }
             tm.out("Total Rule Count", count);
             if( count < 1 ) {
-                if( support.isForwarding(version) ) {
+                if( support.getCapabilities().isForwarding(version) ) {
                     tm.warn("No rules were found for the test address " + testIpAddress + " so this test is likely invalid");
                 }
                 else {
                     tm.ok("No rules were found in a cloud that doesn't support " + version + " forwarding");
                 }
             }
-            else if( !support.isForwarding(version) ) {
+            else if( !support.getCapabilities().isForwarding(version) ) {
                 fail("At least one IP forwarding rule was included for a cloud in which " + version + " forwarding is not supported");
             }
         }
-        else if( support.isForwarding(version) ) {
+        else if( support.getCapabilities().isForwarding(version) ) {
             fail("No test IP address exists for testing forwarding rules for " + version);
         }
         else {

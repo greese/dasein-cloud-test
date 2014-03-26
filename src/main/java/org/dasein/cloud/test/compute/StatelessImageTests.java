@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -183,34 +183,34 @@ public class StatelessImageTests {
             if( support != null ) {
                 tm.out("Subscribed", support.isSubscribed());
 
-                tm.out("Image Upload Support", support.supportsDirectImageUpload());
-                tm.out("Image Sharing with Accounts", support.supportsImageSharing());
-                tm.out("Image Sharing with Public", support.supportsImageSharingWithPublic());
-                Iterable<ImageClass> supportedClasses = support.listSupportedImageClasses();
+                tm.out("Image Upload Support", support.getCapabilities().supportsDirectImageUpload());
+                tm.out("Image Sharing with Accounts", support.getCapabilities().supportsImageSharing());
+                tm.out("Image Sharing with Public", support.getCapabilities().supportsImageSharingWithPublic());
+                Iterable<ImageClass> supportedClasses = support.getCapabilities().listSupportedImageClasses();
 
                 tm.out("Supported Image Classes", supportedClasses);
 
-                Iterable<MachineImageFormat> supportedFormats = support.listSupportedFormats();
+                Iterable<MachineImageFormat> supportedFormats = support.getCapabilities().listSupportedFormats();
 
                 tm.out("Supported Formats", supportedFormats);
 
                 for( ImageClass cls : ImageClass.values() ) {
-                    tm.out("Term for " + cls + " Images", support.getProviderTermForImage(Locale.getDefault(), cls));
-                    tm.out("Term for Custom " + cls + " Images", support.getProviderTermForCustomImage(Locale.getDefault(), cls));
-                    tm.out("Public " + cls + " Library", support.supportsPublicLibrary(cls));
+                    tm.out("Term for " + cls + " Images", support.getCapabilities().getProviderTermForImage(Locale.getDefault(), cls));
+                    tm.out("Term for Custom " + cls + " Images", support.getCapabilities().getProviderTermForCustomImage(Locale.getDefault(), cls));
+                    tm.out("Public " + cls + " Library", support.getCapabilities().supportsPublicLibrary(cls));
                 }
-                tm.out("Must Bundle on VM (Not Remote)", support.identifyLocalBundlingRequirement());
+                tm.out("Must Bundle on VM (Not Remote)", support.getCapabilities().identifyLocalBundlingRequirement());
 
-                Iterable<MachineImageFormat> bundlingFormats = support.listSupportedFormatsForBundling();
+                Iterable<MachineImageFormat> bundlingFormats = support.getCapabilities().listSupportedFormatsForBundling();
 
                 tm.out("Supported Bundling Formats", bundlingFormats);
 
-                Iterable<MachineImageType> types = support.listSupportedImageTypes();
+                Iterable<MachineImageType> types = support.getCapabilities().listSupportedImageTypes();
 
                 tm.out("Supported Image Types", types);
 
                 for( MachineImageType type : types ) {
-                    tm.out("Image Capture of VMs", support.supportsImageCapture(type));
+                    tm.out("Image Capture of VMs", support.getCapabilities().supportsImageCapture(type));
                 }
 
                 if( !support.isSubscribed() ) {
@@ -227,10 +227,10 @@ public class StatelessImageTests {
                 assertTrue("Machine images must be supported in any cloud with image support", machine);
                 assertNotNull("Supported formats must be non-null", supportedFormats);
                 for( ImageClass cls : ImageClass.values() ) {
-                    assertNotNull("Term for " + cls + " images must not be null whether or not supported", support.getProviderTermForImage(Locale.getDefault(), cls));
-                    assertNotNull("Term for custom " + cls + " images must not be null whether or not supported", support.getProviderTermForCustomImage(Locale.getDefault(), cls));
+                    assertNotNull("Term for " + cls + " images must not be null whether or not supported", support.getCapabilities().getProviderTermForImage(Locale.getDefault(), cls));
+                    assertNotNull("Term for custom " + cls + " images must not be null whether or not supported", support.getCapabilities().getProviderTermForCustomImage(Locale.getDefault(), cls));
                 }
-                assertNotNull("Local bundling requirement must not be null", support.identifyLocalBundlingRequirement());
+                assertNotNull("Local bundling requirement must not be null", support.getCapabilities().identifyLocalBundlingRequirement());
                 assertNotNull("The list of bundling formats must not be null", bundlingFormats);
                 assertNotNull("The list of image types must not be null", types);
                 assertTrue("At least one image type must be supported", types.iterator().hasNext());
@@ -371,7 +371,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.MACHINE) ) {
                         supported = true;
                     }
@@ -412,7 +412,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.KERNEL) ) {
                         supported = true;
                     }
@@ -456,7 +456,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.RAMDISK) ) {
                         supported = true;
                     }
@@ -500,7 +500,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.MACHINE) ) {
                         supported = true;
                     }
@@ -538,7 +538,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.KERNEL) ) {
                         supported = true;
                     }
@@ -576,7 +576,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.RAMDISK) ) {
                         supported = true;
                     }
@@ -664,7 +664,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.MACHINE) ) {
                         supported = true;
                     }
@@ -720,11 +720,11 @@ public class StatelessImageTests {
                     boolean shouldHave = false;
 
                     for( MachineImageType type : MachineImageType.values() ) {
-                        if( support.supportsImageCapture(type) ) {
+                        if( support.getCapabilities().supportsImageCapture(type) ) {
                             shouldHave = true;
                         }
                     }
-                    if( shouldHave || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                    if( shouldHave || !support.getCapabilities().supportsPublicLibrary(ImageClass.MACHINE) ) {
                         tm.warn("No private Ubuntu or Windows images were found; the test may have failed or there may be nothing to find");
                     }
                 }
@@ -749,7 +749,7 @@ public class StatelessImageTests {
             if( support != null ) {
                 boolean supported = false;
 
-                for( ImageClass cls : support.listSupportedImageClasses() ) {
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
                     if( cls.equals(ImageClass.MACHINE) ) {
                         supported = true;
                     }
@@ -763,7 +763,7 @@ public class StatelessImageTests {
                     tm.out("Ubuntu Public Image", image);
                 }
                 tm.out("Total Public Ubuntu Image Count", ubuntu);
-                if( !supported || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                if( !supported || !support.getCapabilities().supportsPublicLibrary(ImageClass.MACHINE) ) {
                     assertTrue("Because public machine image libraries are not supported, the list of images should be empty", ubuntu == 0);
                 }
                 for( MachineImage image : images ) {
@@ -783,7 +783,7 @@ public class StatelessImageTests {
                     tm.out("RHEL Image", image);
                 }
                 tm.out("Total Public RHEL Image Count", rhel);
-                if( !supported || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                if( !supported || !support.getCapabilities().supportsPublicLibrary(ImageClass.MACHINE) ) {
                     assertTrue("Because public machine image libraries are not supported, the list of images should be empty", ubuntu == 0);
                 }
                 for( MachineImage image : images ) {
@@ -804,7 +804,7 @@ public class StatelessImageTests {
                     tm.out("Windows Public Image", image);
                 }
                 tm.out("Total Public Windows Image Count", windows);
-                if( !supported || !support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                if( !supported || !support.getCapabilities().supportsPublicLibrary(ImageClass.MACHINE) ) {
                     assertTrue("Because public machine images libraries are not supported, the list of images should be empty", windows == 0);
                 }
                 for( MachineImage image : images ) {
@@ -815,7 +815,7 @@ public class StatelessImageTests {
                     }
                 }
                 if( windows == 0 && ubuntu == 0 ) {
-                    if( supported && support.supportsPublicLibrary(ImageClass.MACHINE) ) {
+                    if( supported && support.getCapabilities().supportsPublicLibrary(ImageClass.MACHINE) ) {
                         tm.warn("No private Ubuntu or Windows images were found; the test may have failed or there may be nothing to find");
                     }
                 }

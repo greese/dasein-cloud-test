@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -183,7 +183,7 @@ public class StatefulVolumeTests {
                         String a = (v == null ? null : v.getProviderVirtualMachineId());
 
                         if( a == null ) {
-                            for( String deviceId : support.listPossibleDeviceIds(vm.getPlatform()) ) {
+                            for( String deviceId : support.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
                                 try {
                                     support.attach(testVolumeId, testVMId, deviceId);
                                     break;
@@ -363,7 +363,7 @@ public class StatefulVolumeTests {
 
                 if( supported ) {
                     supported = false;
-                    for( VolumeFormat fmt : support.listSupportedFormats() ) {
+                    for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
                         if( fmt.equals(VolumeFormat.BLOCK) ) {
                             supported = true;
                         }
@@ -376,7 +376,7 @@ public class StatefulVolumeTests {
                 if( productId != null ) {
                     Storage<Gigabyte> size = null;
 
-                    if( support.isVolumeSizeDeterminedByProduct() ) {
+                    if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
                         VolumeProduct product = null;
 
                         for( VolumeProduct prd : support.listVolumeProducts() ) {
@@ -390,12 +390,12 @@ public class StatefulVolumeTests {
                         }
                     }
                     if( size == null ) {
-                        size = support.getMinimumVolumeSize();
+                        size = support.getCapabilities().getMinimumVolumeSize();
                     }
                     options = VolumeCreateOptions.getInstance(productId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
                 }
                 if( options == null ) {
-                    options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                    options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                 }
 
                 if( supported ) {
@@ -434,7 +434,7 @@ public class StatefulVolumeTests {
 
                 if( supported ) {
                     supported = false;
-                    for( VolumeFormat fmt : support.listSupportedFormats() ) {
+                    for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
                         if( fmt.equals(VolumeFormat.NFS) ) {
                             supported = true;
                         }
@@ -447,7 +447,7 @@ public class StatefulVolumeTests {
                     if( productId != null ) {
                         Storage<Gigabyte> size = null;
 
-                        if( support.isVolumeSizeDeterminedByProduct() ) {
+                        if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
                             VolumeProduct product = null;
 
                             for( VolumeProduct prd : support.listVolumeProducts() ) {
@@ -461,12 +461,12 @@ public class StatefulVolumeTests {
                             }
                         }
                         if( size == null ) {
-                            size = support.getMinimumVolumeSize();
+                            size = support.getCapabilities().getMinimumVolumeSize();
                         }
                         options = VolumeCreateOptions.getNetworkInstance(productId, testVLANId, size, "dsnnfsvol" + (System.currentTimeMillis()%10000), "Dasein NFS volume test");
                     }
                     if( options == null ) {
-                        options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                        options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                     }
 
                     if( supported ) {
@@ -529,7 +529,7 @@ public class StatefulVolumeTests {
                 if( productId != null ) {
                     Storage<Gigabyte> size = null;
 
-                    if( support.isVolumeSizeDeterminedByProduct() ) {
+                    if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
                         VolumeProduct product = null;
 
                         for( VolumeProduct prd : support.listVolumeProducts() ) {
@@ -543,12 +543,12 @@ public class StatefulVolumeTests {
                         }
                     }
                     if( size == null ) {
-                        size = support.getMinimumVolumeSize();
+                        size = support.getCapabilities().getMinimumVolumeSize();
                     }
                     options = VolumeCreateOptions.getInstanceForSnapshot(productId, testSnapshotId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
                 }
                 if( options == null ) {
-                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, support.getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                 }
 
                 if( support.isSubscribed() && supported ) {
@@ -601,7 +601,7 @@ public class StatefulVolumeTests {
 
                         boolean attached = false;
 
-                        for( String device : support.listPossibleDeviceIds(vm.getPlatform()) ) {
+                        for( String device : support.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
                             try {
                                 if( volume.getFormat().equals(VolumeFormat.NFS) ) {
                                     try {
@@ -739,7 +739,7 @@ public class StatefulVolumeTests {
                     String id = UUID.randomUUID().toString();
                     boolean succeeded = false;
 
-                    for( String device : support.listPossibleDeviceIds(Platform.UBUNTU) ) {
+                    for( String device : support.getCapabilities().listPossibleDeviceIds(Platform.UBUNTU) ) {
                         if( volume.getFormat().equals(VolumeFormat.NFS) ) {
                             try {
                                 support.attach(testVolumeId, id, device);

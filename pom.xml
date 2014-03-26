@@ -1,31 +1,48 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-  <modelVersion>4.0.0</modelVersion>
+<!--
+  ~ Copyright (C) 2009-2014 Dell, Inc.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~        http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.dasein</groupId>
   <artifactId>dasein-cloud-test</artifactId>
-  <version>2013.11-SNAPSHOT</version>
+  <version>2014.03.2-SNAPSHOT</version>
   <packaging>jar</packaging>
 
-  <name>dasein-cloud-test</name>
-  <description>Unit tests for testing implementations of the Dasein Cloud API.</description>
-  <inceptionYear>2009</inceptionYear>
-  <url>http://github.com/greese/dasein-cloud-aws</url>
+    <name>dasein-cloud-test</name>
+    <description>Unit tests for testing implementations of the Dasein Cloud API.</description>
+    <inceptionYear>2009</inceptionYear>
+    <url>http://github.com/greese/dasein-cloud-aws</url>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-  </properties>
-  
-  <licenses>
-    <license>
-        <name>Apache License 2.0</name>
-        <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-    </license>
-  </licenses>
-  
-  <organization>
-    <name>Dell, Inc.</name>
-    <url>http://software.dell.com</url>
-  </organization>
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Dell, Inc.</name>
+        <url>http://software.dell.com</url>
+    </organization>
 
     <scm>
         <connection>scm:git:git://github.com/greese/dasein-cloud-test.git</connection>
@@ -43,7 +60,7 @@
     <dependency>
         <groupId>org.dasein</groupId>
         <artifactId>dasein-cloud-core</artifactId>
-        <version>2013.11-SNAPSHOT</version>
+        <version>2014.03.1</version>
         <scope>compile</scope>
         <optional>false</optional>
     </dependency>    
@@ -66,7 +83,12 @@
         <version>1.2.17</version>
         <scope>compile</scope>
         <optional>false</optional>
-    </dependency> 
+    </dependency>
+      <dependency>
+          <groupId>com.google.code.findbugs</groupId>
+          <artifactId>jsr305</artifactId>
+          <version>2.0.0</version>
+      </dependency>
     <dependency>
           <groupId>org.json</groupId>
           <artifactId>json</artifactId>
@@ -125,7 +147,7 @@
                     <exclude>**/LICENSE-APACHE.txt</exclude>
                 </excludes>
                 <properties>
-                    <year>2009-2013</year>
+                    <year>2009-2014</year>
                     <copyrightHolder>Dell, Inc.</copyrightHolder>
                 </properties>
             </configuration>
@@ -214,5 +236,5 @@
         <url>http://www.jclouds.org</url>
         <timezone>-8</timezone>
     </developer>
-  </developers>  
+  </developers>
 </project>

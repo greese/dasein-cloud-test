@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2013 Dell, Inc.
+ * Copyright (C) 2009-2014 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -108,11 +108,11 @@ public class StatelessVMTests {
 
                 tm.out("Subscribed", support.isSubscribed());
 
-                String termForServer = support.getProviderTermForServer(Locale.getDefault());
+                String termForServer = support.getCapabilities().getProviderTermForVirtualMachine(Locale.getDefault());
 
                 tm.out("Term for VM", termForServer);
 
-                int maxVmCount = support.getMaximumVirtualMachineCount();
+                int maxVmCount = support.getCapabilities().getMaximumVirtualMachineCount();
 
                 if( maxVmCount == -2 ) {
                     tm.out("Max VM Count", "Unknown");
@@ -124,7 +124,7 @@ public class StatelessVMTests {
                     tm.out("Max VM Count", maxVmCount);
                 }
 
-                Iterable<Architecture> architectures = support.listSupportedArchitectures();
+                Iterable<Architecture> architectures = support.getCapabilities().listSupportedArchitectures();
 
                 if( architectures == null ) {
                     tm.out("Supported Architectures", null);
@@ -138,33 +138,33 @@ public class StatelessVMTests {
                     tm.out("Supported Architectures", tmp);
                 }
                 for( ImageClass cls : ImageClass.values() ) {
-                    r = support.identifyImageRequirement(cls);
+                    r = support.getCapabilities().identifyImageRequirement(cls);
                     tm.out("Image Class Req [" + cls.name() + "]", r);
                     requirements.put("Launch with Image Class " + cls.name() + " Requirement", r);
                 }
                 for( Platform platform : Platform.values() ) {
-                    r = support.identifyPasswordRequirement(platform);
+                    r = support.getCapabilities().identifyPasswordRequirement(platform);
                     tm.out("Password Req [" + platform.name() + "]", r);
                     requirements.put("Password for Platform " + platform.name() + " Requirement", r);
                 }
                 for( Platform platform : Platform.values() ) {
-                    r = support.identifyShellKeyRequirement(platform);
+                    r = support.getCapabilities().identifyShellKeyRequirement(platform);
                     tm.out("Shell Key Req [" + platform.name() + "]", r);
                     requirements.put("Shell Key for Platform " + platform.name() + " Requirement", r);
                 }
-                r = support.identifyRootVolumeRequirement();
+                r = support.getCapabilities().identifyRootVolumeRequirement();
                 tm.out("Root Volume Req", r);
                 requirements.put("Root Volume Requirement", r);
-                r = support.identifyStaticIPRequirement();
+                r = support.getCapabilities().identifyStaticIPRequirement();
                 tm.out("Static IP Req", r);
-                r = support.identifyVlanRequirement();
+                r = support.getCapabilities().identifyVlanRequirement();
                 requirements.put("Static IP Requirement", r);
                 tm.out("VLAN Req", r);
                 requirements.put("VLAN Requirement", r);
-                tm.out("Prevent API Termination", support.isAPITerminationPreventable());
-                tm.out("User Data", support.isUserDataSupported());
+                tm.out("Prevent API Termination", support.getCapabilities().isAPITerminationPreventable());
+                tm.out("User Data", support.getCapabilities().isUserDataSupported());
 
-                VMScalingCapabilities capabilities = support.describeVerticalScalingCapabilities();
+                VMScalingCapabilities capabilities = support.getCapabilities().getVerticalScalingCapabilities();
 
                 if( capabilities == null ) {
                     tm.out("VM Scaling Capabilities", "None");
@@ -182,7 +182,7 @@ public class StatelessVMTests {
                 HashMap<VmState,Float> costFactors = new HashMap<VmState, Float>();
 
                 for( VmState state : VmState.values() ) {
-                    float costFactor = support.getCostFactor(state);
+                    float costFactor = support.getCapabilities().getCostFactor(state);
 
                     tm.out("Cost Factor [" + state.name() + "]", costFactor);
                     costFactors.put(state, costFactor);
@@ -314,7 +314,7 @@ public class StatelessVMTests {
                 boolean found = false;
                 int total = 0;
 
-                for( Architecture architecture : support.listSupportedArchitectures() ) {
+                for( Architecture architecture : support.getCapabilities().listSupportedArchitectures() ) {
                     Iterable<VirtualMachineProduct> products = support.listProducts(architecture);
                     int count = 0;
 
@@ -371,6 +371,34 @@ public class StatelessVMTests {
         else {
             tm.ok("No compute services in this cloud");
         }
+    }
+
+    @Test
+    public void getVMPassword() throws CloudException, InternalException {
+      assumeTrue(!tm.isTestSkipped());
+      ComputeServices services = tm.getProvider().getComputeServices();
+
+      if( services != null ) {
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support != null ) {
+          if( testVMId != null ) {
+            String pass = support.getPassword(testVMId);
+
+            tm.out("Password for vm: ", pass);
+            assertNotNull("Did not find the password for test virtual machine " + testVMId, pass);
+          }
+          else if( support.isSubscribed() ) {
+            fail("No test virtual machine exists and thus no test could be run for getVMPassword");
+          }
+        }
+        else {
+          tm.ok("No virtual machine support in this cloud");
+        }
+      }
+      else {
+        tm.ok("No compute services in this cloud");
+      }
     }
 
     @Test
@@ -439,9 +467,12 @@ public class StatelessVMTests {
                     tm.out("Firewall IDs", Arrays.toString(vm.getProviderFirewallIds()));
                     tm.out("Root User", vm.getRootUser());
                     tm.out("Root Password", vm.getRootPassword());
-                    tm.out("Pause/unpause", support.supportsPauseUnpause(vm));
-                    tm.out("Start/stop", support.supportsStartStop(vm));
-                    tm.out("Suspend/resume", support.supportsSuspendResume(vm));
+                    tm.out("Pause", support.getCapabilities().canPause(vm.getCurrentState()));
+                    tm.out("Unpause", support.getCapabilities().canUnpause(vm.getCurrentState()));
+                    tm.out("Start", support.getCapabilities().canStart(vm.getCurrentState()));
+                    tm.out("Stop", support.getCapabilities().canStop(vm.getCurrentState()));
+                    tm.out("Suspend", support.getCapabilities().canSuspend(vm.getCurrentState()));
+                    tm.out("Resume", support.getCapabilities().canResume(vm.getCurrentState()));
                     tm.out("Clonable", vm.isClonable());
                     tm.out("Imageable", vm.isImagable());
                     tm.out("Rebootable", vm.isRebootable());
