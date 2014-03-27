@@ -885,7 +885,7 @@ public class StatelessImageTests {
                 boolean pl = false;
 
                 for( ImageClass cls : ImageClass.values() ) {
-                    if( support.supportsPublicLibrary(cls) ) {
+                    if( support.getCapabilities().supportsPublicLibrary(cls) ) {
                         pl = true;
                         break;
                     }
