@@ -19,6 +19,7 @@
 
 package org.dasein.cloud.test.network;
 
+import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
@@ -437,8 +438,8 @@ public class StatefulStaticIPTests {
             VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
 
             assertNotNull("The test virtual machine disappeared before the test could run", vm);
-            tm.out("VM Before", vm.getProviderAssignedIpAddressId());
-            tm.out("Address Before", address.getServerId());
+            tm.out("VM Before", address.getServerId());
+            tm.out("Address Before", vm.getProviderAssignedIpAddressId());
             assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddress.equals(vm.getProviderAssignedIpAddressId()));
             support.assign(testIpAddress, testVMId);
 
@@ -457,8 +458,8 @@ public class StatefulStaticIPTests {
                 try { Thread.sleep(10000L); }
                 catch( InterruptedException ignore ) { }
             }
-            tm.out("VM After", vm.getProviderAssignedIpAddressId());
-            tm.out("Address After", address.getServerId());
+            tm.out("VM After", address.getServerId());
+            tm.out("Address After", vm.getProviderAssignedIpAddressId());
             assertEquals("The IP address assigned to the virtual machine does not match the test IP address", testIpAddress, vm.getProviderAssignedIpAddressId());
             assertEquals("The virtual machine associated with the IP address does not match the test VM", testVMId, address.getServerId());
         }
