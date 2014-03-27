@@ -869,6 +869,7 @@ public class NetworkResources {
             try {
                 if( vlanSupport != null && vlanSupport.isSubscribed() ) {
                     VLAN defaultVlan = null;
+                    VLAN firstVlan = null; //will only be used if we can't satisfy all conditions below
                     Subnet defaultSubnet = null;
                     InternetGateway defaultInternetGateway = null;
                     RoutingTable defaultRouteTable = null;
@@ -911,6 +912,9 @@ public class NetworkResources {
                                     defaultVlan = vlan;
                                 }
                             }
+                            if (firstVlan == null) {
+                                firstVlan = vlan;
+                            }
                             if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && defaultInternetGateway != null && defaultRouteTable != null && ( ( foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState()) ) || vlanSupport.getCapabilities().getSubnetSupport().equals(Requirement.NONE) ) ) {
                                 break;
                             }
@@ -921,6 +925,13 @@ public class NetworkResources {
                     if( defaultVlan != null ) {
                         id = defaultVlan.getProviderVlanId();
                         testVLANs.put(DaseinTestManager.STATELESS, id);
+                    }
+                    else {
+                        // couldn't find a vlan satisfying all requirements so use the first one if found
+                        if (firstVlan != null) {
+                            id = firstVlan.getProviderVlanId();
+                            testVLANs.put(DaseinTestManager.STATELESS, id);
+                        }
                     }
                     if( defaultSubnet != null ) {
                         testSubnets.put(DaseinTestManager.STATELESS, defaultSubnet.getProviderSubnetId());
