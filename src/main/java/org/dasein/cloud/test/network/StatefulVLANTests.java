@@ -871,8 +871,8 @@ public class StatefulVLANTests {
             VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
 
             if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
+              if( testRoutingTableId != null ) {
+                if( testVLANVMId != null ) {
                   RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
                   tm.out("Route Table", rtb);
                   assertNotNull("The test route table was not found in the cloud", rtb);
@@ -919,20 +919,20 @@ public class StatefulVLANTests {
                     fail("Unable to add route for: " + name.getMethodName());
                   }
                 }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateful test: " + name.getMethodName());
-                  }
+                else if( computeSupport.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
                 }
               }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
+              else {
+                if( !support.isSubscribed() ) {
+                  tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+                }
+                else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
+                  tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+                }
+                else {
+                  fail("No test route table was found for running the stateful test: " + name.getMethodName());
+                }
               }
             }
             else {
@@ -966,8 +966,8 @@ public class StatefulVLANTests {
             VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
 
             if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
+              if( testRoutingTableId != null ) {
+                if( testVLANVMId != null ) {
                   RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
                   tm.out("Route Table", rtb);
                   assertNotNull("The test route table was not found in the cloud", rtb);
@@ -1014,20 +1014,20 @@ public class StatefulVLANTests {
                     fail("Unable to add route for: " + name.getMethodName());
                   }
                 }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateful test: " + name.getMethodName());
-                  }
+                else if( computeSupport.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
                 }
               }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
+              else {
+                  if( !support.isSubscribed() ) {
+                      tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+                  }
+                  else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
+                      tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+                  }
+                  else {
+                      fail("No test route table was found for running the stateful test: " + name.getMethodName());
+                  }
               }
             }
             else {
