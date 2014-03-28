@@ -916,8 +916,9 @@ public class StatefulFirewallTests {
             assertNotNull("Launched VM does not exist", vm);
             tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
             String[] fwIds = vm.getProviderFirewallIds();
-
-            assertTrue("The firewall IDs do not match the test firewall of " + testFirewallId, fwIds.length == 1 && fwIds[0].equals(testFirewallId));
+            assertNotNull("The VM firewalls should not be null", fwIds);
+            assertEquals("The number of firewalls is incorrect", 1, fwIds.length);
+            assertEquals("The firewall IDs do not match the test firewall", testFirewallId, fwIds[0]);
         }
     }
 }
