@@ -539,7 +539,7 @@ public class ComputeResources {
                             }
                           }
                         }
-                        vmOpts.inVlan(null, dcId, subnetId);
+                        vmOpts.inSubnet(null, dcId, vlanId, subnetId);
                       }
                     }
                   }
@@ -1072,7 +1072,7 @@ public class ComputeResources {
                                         }
                                     }
                                 }
-                                options.inVlan(null, dcId, subnetId);
+                                options.inSubnet(null, dcId, networkId, subnetId);
                             }
                         }
                         else {
@@ -1119,7 +1119,6 @@ public class ComputeResources {
             options.withRootVolumeProduct(testVolumeProductId);
         }
         options.withMetaData("dsntestcase", "true");
-
         String id = options.build(provider);
 
         synchronized( testVMs ) {

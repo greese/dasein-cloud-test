@@ -79,7 +79,7 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().equals("createVLANFirewall") ) {
+        if( name.getMethodName().startsWith("createVLANFirewall") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
         else if( name.getMethodName().equals("launchVM") ) {
@@ -88,7 +88,7 @@ public class StatefulFirewallTests {
 
             try {
                 support = (services == null ? null : services.getVirtualMachineSupport());
-                boolean vlan = (support != null && support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED));
+                boolean vlan = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
 
                 if( vlan ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -821,7 +821,6 @@ public class StatefulFirewallTests {
     public void launchVM() throws CloudException, InternalException {
         ComputeServices services = tm.getProvider().getComputeServices();
         VirtualMachineSupport support;
-
         if( services != null ) {
             support = services.getVirtualMachineSupport();
             if( support != null ) {
@@ -835,7 +834,7 @@ public class StatefulFirewallTests {
             tm.ok("No compute services in " + tm.getProvider().getCloudName());
             return;
         }
-        boolean inVlan = support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED);
+        boolean inVlan = !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE);
         String testSubnetId = null;
 
         if( inVlan && testVLANId == null ) {
@@ -859,7 +858,6 @@ public class StatefulFirewallTests {
                 options.behindFirewalls(testFirewallId);
                 if( testSubnetId != null ) {
                     @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
-
                     assertNotNull("Subnet went away before test could be executed", subnet);
                     String dataCenterId = subnet.getProviderDataCenterId();
 
@@ -870,7 +868,7 @@ public class StatefulFirewallTests {
                     }
                     assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                     options.inDataCenter(dataCenterId);
-                    options.inVlan(null, dataCenterId, testSubnetId);
+                    options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
                 }
                 else if( testVLANId != null ) {
                     @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
@@ -905,7 +903,6 @@ public class StatefulFirewallTests {
                 }
                 return;
             }
-
             String vmId = compute.provisionVM(support, "fwLaunch", options, options.getDataCenterId());
 
             tm.out("Virtual Machine", vmId);
