@@ -79,7 +79,7 @@ public class StatefulLoadBalancerTests {
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, true);
         }
-        else if( name.getMethodName().equals("addIP") ) {
+        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
@@ -748,13 +748,11 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if(support.healthCheckRequiresLoadBalancer()){
-            testLoadBalancerId = "dsncrlbtest4233";//TODO: Get rid of me
-            if(testLoadBalancerId != null){
-                LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
-                assertNotNull("The load balancer is null prior to the test", lb);
+        if( support.getCapabilities().healthCheckRequiresLoadBalancer() ){
+            if( testLoadBalancerId != null ){
                 //TODO: Clean these values up
-                support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.TCP, 80, "/ping", 5.0, 5.0, 2, 2));
+                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
+                assertNotNull("Could not create a loadbalancer with healthcheck", lbhc);
             }
             else{
                 if( support.isSubscribed() ) {
@@ -765,7 +763,7 @@ public class StatefulLoadBalancerTests {
                 }
             }
         }
-        else{
+        else {
             //TODO: do test
         }
     }
