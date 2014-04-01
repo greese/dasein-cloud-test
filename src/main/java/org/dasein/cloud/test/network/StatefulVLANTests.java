@@ -347,6 +347,9 @@ public class StatefulVLANTests {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
                     }
+                    else if (!support.getCapabilities().allowsNewVlanCreation()) {
+                        tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
+                    }
                     else {
                         fail("No test VLAN was found for running the stateful test: " + name.getMethodName());
                     }
@@ -444,6 +447,9 @@ public class StatefulVLANTests {
           else {
             if( !support.isSubscribed() ) {
               tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if (!support.getCapabilities().allowsNewVlanCreation()) {
+                tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
             }
             else {
               fail("No test VLAN was found for running the stateful test: " + name.getMethodName());
@@ -649,7 +655,10 @@ public class StatefulVLANTests {
                 options.inVlan(null, dataCenterId, testVLANId);
             }
             else {
-                if( !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
+                if (!tm.getProvider().getNetworkServices().getVlanSupport().getCapabilities().allowsNewVlanCreation()) {
+                    tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
+                }
+                else if( !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
                     fail("No test VLAN or subnet in which to launch a VM");
                 }
                 else {
