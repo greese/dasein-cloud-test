@@ -454,6 +454,9 @@ public class StatefulVLANTests {
                     }
                 }
             }
+            else {
+                tm.ok("No VLAN support in this cloud");
+            }
         } else {
             tm.ok("No network services in this cloud");
         }
