@@ -748,7 +748,7 @@ public class NetworkResources {
                     Firewall defaultFirewall = null;
 
                     for( Firewall firewall : support.list() ) {
-                        if( (firewall.getProviderVlanId() != null) == inVlan ) {
+                        if( ( firewall.getProviderVlanId() != null ) == inVlan || !support.getCapabilities().requiresVLAN().equals(Requirement.NONE)) {
                             if( firewall.isActive() && firewall.isAvailable() ) {
                                 String id = firewall.getProviderFirewallId();
 
@@ -1015,8 +1015,7 @@ public class NetworkResources {
     }
 
     public @Nullable String getTestFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId) {
-        HashMap<String,String> map = (vlanId == null ? testGeneralFirewalls : testVLANFirewalls);
-
+        HashMap<String, String> map = ( vlanId == null ? testGeneralFirewalls : testVLANFirewalls );
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : map.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {

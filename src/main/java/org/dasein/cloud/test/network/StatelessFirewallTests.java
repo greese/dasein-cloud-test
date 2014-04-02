@@ -21,6 +21,7 @@ package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.network.Direction;
 import org.dasein.cloud.network.Firewall;
@@ -92,7 +93,12 @@ public class StatelessFirewallTests {
         tm.end();
     }
 
-    private void assertFirewall(@Nonnull Firewall firewall, boolean vlan) {
+    private void assertFirewall(@Nonnull Firewall firewall, boolean vlan) throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+        FirewallSupport support = null;
+        if( services != null ) {
+            support = services.getFirewallSupport();
+        }
         assertNotNull("The firewall ID may not be null", firewall.getProviderFirewallId());
         assertNotNull("The firewall name may not be null", firewall.getName());
         assertNotNull("The firewall description may not be null", firewall.getDescription());
@@ -100,7 +106,7 @@ public class StatelessFirewallTests {
         if( vlan ) {
             assertNotNull("The firewall VLAN may not be null", firewall.getProviderVlanId());
         }
-        else {
+        else if (support != null && support.getCapabilities().requiresVLAN().equals(Requirement.NONE)){
             assertNull("The firewall VLAN must be null", firewall.getProviderVlanId());
         }
         assertNotNull("The firewall tags may not be null", firewall.getTags());
@@ -120,7 +126,7 @@ public class StatelessFirewallTests {
         assertNotNull("The firewall protocol must not be null", rule.getProtocol());
     }
 
-    private void content(@Nonnull String id, @Nonnull Firewall firewall, boolean vlan) {
+    private void content(@Nonnull String id, @Nonnull Firewall firewall, boolean vlan) throws CloudException, InternalException {
         tm.out("Firewall ID", firewall.getProviderFirewallId());
         tm.out("Active", firewall.isActive());
         tm.out("Available", firewall.isAvailable());
@@ -390,11 +396,12 @@ public class StatelessFirewallTests {
             FirewallSupport support = services.getFirewallSupport();
 
             if( support != null ) {
-                if( testGeneralFirewallId != null ) {
+                boolean inVlan = support.getCapabilities().requiresVLAN().equals(Requirement.REQUIRED);
+                if( testGeneralFirewallId != null && !inVlan) {
                     Firewall fw = support.getFirewall(testGeneralFirewallId);
 
                     assertNotNull("Unable to find the test firewall", fw);
-                    content(testGeneralFirewallId, fw, false);
+                    content(testGeneralFirewallId, fw, inVlan);
                 }
                 else {
                     if( support.getCapabilities().listSupportedDirections(false).iterator().hasNext() ) {
