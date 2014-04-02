@@ -378,7 +378,7 @@ public class StatefulFirewallTests {
         boolean found = false;
         for( FirewallRule rule : support.getRules(testFirewallId) ) {
             if( rule.getProviderRuleId().equals(testRuleId) ) {
-                System.out.println("Rule " + rule + " is still there");
+                //System.out.println("Rule " + rule + " is still there");
                 found = true;
             }
         }
