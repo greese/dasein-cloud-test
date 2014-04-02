@@ -783,18 +783,29 @@ public class StatefulFirewallTests {
 
             if( support != null ) {
                 if( testFirewallId != null ) {
-                    Firewall firewall = support.getFirewall(testFirewallId);
+                    if (support.getCapabilities().supportsFirewallDeletion()) {
+                        Firewall firewall = support.getFirewall(testFirewallId);
 
-                    tm.out("Before", firewall);
-                    assertNotNull("Test firewall no longer exists, cannot test removing it", firewall);
-                    tm.out("Active", firewall.isActive());
-                    support.delete(testFirewallId);
-                    try { Thread.sleep(5000L); }
-                    catch( InterruptedException ignore ) { }
-                    firewall = support.getFirewall(testFirewallId);
-                    tm.out("After", firewall);
-                    tm.out("Active", (firewall == null ? "false" : firewall.isActive()));
-                    assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
+                        tm.out("Before", firewall);
+                        assertNotNull("Test firewall no longer exists, cannot test removing it", firewall);
+                        tm.out("Active", firewall.isActive());
+                        support.delete(testFirewallId);
+                        try { Thread.sleep(5000L); }
+                        catch( InterruptedException ignore ) { }
+                        firewall = support.getFirewall(testFirewallId);
+                        tm.out("After", firewall);
+                        tm.out("Active", (firewall == null ? "false" : firewall.isActive()));
+                        assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
+                    }
+                    else {
+                        try {
+                            support.delete(testFirewallId);
+                            fail("Firewall deletion not supported but completed without error");
+                        }
+                        catch (OperationNotSupportedException e) {
+                            tm.ok("Caught not supported exception for delete Firewall in cloud that does not support firewall deletion");
+                        }
+                    }
                 }
                 else {
                     if( !support.getCapabilities().supportsFirewallCreation(true) && !support.getCapabilities().supportsFirewallCreation(false) ) {
