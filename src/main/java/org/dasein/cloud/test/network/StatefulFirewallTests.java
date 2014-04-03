@@ -88,7 +88,7 @@ public class StatefulFirewallTests {
 
             try {
                 support = (services == null ? null : services.getVirtualMachineSupport());
-                boolean vlan = (support != null && support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED));
+                boolean vlan = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
 
                 if( vlan ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
@@ -378,7 +378,7 @@ public class StatefulFirewallTests {
         boolean found = false;
         for( FirewallRule rule : support.getRules(testFirewallId) ) {
             if( rule.getProviderRuleId().equals(testRuleId) ) {
-                System.out.println("Rule " + rule + " is still there");
+                //System.out.println("Rule " + rule + " is still there");
                 found = true;
             }
         }
@@ -783,18 +783,29 @@ public class StatefulFirewallTests {
 
             if( support != null ) {
                 if( testFirewallId != null ) {
-                    Firewall firewall = support.getFirewall(testFirewallId);
+                    if (support.getCapabilities().supportsFirewallDeletion()) {
+                        Firewall firewall = support.getFirewall(testFirewallId);
 
-                    tm.out("Before", firewall);
-                    assertNotNull("Test firewall no longer exists, cannot test removing it", firewall);
-                    tm.out("Active", firewall.isActive());
-                    support.delete(testFirewallId);
-                    try { Thread.sleep(5000L); }
-                    catch( InterruptedException ignore ) { }
-                    firewall = support.getFirewall(testFirewallId);
-                    tm.out("After", firewall);
-                    tm.out("Active", (firewall == null ? "false" : firewall.isActive()));
-                    assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
+                        tm.out("Before", firewall);
+                        assertNotNull("Test firewall no longer exists, cannot test removing it", firewall);
+                        tm.out("Active", firewall.isActive());
+                        support.delete(testFirewallId);
+                        try { Thread.sleep(5000L); }
+                        catch( InterruptedException ignore ) { }
+                        firewall = support.getFirewall(testFirewallId);
+                        tm.out("After", firewall);
+                        tm.out("Active", (firewall == null ? "false" : firewall.isActive()));
+                        assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
+                    }
+                    else {
+                        try {
+                            support.delete(testFirewallId);
+                            fail("Firewall deletion not supported but completed without error");
+                        }
+                        catch (OperationNotSupportedException e) {
+                            tm.ok("Caught not supported exception for delete Firewall in cloud that does not support firewall deletion");
+                        }
+                    }
                 }
                 else {
                     if( !support.getCapabilities().supportsFirewallCreation(true) && !support.getCapabilities().supportsFirewallCreation(false) ) {
@@ -821,7 +832,6 @@ public class StatefulFirewallTests {
     public void launchVM() throws CloudException, InternalException {
         ComputeServices services = tm.getProvider().getComputeServices();
         VirtualMachineSupport support;
-
         if( services != null ) {
             support = services.getVirtualMachineSupport();
             if( support != null ) {
@@ -835,7 +845,7 @@ public class StatefulFirewallTests {
             tm.ok("No compute services in " + tm.getProvider().getCloudName());
             return;
         }
-        boolean inVlan = support.getCapabilities().identifyVlanRequirement().equals(Requirement.REQUIRED);
+        boolean inVlan = !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE);
         String testSubnetId = null;
 
         if( inVlan && testVLANId == null ) {
@@ -859,7 +869,6 @@ public class StatefulFirewallTests {
                 options.behindFirewalls(testFirewallId);
                 if( testSubnetId != null ) {
                     @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
-
                     assertNotNull("Subnet went away before test could be executed", subnet);
                     String dataCenterId = subnet.getProviderDataCenterId();
 
@@ -870,7 +879,7 @@ public class StatefulFirewallTests {
                     }
                     assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                     options.inDataCenter(dataCenterId);
-                    options.inVlan(null, dataCenterId, testSubnetId);
+                    options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
                 }
                 else if( testVLANId != null ) {
                     @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
@@ -905,7 +914,6 @@ public class StatefulFirewallTests {
                 }
                 return;
             }
-
             String vmId = compute.provisionVM(support, "fwLaunch", options, options.getDataCenterId());
 
             tm.out("Virtual Machine", vmId);
@@ -916,8 +924,9 @@ public class StatefulFirewallTests {
             assertNotNull("Launched VM does not exist", vm);
             tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
             String[] fwIds = vm.getProviderFirewallIds();
-
-            assertTrue("The firewall IDs do not match the test firewall of " + testFirewallId, fwIds.length == 1 && fwIds[0].equals(testFirewallId));
+            assertNotNull("The VM firewalls should not be null", fwIds);
+            assertEquals("The number of firewalls is incorrect", 1, fwIds.length);
+            assertEquals("The firewall IDs do not match the test firewall", testFirewallId, fwIds[0]);
         }
     }
 }
