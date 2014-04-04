@@ -88,7 +88,9 @@ public class StatefulImageTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
+        if( !name.getMethodName().startsWith("capture") ) {
+            testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
+        }
         testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         testShareAccount = System.getProperty("shareAccount");
         if( testImageId != null ) {
@@ -693,7 +695,7 @@ public class StatefulImageTests {
 
                         tm.out("Task", "");
 
-                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*30L);
 
                         while( timeout > System.currentTimeMillis() ) {
                             if( task.isComplete() ) {
@@ -719,7 +721,7 @@ public class StatefulImageTests {
 
                         provisionedImage = image.getProviderMachineImageId();
 
-                        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+                        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*30L);
 
                         while( timeout > System.currentTimeMillis() ) {
                             try {

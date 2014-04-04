@@ -23,6 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
@@ -89,6 +90,7 @@ public class StatefulStaticIPTests {
     private String testRuleId;
     private String testVlanId;
     private String testVMId;
+    private boolean inVlan;
 
     public StatefulStaticIPTests() { }
 
@@ -194,6 +196,7 @@ public class StatefulStaticIPTests {
                         // ignore
                     }
                     if( vm != null && vm.getProviderVlanId() != null ) {
+                        inVlan = true;
                         testVMId = null;
                     }
                     else if( vm != null ) {
@@ -442,7 +445,6 @@ public class StatefulStaticIPTests {
             tm.out("Address Before", vm.getProviderAssignedIpAddressId());
             assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddress.equals(vm.getProviderAssignedIpAddressId()));
             support.assign(testIpAddress, testVMId);
-
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
 
             while( System.currentTimeMillis() < timeout ) {
@@ -476,12 +478,22 @@ public class StatefulStaticIPTests {
 
     @Test
     public void assignPostLaunchIPv4() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV4);
+        if( inVlan ) {
+            tm.ok("VM is still launched in VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        } else {
+            assignPostLaunch(IPVersion.IPV4);
+        }
     }
 
     @Test
     public void assignPostLaunchIPv6() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV6);
+        if( inVlan ) {
+            tm.ok("VM is still launched in VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        } else {
+            assignPostLaunch(IPVersion.IPV6);
+        }
     }
 
     @Test
