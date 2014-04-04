@@ -22,6 +22,7 @@ package org.dasein.cloud.test.network;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
@@ -88,6 +89,7 @@ public class StatefulStaticIPTests {
     private String testRuleId;
     private String testVlanId;
     private String testVMId;
+    private boolean inVlan;
 
     public StatefulStaticIPTests() { }
 
@@ -96,6 +98,7 @@ public class StatefulStaticIPTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+
         if( testVlanId != null ) {
             NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -103,7 +106,7 @@ public class StatefulStaticIPTests {
                 VLANSupport support = services.getVlanSupport();
 
                 try {
-                    if( support != null && support.supportsInternetGatewayCreation() && !support.isConnectedViaInternetGateway(testVlanId) ) {
+                    if( support != null && support.getCapabilities().supportsInternetGatewayCreation() && !support.isConnectedViaInternetGateway(testVlanId) ) {
                         support.createInternetGateway(testVlanId);
                     }
                 }
@@ -192,6 +195,7 @@ public class StatefulStaticIPTests {
                         // ignore
                     }
                     if( vm != null && vm.getProviderVlanId() != null ) {
+                        inVlan = true;
                         testVMId = null;
                     }
                     else if( vm != null ) {
@@ -342,7 +346,7 @@ public class StatefulStaticIPTests {
                 tm.ok("Caught a cloud exception attempting to request an address of type " + version + " in an account where there is no subscription");
             }
         }
-        else if( support.isRequestable(version) && (!forVLAN || support.supportsVLANAddresses(version)) ) {
+        else if( support.getCapabilities().isRequestable(version) && (!forVLAN || support.getCapabilities().supportsVLANAddresses(version)) ) {
             String addressId;
 
             if( !forVLAN ) {
@@ -407,18 +411,18 @@ public class StatefulStaticIPTests {
             if( !support.isSubscribed() ) {
                 tm.ok("No IP address subscription exists for this account in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
-            else if( !support.isAssignablePostLaunch(version) ) {
+            else if( !support.getCapabilities().isAssignablePostLaunch(version) ) {
                 tm.ok("Unable to assign new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
-            else if( !support.isRequestable(version) ) {
+            else if( !support.getCapabilities().isRequestable(version) ) {
                 tm.warn("Unable to provision new IP addresses in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
             else {
-                if( name.getMethodName().contains("VLAN") && !support.supportsVLANAddresses(version) ) {
+                if( name.getMethodName().contains("VLAN") && !support.getCapabilities().supportsVLANAddresses(version) ) {
                     tm.ok("No VLAN IP addresses are supported");
                 }
                 else {
-                    fail("Unable to get a test IP address for running the test " + name.getMethodName());
+                    fail(String.format("Unable to get a test %s address for running the test %s", version == IPVersion.IPV4?"IPv4":"IPv6", name.getMethodName()));
                 }
             }
             return;
@@ -426,7 +430,7 @@ public class StatefulStaticIPTests {
         if( testVMId == null ) {
             fail("Unable to get a test VM for running the test " + name.getMethodName());
         }
-        if( support.isAssignablePostLaunch(version) ) {
+        if( support.getCapabilities().isAssignablePostLaunch(version) ) {
             @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = tm.getProvider().getComputeServices().getVirtualMachineSupport();
             IpAddress address = support.getIpAddress(testIpAddress);
 
@@ -436,11 +440,10 @@ public class StatefulStaticIPTests {
             VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
 
             assertNotNull("The test virtual machine disappeared before the test could run", vm);
-            tm.out("VM Before", vm.getProviderAssignedIpAddressId());
-            tm.out("Address Before", address.getServerId());
+            tm.out("VM Before", address.getServerId());
+            tm.out("Address Before", vm.getProviderAssignedIpAddressId());
             assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddress.equals(vm.getProviderAssignedIpAddressId()));
             support.assign(testIpAddress, testVMId);
-
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
 
             while( System.currentTimeMillis() < timeout ) {
@@ -456,8 +459,8 @@ public class StatefulStaticIPTests {
                 try { Thread.sleep(10000L); }
                 catch( InterruptedException ignore ) { }
             }
-            tm.out("VM After", vm.getProviderAssignedIpAddressId());
-            tm.out("Address After", address.getServerId());
+            tm.out("VM After", address.getServerId());
+            tm.out("Address After", vm.getProviderAssignedIpAddressId());
             assertEquals("The IP address assigned to the virtual machine does not match the test IP address", testIpAddress, vm.getProviderAssignedIpAddressId());
             assertEquals("The virtual machine associated with the IP address does not match the test VM", testVMId, address.getServerId());
         }
@@ -474,12 +477,22 @@ public class StatefulStaticIPTests {
 
     @Test
     public void assignPostLaunchIPv4() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV4);
+        if( inVlan ) {
+            tm.ok("VM is still launched in VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        } else {
+            assignPostLaunch(IPVersion.IPV4);
+        }
     }
 
     @Test
     public void assignPostLaunchIPv6() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV6);
+        if( inVlan ) {
+            tm.ok("VM is still launched in VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        } else {
+            assignPostLaunch(IPVersion.IPV6);
+        }
     }
 
     @Test
@@ -507,7 +520,7 @@ public class StatefulStaticIPTests {
             return;
         }
         if( testIpAddress == null ) {
-            if( !support.isRequestable(IPVersion.IPV4) && !support.isRequestable(IPVersion.IPV6) ) {
+            if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
             else {
@@ -517,7 +530,7 @@ public class StatefulStaticIPTests {
         else {
             IpAddress address = support.getIpAddress(testIpAddress);
 
-            assertNotNull("Test IP addresss " + address + " does not exist", address);
+            assertNotNull("Test IP addresss " + testIpAddress + " does not exist", address);
             support.releaseFromPool(testIpAddress);
             address = support.getIpAddress(testIpAddress);
             tm.out("Result", address);
@@ -540,7 +553,7 @@ public class StatefulStaticIPTests {
             return;
         }
         if( testIpAddress == null ) {
-            if( !support.isRequestable(IPVersion.IPV4) && !support.isRequestable(IPVersion.IPV6) ) {
+            if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
             else {
@@ -588,7 +601,7 @@ public class StatefulStaticIPTests {
                 assertNull("The virtual machine associated with the IP address is still set", address.getServerId());
             }
             else {
-                if( !support.isAssignablePostLaunch(address.getVersion()) ) {
+                if( !support.getCapabilities().isAssignablePostLaunch(address.getVersion()) ) {
                     tm.ok("Dynamic IP address assignment is not supported");
                 }
                 else {
@@ -612,7 +625,7 @@ public class StatefulStaticIPTests {
             return;
         }
 
-        if( support.isForwarding(version) ) {
+        if( support.getCapabilities().isForwarding(version) ) {
             if( testIpAddress != null ) {
                 assertNotNull("Test VM is null", testVMId);
 
@@ -638,7 +651,7 @@ public class StatefulStaticIPTests {
                 assertTrue("Did not find the newly created rule", found);
             }
             else {
-                if( !support.isRequestable(version) ) {
+                if( !support.getCapabilities().isRequestable(version) ) {
                     tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
                 }
                 else {
@@ -675,7 +688,7 @@ public class StatefulStaticIPTests {
             return;
         }
 
-        if( support.isForwarding(version) ) {
+        if( support.getCapabilities().isForwarding(version) ) {
             if( testRuleId != null ) {
                 support.stopForward(testRuleId);
                 long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
@@ -700,7 +713,7 @@ public class StatefulStaticIPTests {
                 assertNotNull("The target rule still exists among the forwarding rules", exists);
             }
             else {
-                if( !support.isRequestable(version) ) {
+                if( !support.getCapabilities().isRequestable(version) ) {
                     tm.warn("Could not run this test because IP addresses cannot be request and the test does not use existing IPs");
                 }
                 else {

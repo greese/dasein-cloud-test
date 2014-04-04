@@ -391,18 +391,29 @@ public class StatefulVMTests {
           if( testVmId != null ) {
             VirtualMachine vm = support.getVirtualMachine(testVmId);
 
-            if( vm != null ) {
-              tm.out( "Before", vm.getProductId() );
-              String modifiedProductId = "m1.large";
-              support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
-              try { Thread.sleep(5000L); }
-              catch( InterruptedException ignore ) { }
-              vm = support.getVirtualMachine(testVmId);
-                if( vm != null ) {
-                    tm.out( "After", vm.getProductId() );
-                    assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
-                }
-            }
+              if (vm != null) {
+                  if (support.getCapabilities().canAlter(vm.getCurrentState())) {
+                      tm.out("Before", vm.getProductId());
+                      //String modifiedProductId = "m1.large";
+                      String modifiedProductId = null;
+                      Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
+                      if (products.iterator().hasNext()) {
+                          modifiedProductId = products.iterator().next().getProviderProductId();
+                      }
+                      support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                      try {
+                          Thread.sleep(5000L);
+                      } catch (InterruptedException ignore) {
+                      }
+                      vm = support.getVirtualMachine(testVmId);
+                      if (vm != null) {
+                          tm.out("After", vm.getProductId());
+                          assertEquals("Current product id does not match the target product id", modifiedProductId, vm.getProductId());
+                      }
+                  } else {
+                      tm.ok("Alter vm not supported for vm state " + vm.getCurrentState());
+                  }
+              }
             else {
               tm.warn("Test virtual machine " + testVmId + " no longer exists");
             }

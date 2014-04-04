@@ -88,7 +88,9 @@ public class StatefulImageTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
+        if( !name.getMethodName().startsWith("capture") ) {
+            testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
+        }
         testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         testShareAccount = System.getProperty("shareAccount");
         if( testImageId != null ) {
@@ -187,7 +189,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
@@ -218,7 +220,7 @@ public class StatefulImageTests {
                         Iterable<String> shares = support.listShares(testImageId);
 
                         tm.out("Before", shares);
-                        if( support.supportsImageSharing() ) {
+                        if( support.getCapabilities().supportsImageSharing() ) {
                             support.addImageShare(testImageId, testShareAccount);
 
                             boolean found = false;
@@ -270,7 +272,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
@@ -301,7 +303,7 @@ public class StatefulImageTests {
                         Iterable<String> shares = support.listShares(testImageId);
 
                         tm.out("Before", shares);
-                        if( support.supportsImageSharing() ) {
+                        if( support.getCapabilities().supportsImageSharing() ) {
                             support.removeImageShare(testImageId, testShareAccount);
 
                             boolean found = false;
@@ -353,7 +355,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
 
@@ -380,7 +382,7 @@ public class StatefulImageTests {
 
             if( support != null ) {
                 if( testImageId != null ) {
-                    if( support.supportsImageSharingWithPublic() ) {
+                    if( support.getCapabilities().supportsImageSharingWithPublic() ) {
                         tm.out("Before", support.isImageSharedWithPublic(testImageId));
                         support.addPublicShare(testImageId);
 
@@ -412,7 +414,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
@@ -439,7 +441,7 @@ public class StatefulImageTests {
 
             if( support != null ) {
                 if( testImageId != null ) {
-                    if( support.supportsImageSharingWithPublic() ) {
+                    if( support.getCapabilities().supportsImageSharingWithPublic() ) {
                         tm.out("Before", support.isImageSharedWithPublic(testImageId));
                         support.removePublicShare(testImageId);
 
@@ -471,7 +473,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
@@ -530,7 +532,7 @@ public class StatefulImageTests {
                     if( !support.isSubscribed() ) {
                         tm.warn("No image ID was identified, so this test is not valid");
                     }
-                    else if( !support.supportsImageCapture(MachineImageType.STORAGE) && !support.supportsImageCapture(MachineImageType.VOLUME) ) {
+                    else if( !support.getCapabilities().supportsImageCapture(MachineImageType.STORAGE) && !support.getCapabilities().supportsImageCapture(MachineImageType.VOLUME) ) {
                         tm.ok("No custom images, so sharing doesn't really make any sense");
                     }
                     else {
@@ -582,14 +584,14 @@ public class StatefulImageTests {
                         type = source.getType();
                     }
                     else {
-                        for( MachineImageType t : support.listSupportedImageTypes() ) {
+                        for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
                             type = t; // pray
                         }
                     }
                     if( type == null ) {
                         type = MachineImageType.VOLUME; // or not; qui sait?
                     }
-                    if( support.supportsImageCapture(type) ) {
+                    if( support.getCapabilities().supportsImageCapture(type) ) {
                         provisionedImage = options.build(tm.getProvider());
                         tm.out("New Image", provisionedImage);
                         assertNotNull("The image ID returned from provisioning the image was null", provisionedImage);
@@ -675,7 +677,7 @@ public class StatefulImageTests {
                         type = source.getType();
                     }
                     else {
-                        for( MachineImageType t : support.listSupportedImageTypes() ) {
+                        for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
                             type = t; // pray
                         }
                     }
@@ -688,12 +690,12 @@ public class StatefulImageTests {
 
                     AsynchronousTask<MachineImage> task = new AsynchronousTask<MachineImage>();
 
-                    if( support.supportsImageCapture(type) ) {
+                    if( support.getCapabilities().supportsImageCapture(type) ) {
                         support.captureImageAsync(options, task);
 
                         tm.out("Task", "");
 
-                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*30L);
 
                         while( timeout > System.currentTimeMillis() ) {
                             if( task.isComplete() ) {
@@ -719,7 +721,7 @@ public class StatefulImageTests {
 
                         provisionedImage = image.getProviderMachineImageId();
 
-                        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+                        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*30L);
 
                         while( timeout > System.currentTimeMillis() ) {
                             try {
@@ -803,14 +805,14 @@ public class StatefulImageTests {
               type = source.getType();
             }
             else {
-              for( MachineImageType t : support.listSupportedImageTypes() ) {
+              for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
                 type = t; // pray
               }
             }
             if( type == null ) {
               type = MachineImageType.VOLUME; // or not; qui sait?
             }
-            if( support.supportsImageCapture(type) ) {
+            if( support.getCapabilities().supportsImageCapture(type) ) {
               provisionedImage = options.build(tm.getProvider());
               tm.out("New Image", provisionedImage);
               assertNotNull("The image ID returned from provisioning the image was null", provisionedImage);
@@ -875,7 +877,7 @@ public class StatefulImageTests {
             MachineImageSupport support = services.getImageSupport();
 
             if( support != null ) {
-                if( !support.identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
+                if( !support.getCapabilities().identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
                     VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
 
                     if( vmSupport != null ) {
@@ -884,8 +886,8 @@ public class StatefulImageTests {
 
                             assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
 
-                            if( support.listSupportedFormatsForBundling().iterator().hasNext() ) {
-                                MachineImageFormat fmt = support.listSupportedFormatsForBundling().iterator().next();
+                            if( support.getCapabilities().listSupportedFormatsForBundling().iterator().hasNext() ) {
+                                MachineImageFormat fmt = support.getCapabilities().listSupportedFormatsForBundling().iterator().next();
 
                                 bundleLocation = support.bundleVirtualMachine(testVMId, fmt, "dsnbucket" + random.nextInt(100000), "dsnimgbundle");
                                 tm.out("Bundle Location", bundleLocation);
@@ -975,7 +977,7 @@ public class StatefulImageTests {
             MachineImageSupport support = services.getImageSupport();
 
             if( support != null ) {
-                if( !support.identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
+                if( !support.getCapabilities().identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
                     VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
 
                     if( support != null ) {
@@ -986,8 +988,8 @@ public class StatefulImageTests {
 
                             AsynchronousTask<String> task = new AsynchronousTask<String>();
 
-                            if( support.listSupportedFormatsForBundling().iterator().hasNext() ) {
-                                MachineImageFormat fmt = support.listSupportedFormatsForBundling().iterator().next();
+                            if( support.getCapabilities().listSupportedFormatsForBundling().iterator().hasNext() ) {
+                                MachineImageFormat fmt = support.getCapabilities().listSupportedFormatsForBundling().iterator().next();
 
                                 support.bundleVirtualMachineAsync(testVMId, fmt, "dsnbucket" + random.nextInt(100000), "dsnimgbundle", task);
                                 tm.out("Task", "");

@@ -748,7 +748,7 @@ public class NetworkResources {
                     Firewall defaultFirewall = null;
 
                     for( Firewall firewall : support.list() ) {
-                        if( (firewall.getProviderVlanId() != null) == inVlan ) {
+                        if( ( firewall.getProviderVlanId() != null ) == inVlan || !support.getCapabilities().requiresVLAN().equals(Requirement.NONE)) {
                             if( firewall.isActive() && firewall.isAvailable() ) {
                                 String id = firewall.getProviderFirewallId();
 
@@ -931,6 +931,7 @@ public class NetworkResources {
             try {
                 if( vlanSupport != null && vlanSupport.isSubscribed() ) {
                     VLAN defaultVlan = null;
+                    VLAN firstVlan = null; //will only be used if we can't satisfy all conditions below
                     Subnet defaultSubnet = null;
                     InternetGateway defaultInternetGateway = null;
                     RoutingTable defaultRouteTable = null;
@@ -973,6 +974,9 @@ public class NetworkResources {
                                 defaultVlan = vlan;
                               }
                             }
+                            if (firstVlan == null) {
+                                firstVlan = vlan;
+                            }
                             if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && defaultInternetGateway != null && defaultRouteTable != null && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
                                 break;
                             }
@@ -983,6 +987,13 @@ public class NetworkResources {
                     if( defaultVlan != null ) {
                         id =  defaultVlan.getProviderVlanId();
                         testVLANs.put(DaseinTestManager.STATELESS, id);
+                    }
+                    else {
+                        // couldn't find a vlan satisfying all requirements so use the first one if found
+                        if (firstVlan != null) {
+                            id = firstVlan.getProviderVlanId();
+                            testVLANs.put(DaseinTestManager.STATELESS, id);
+                        }
                     }
                     if( defaultSubnet != null ) {
                         testSubnets.put(DaseinTestManager.STATELESS, defaultSubnet.getProviderSubnetId());
@@ -1004,8 +1015,7 @@ public class NetworkResources {
     }
 
     public @Nullable String getTestFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId) {
-        HashMap<String,String> map = (vlanId == null ? testGeneralFirewalls : testVLANFirewalls);
-
+        HashMap<String, String> map = ( vlanId == null ? testGeneralFirewalls : testVLANFirewalls );
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : map.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
@@ -1507,7 +1517,7 @@ public class NetworkResources {
         if( support == null ) {
             throw new OperationNotSupportedException("No firewall support in cloud");
         }
-        if( support.supportsRules(direction, permission, false) ) {
+        if( !support.supportsRules(direction, permission, false) ) {
             throw new OperationNotSupportedException("Firewall rules are not supported for " + direction + "/" + permission);
         }
         RuleTarget sourceEndpoint, destinationEndpoint;
@@ -1783,7 +1793,7 @@ public class NetworkResources {
     }
 
     public @Nonnull String provisionSubnet(@Nonnull VLANSupport support, @Nonnull String label, @Nonnull String vlanId, @Nonnull String namePrefix, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
-        if( preferredDataCenterId == null && support.isSubnetDataCenterConstrained() ) {
+        if( preferredDataCenterId == null && support.getCapabilities().isSubnetDataCenterConstrained() ) {
             VLAN vlan = support.getVlan(vlanId);
 
             if( vlan == null ) {

@@ -100,7 +100,7 @@ public class StatefulSnapshotTests {
             if( testVolumeId != null ) {
                 if( support != null ) {
                     try {
-                        if( support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+                        if( support.getCapabilities().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
                             String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, null);
 
                             if( vmId != null ) {
@@ -110,7 +110,7 @@ public class StatefulSnapshotTests {
                                     VolumeSupport volumeSupport = services.getVolumeSupport();
 
                                     if( volumeSupport != null ) {
-                                        for( String deviceId : volumeSupport.listPossibleDeviceIds(vm.getPlatform()) ) {
+                                        for( String deviceId : volumeSupport.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
                                             try {
                                                 volumeSupport.attach(testVolumeId, vmId, deviceId);
                                                 break;
@@ -369,7 +369,7 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( !support.supportsSnapshotCopying() ) {
+        if( !support.getCapabilities().supportsSnapshotCopying() ) {
             if( testSnapshotId == null ) {
                 testSnapshotId = "nonsense";
             }
@@ -444,24 +444,29 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            Snapshot snapshot = support.getSnapshot(testSnapshotId);
+        if( support.getCapabilities().supportsSnapshotSharing() ) {
+            if( testSnapshotId != null ) {
+                Snapshot snapshot = support.getSnapshot(testSnapshotId);
 
-            assertNotNull("Failed to find the test snapshot among possible snapshots", snapshot);
-            Iterable<String> shares = support.listShares(testSnapshotId);
+                assertNotNull("Failed to find the test snapshot among possible snapshots", snapshot);
+                Iterable<String> shares = support.listShares(testSnapshotId);
 
-            tm.out("Image Shares", shares);
-            assertNotNull("Snapshot shares may not be null", shares);
-        }
-        else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified, so this test is not valid");
+                tm.out("Image Shares", shares);
+                assertNotNull("Snapshot shares may not be null", shares);
             }
             else {
-                fail("No test snapshot exists for " + name.getMethodName());
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified, so this test is not valid");
+                }
+                else {
+                    fail("No test snapshot exists for " + name.getMethodName());
+                }
             }
         }
-
+        else {
+            Iterable<String> shares = support.listShares(testSnapshotId);
+            assertTrue("Snapshot sharing not supported, result should be empty list", !shares.iterator().hasNext());
+        }
     }
 
     @Test
@@ -478,12 +483,13 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            if( testShareAccount != null ) {
-                Iterable<String> shares = support.listShares(testSnapshotId);
+        if( support.getCapabilities().supportsSnapshotSharing() ) {
+            if( testSnapshotId != null ) {
+                if( testShareAccount != null ) {
+                    Iterable<String> shares = support.listShares(testSnapshotId);
 
-                tm.out("Before", shares);
-                if( support.supportsSnapshotSharing() ) {
+                    tm.out("Before", shares);
+
                     support.addSnapshotShare(testSnapshotId, testShareAccount);
 
                     boolean found = false;
@@ -499,25 +505,25 @@ public class StatefulSnapshotTests {
                     assertTrue("Did not find the new share among the listed shares", found);
                 }
                 else {
-                    try {
-                        support.addSnapshotShare(testSnapshotId, testShareAccount);
-                        fail("Private snapshot sharing is not supported, but the operation completed without error");
-                    }
-                    catch( OperationNotSupportedException expected ) {
-                        tm.ok("Caught OperationNotSupportedException while attempting to share a snapshot");
-                    }
+                    tm.warn("Unable to test account sharing due to no shareAccount property having been set (test invalid)");
                 }
             }
             else {
-                tm.warn("Unable to test account sharing due to no shareAccount property having been set (test invalid)");
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified because snapshots are not subscribed, so this test is not valid");
+                }
+                else {
+                    fail("No test snapshot exists for the " + name.getMethodName() + " test");
+                }
             }
         }
         else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified because snapshots are not subscribed, so this test is not valid");
+            try {
+                support.addSnapshotShare(testSnapshotId, testShareAccount);
+                fail("Private snapshot sharing is not supported, but the operation completed without error");
             }
-            else {
-                fail("No test snapshot exists for the " + name.getMethodName() + " test");
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to share a snapshot");
             }
         }
     }
@@ -536,12 +542,13 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            if( testShareAccount != null ) {
-                Iterable<String> shares = support.listShares(testSnapshotId);
+        if( support.getCapabilities().supportsSnapshotSharing() ) {
+            if( testSnapshotId != null ) {
+                if( testShareAccount != null ) {
+                    Iterable<String> shares = support.listShares(testSnapshotId);
 
-                tm.out("Before", shares);
-                if( support.supportsSnapshotSharing() ) {
+                    tm.out("Before", shares);
+
                     support.removeSnapshotShare(testSnapshotId, testShareAccount);
 
                     boolean found = false;
@@ -555,27 +562,28 @@ public class StatefulSnapshotTests {
                         }
                     }
                     assertFalse("The test account remains among the shared accounts", found);
+
                 }
                 else {
-                    try {
-                        support.removeSnapshotShare(testSnapshotId, testShareAccount);
-                        fail("Private image sharing is not supported, but the operation completed without error");
-                    }
-                    catch( OperationNotSupportedException expected ) {
-                        tm.ok("Caught OperationNotSupportedException while attempting to remove a snapshot share");
-                    }
+                    tm.warn("Unable to test account share removal due to no shareAccount property having been set (test invalid)");
                 }
             }
             else {
-                tm.warn("Unable to test account share removal due to no shareAccount property having been set (test invalid)");
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified because snapshots are not subscribed, so this test is not valid");
+                }
+                else {
+                    fail("No test snapshot exists for the " + name.getMethodName() + " test");
+                }
             }
         }
         else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified because snapshots are not subscribed, so this test is not valid");
+            try {
+                support.removeSnapshotShare(testSnapshotId, testShareAccount);
+                fail("Private image sharing is not supported, but the operation completed without error");
             }
-            else {
-                fail("No test snapshot exists for the " + name.getMethodName() + " test");
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to remove a snapshot share");
             }
         }
     }
@@ -594,30 +602,32 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            if( support.supportsSnapshotSharingWithPublic() ) {
+        if( support.getCapabilities().supportsSnapshotSharingWithPublic() ) {
+            if( testSnapshotId != null ) {
+
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.addPublicShare(testSnapshotId);
                 boolean shared = support.isPublic(testSnapshotId);
                 tm.out("After", shared);
                 assertTrue("Image remains private", shared);
+
             }
             else {
-                try {
-                    support.addPublicShare(testSnapshotId);
-                    fail("Public snapshot sharing is not supported, but the public share operation succeeded");
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
                 }
-                catch( OperationNotSupportedException expected ) {
-                    tm.ok("Caught OperationNotSupportedException while attempting to add a public snapshot share");
+                else {
+                    fail("No test snapshot exists for the " + name.getMethodName() + " test");
                 }
             }
         }
         else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
+            try {
+                support.addPublicShare(testSnapshotId);
+                fail("Public snapshot sharing is not supported, but the public share operation succeeded");
             }
-            else {
-                fail("No test snapshot exists for the " + name.getMethodName() + " test");
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to add a public snapshot share");
             }
         }
     }
@@ -636,30 +646,32 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            if( support.supportsSnapshotSharingWithPublic() ) {
+        if( support.getCapabilities().supportsSnapshotSharingWithPublic() ) {
+            if( testSnapshotId != null ) {
+
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.removePublicShare(testSnapshotId);
                 boolean shared = support.isPublic(testSnapshotId);
                 tm.out("After", shared);
                 assertFalse("Snapshot remains public", shared);
+
             }
             else {
-                try {
-                    support.removePublicShare(testSnapshotId);
-                    fail("Public snapshot sharing is not supported, but the public share operation succeeded");
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
                 }
-                catch( OperationNotSupportedException expected ) {
-                    tm.ok("Caught OperationNotSupportedException while attempting to remove a public snapshot share");
+                else {
+                    fail("No test snapshot exists for the " + name.getMethodName() + " test");
                 }
             }
         }
         else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
+            try {
+                support.removePublicShare(testSnapshotId);
+                fail("Public snapshot sharing is not supported, but the public share operation succeeded");
             }
-            else {
-                fail("No test snapshot exists for the " + name.getMethodName() + " test");
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to remove a public snapshot share");
             }
         }
     }
@@ -678,31 +690,37 @@ public class StatefulSnapshotTests {
             tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSnapshotId != null ) {
-            tm.out("Before [Public]", support.isPublic(testSnapshotId));
-            tm.out("Before [Private]", support.listShares(testSnapshotId));
-            try {
-                support.removeAllSnapshotShares(testSnapshotId);
-            }
-            catch( OperationNotSupportedException e ) {
-                fail("This operation should not throw an OperationNotSupportedException (just a NO-OP in clouds without sharing)");
-            }
-            boolean shared = support.isPublic(testSnapshotId);
-            Iterable<String> shares = support.listShares(testSnapshotId);
+        if (support.getCapabilities().supportsSnapshotSharing()) {
+            if( testSnapshotId != null ) {
+                tm.out("Before [Public]", support.isPublic(testSnapshotId));
+                tm.out("Before [Private]", support.listShares(testSnapshotId));
+                try {
+                    support.removeAllSnapshotShares(testSnapshotId);
+                }
+                catch( OperationNotSupportedException e ) {
+                    fail("This operation should not throw an OperationNotSupportedException (just a NO-OP in clouds without sharing)");
+                }
+                boolean shared = support.isPublic(testSnapshotId);
+                Iterable<String> shares = support.listShares(testSnapshotId);
 
-            tm.out("After [Public]", shared);
-            tm.out("After [Private]", shares);
+                tm.out("After [Public]", shared);
+                tm.out("After [Private]", shares);
 
-            assertFalse("Snapshot remains public", shared);
-            assertFalse("Snapshot still has private shares", shares.iterator().hasNext());
-        }
-        else {
-            if( !support.isSubscribed() ) {
-                tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
+                assertFalse("Snapshot remains public", shared);
+                assertFalse("Snapshot still has private shares", shares.iterator().hasNext());
             }
             else {
-                fail("No test snapshot exists for the " + name.getMethodName() + " test");
+                if( !support.isSubscribed() ) {
+                    tm.warn("No snapshot ID was identified due to lack of subscription, so this test is not valid");
+                }
+                else {
+                    fail("No test snapshot exists for the " + name.getMethodName() + " test");
+                }
             }
+        }
+        else {
+            tm.ok("Snapshot sharing is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
         }
     }
 }

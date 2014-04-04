@@ -313,7 +313,7 @@ public class StatefulVLANTests {
             VLANSupport support = services.getVlanSupport();
 
             if( support != null ) {
-                boolean supported = (support.allowsNewSubnetCreation() && support.isSubscribed());
+                boolean supported = (support.getCapabilities().allowsNewSubnetCreation() && support.isSubscribed());
 
                 if( testVLANId != null ) {
                     NetworkResources resources = DaseinTestManager.getNetworkResources();
@@ -347,6 +347,9 @@ public class StatefulVLANTests {
                     if( !support.isSubscribed() ) {
                         tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
                     }
+                    else if (!support.getCapabilities().allowsNewVlanCreation()) {
+                        tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
+                    }
                     else {
                         fail("No test VLAN was found for running the stateful test: " + name.getMethodName());
                     }
@@ -369,7 +372,7 @@ public class StatefulVLANTests {
             VLANSupport support = services.getVlanSupport();
 
             if( support != null ) {
-                boolean supported = (support.allowsNewVlanCreation() && support.isSubscribed());
+                boolean supported = (support.getCapabilities().allowsNewVlanCreation() && support.isSubscribed());
                 NetworkResources resources = DaseinTestManager.getNetworkResources();
 
                 if( resources != null ) {
@@ -411,7 +414,7 @@ public class StatefulVLANTests {
         VLANSupport support = services.getVlanSupport();
 
         if( support != null ) {
-          boolean supported = (support.allowsNewRoutingTableCreation() && support.isSubscribed());
+          boolean supported = (support.getCapabilities().allowsNewRoutingTableCreation() && support.isSubscribed());
 
           if( testVLANId != null ) {
             NetworkResources resources = DaseinTestManager.getNetworkResources();
@@ -444,6 +447,9 @@ public class StatefulVLANTests {
           else {
             if( !support.isSubscribed() ) {
               tm.ok("No test VLAN was identified for tests due to a lack of subscription to VLAN support");
+            }
+            else if (!support.getCapabilities().allowsNewVlanCreation()) {
+                tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
             }
             else {
               fail("No test VLAN was found for running the stateful test: " + name.getMethodName());
@@ -482,7 +488,7 @@ public class StatefulVLANTests {
                     assertNull("The VLAN remains available", vlan);
                 }
                 else {
-                    if( !support.allowsNewVlanCreation() ) {
+                    if( !support.getCapabilities().allowsNewVlanCreation() ) {
                         tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                     else if( support.isSubscribed() ) {
@@ -527,7 +533,7 @@ public class StatefulVLANTests {
             assertNull("The route table remains available", rtb);
           }
           else {
-            if( !support.allowsNewRoutingTableCreation() ) {
+            if( !support.getCapabilities().allowsNewRoutingTableCreation() ) {
               tm.ok("Route Table creation/deletion is not supported in " + tm.getProvider().getCloudName());
             }
             else if( support.isSubscribed() ) {
@@ -570,7 +576,7 @@ public class StatefulVLANTests {
                     assertNull("The subnet remains available", subnet);
                 }
                 else {
-                    if( !support.allowsNewSubnetCreation() ) {
+                    if( !support.getCapabilities().allowsNewSubnetCreation() ) {
                         tm.ok("Subnet creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                     else if( support.isSubscribed() ) {
@@ -631,7 +637,7 @@ public class StatefulVLANTests {
                 }
                 assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                 options.inDataCenter(dataCenterId);
-                options.inVlan(null, dataCenterId, testSubnetId);
+                options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
             }
             else if( testVLANId != null ) {
                 @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
@@ -649,7 +655,10 @@ public class StatefulVLANTests {
                 options.inVlan(null, dataCenterId, testVLANId);
             }
             else {
-                if( !support.identifyVlanRequirement().equals(Requirement.NONE) ) {
+                if (!tm.getProvider().getNetworkServices().getVlanSupport().getCapabilities().allowsNewVlanCreation()) {
+                    tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
+                }
+                else if( !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
                     fail("No test VLAN or subnet in which to launch a VM");
                 }
                 else {
@@ -702,7 +711,7 @@ public class StatefulVLANTests {
                   boolean connected = support.isConnectedViaInternetGateway(testVLANId);
                   NetworkResources resources = DaseinTestManager.getNetworkResources();
                   if( resources != null ) {
-                    if( support.supportsInternetGatewayCreation() ) {
+                    if( support.getCapabilities().supportsInternetGatewayCreation() ) {
                         tm.out("Before", connected);
                         assertFalse("The VLAN is already connected via an internet gateway and thus this test cannot run", connected);
                         resources.provisionInternetGateway(support, "provisionKeypair", testVLANId);
@@ -726,7 +735,7 @@ public class StatefulVLANTests {
                   }
                 }
                 else {
-                    if( !support.allowsNewVlanCreation() ) {
+                    if( !support.getCapabilities().allowsNewVlanCreation() ) {
                         tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                     else if( support.isSubscribed() ) {
@@ -753,7 +762,7 @@ public class StatefulVLANTests {
         VLANSupport support = services.getVlanSupport();
         if( support != null ) {
           if( testVLANId != null ) {
-            if( support.supportsInternetGatewayCreation() ) {
+            if( support.getCapabilities().supportsInternetGatewayCreation() ) {
               Collection<InternetGateway> igCollection = support.listInternetGateways( testVLANId );
               assertTrue( "List internet gateways returned an empty collection", igCollection.size() > 0 );
             }
@@ -768,7 +777,7 @@ public class StatefulVLANTests {
             }
           }
           else {
-            if( !support.allowsNewVlanCreation() ) {
+            if( !support.getCapabilities().allowsNewVlanCreation() ) {
               tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
             }
             else if( support.isSubscribed() ) {
@@ -795,7 +804,7 @@ public class StatefulVLANTests {
             VLANSupport support = services.getVlanSupport();
             if( support != null ) {
                 if( testVLANId != null ) {
-                  if( support.supportsInternetGatewayCreation() ) {
+                  if( support.getCapabilities().supportsInternetGatewayCreation() ) {
                     boolean connected = support.isConnectedViaInternetGateway(testVLANId);
                     tm.out("Before", connected);
                     if( connected ) {
@@ -831,13 +840,13 @@ public class StatefulVLANTests {
                     }
                   }
                   else {
-                    if( !support.supportsInternetGatewayCreation() ) {
+                    if( !support.getCapabilities().supportsInternetGatewayCreation() ) {
                       tm.ok("Internet Gateway creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                   }
                 }
                 else {
-                    if( !support.allowsNewVlanCreation() ) {
+                    if( !support.getCapabilities().allowsNewVlanCreation() ) {
                       tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     }
                     else if( support.isSubscribed() ) {
@@ -871,8 +880,8 @@ public class StatefulVLANTests {
             VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
 
             if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
+              if( testRoutingTableId != null ) {
+                if( testVLANVMId != null ) {
                   RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
                   tm.out("Route Table", rtb);
                   assertNotNull("The test route table was not found in the cloud", rtb);
@@ -919,20 +928,20 @@ public class StatefulVLANTests {
                     fail("Unable to add route for: " + name.getMethodName());
                   }
                 }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateful test: " + name.getMethodName());
-                  }
+                else if( computeSupport.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
                 }
               }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
+              else {
+                if( !support.isSubscribed() ) {
+                  tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+                }
+                else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
+                  tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+                }
+                else {
+                  fail("No test route table was found for running the stateful test: " + name.getMethodName());
+                }
               }
             }
             else {
@@ -966,8 +975,8 @@ public class StatefulVLANTests {
             VirtualMachineSupport computeSupport = computeServices.getVirtualMachineSupport();
 
             if( computeSupport != null ) {
-              if( testVLANVMId != null ) {
-                if( testRoutingTableId != null ) {
+              if( testRoutingTableId != null ) {
+                if( testVLANVMId != null ) {
                   RoutingTable rtb = support.getRoutingTable(testRoutingTableId);
                   tm.out("Route Table", rtb);
                   assertNotNull("The test route table was not found in the cloud", rtb);
@@ -1014,20 +1023,20 @@ public class StatefulVLANTests {
                     fail("Unable to add route for: " + name.getMethodName());
                   }
                 }
-                else {
-                  if( !support.isSubscribed() ) {
-                    tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
-                  }
-                  else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
-                    tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
-                  }
-                  else {
-                    fail("No test route table was found for running the stateful test: " + name.getMethodName());
-                  }
+                else if( computeSupport.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
                 }
               }
-              else if( computeSupport.isSubscribed() ) {
-                fail("No test virtual machine exists and thus no test could be run for " + name.getMethodName());
+              else {
+                  if( !support.isSubscribed() ) {
+                      tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
+                  }
+                  else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
+                      tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
+                  }
+                  else {
+                      fail("No test route table was found for running the stateful test: " + name.getMethodName());
+                  }
               }
             }
             else {
@@ -1107,7 +1116,7 @@ public class StatefulVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test route table was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getRoutingTableSupport().equals(Requirement.NONE) ) {
+            else if( support.getCapabilities().getRoutingTableSupport().equals(Requirement.NONE) ) {
               tm.ok("Route Tables are not supported so there is no test for " + name.getMethodName());
             }
             else {
