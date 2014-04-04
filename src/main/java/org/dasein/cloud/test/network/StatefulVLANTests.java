@@ -637,7 +637,7 @@ public class StatefulVLANTests {
                 }
                 assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                 options.inDataCenter(dataCenterId);
-                options.inVlan(null, dataCenterId, testSubnetId);
+                options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
             }
             else if( testVLANId != null ) {
                 @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
