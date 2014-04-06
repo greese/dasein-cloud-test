@@ -497,10 +497,10 @@ public class ComputeResources {
                 Iterable<Subnet> subnets = vs.listSubnets( vlanId );
                 if( subnets.iterator().hasNext() ) {
                   Subnet sub = subnets.iterator().next();
-                  vmOpts.inVlan( null, v.getProviderDataCenterId(), sub.getProviderSubnetId() );
+                  vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId() );
                 } else {
                   Subnet sub = vs.createSubnet(SubnetCreateOptions.getInstance(vlanId, "192.168.50.0/24", "dsnsub", "dasein test create vm for vlan"));
-                  vmOpts.inVlan( null, v.getProviderDataCenterId(), sub.getProviderSubnetId() );
+                  vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId() );
                 }
               } else {
                 if( network != null ) {
@@ -965,7 +965,7 @@ public class ComputeResources {
                                         }
                                     }
                                 }
-                                options.inVlan(null, dcId, subnetId);
+                                options.inSubnet(null, dcId, networkId, subnetId);
                             }
                         }
                         else {
