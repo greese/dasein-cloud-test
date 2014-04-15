@@ -79,7 +79,7 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().startsWith("createVLANFirewall") ) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
         else if( name.getMethodName().equals("launchVM") ) {

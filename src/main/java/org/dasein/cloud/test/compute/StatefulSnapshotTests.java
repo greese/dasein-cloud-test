@@ -23,27 +23,12 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.Snapshot;
-import org.dasein.cloud.compute.SnapshotCreateOptions;
-import org.dasein.cloud.compute.SnapshotFilterOptions;
-import org.dasein.cloud.compute.SnapshotState;
-import org.dasein.cloud.compute.SnapshotSupport;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VmState;
-import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
-
-import java.util.Calendar;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -645,6 +630,9 @@ public class StatefulSnapshotTests {
             if( support.getCapabilities().supportsSnapshotSharingWithPublic() ) {
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.removePublicShare(testSnapshotId);
+                // race condition here - provider sometime takes time to update
+                try { Thread.sleep(5000L); }
+                catch( InterruptedException ignore ) { }
                 boolean shared = support.isPublic(testSnapshotId);
                 tm.out("After", shared);
                 assertFalse("Snapshot remains public", shared);
