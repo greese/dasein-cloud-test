@@ -59,6 +59,7 @@ public class NetworkResources {
     private final HashMap<String, String> testIps4VLAN = new HashMap<String, String>();
     private final HashMap<String, String> testIps6VLAN = new HashMap<String, String>();
     private final HashMap<String, String> testLBs = new HashMap<String, String>();
+    private final HashMap<String, String> testSSLCertificates = new HashMap<String, String>();
     private final HashMap<String, String> testNetworkFirewalls = new HashMap<String, String>();
     private final HashMap<String, String> testSubnets = new HashMap<String, String>();
     private final HashMap<String, String> testInternetGateways = new HashMap<String, String>();
@@ -172,9 +173,19 @@ public class NetworkResources {
         if( !testLBs.isEmpty() ) {
             if( !header ) {
                 logger.info("Provisioned Network Resources:");
+                header = true;
             }
             count += testLBs.size();
             DaseinTestManager.out(logger, null, "---> Load Balancers", testLBs.size() + " " + testLBs);
+        }
+        testSSLCertificates.remove(DaseinTestManager.STATELESS);
+        if ( !testSSLCertificates.isEmpty() ) {
+            if( !header ) {
+                logger.info("Provisioned Network Resources:");
+            }
+            count += testSSLCertificates.size();
+            DaseinTestManager.out(logger, null, "---> SSL Certificates", testSSLCertificates.size() + " " +
+                    testSSLCertificates);
         }
         return count;
     }
@@ -243,6 +254,22 @@ public class NetworkResources {
                                     }
                                 } catch( Throwable t ) {
                                     logger.warn("Failed to de-provision test load balancer " + entry.getValue() + ":" + t.getMessage());
+                                }
+                            }
+                        }
+
+                        for ( Map.Entry<String, String> entry : testSSLCertificates.entrySet() ) {
+                            if ( !DaseinTestManager.STATELESS.equals(entry.getKey()) ) {
+                                SSLCertificate sslCertificate = lbSupport.getSSLCertificate(entry.getValue());
+
+                                try {
+                                    if ( sslCertificate != null ) {
+                                        lbSupport.removeSSLCertificate( entry.getValue() );
+                                    }
+                                    count++;
+                                } catch ( Throwable t ) {
+                                    logger.warn("Failed to de-provision test SSL certificate " + entry.getValue() +
+                                            ":" + t.getMessage(), t);
                                 }
                             }
                         }
@@ -775,6 +802,29 @@ public class NetworkResources {
         return null;
     }
 
+    private @Nullable String findStatelessSSLCertificate() {
+        NetworkServices networkServices = provider.getNetworkServices();
+
+        if( networkServices != null ) {
+            LoadBalancerSupport support = networkServices.getLoadBalancerSupport();
+
+            try {
+                if( support != null && support.isSubscribed() ) {
+                    Iterator<SSLCertificateMetadata> certificates = support.listSSLCertificates().iterator();
+                    if ( certificates.hasNext() ) {
+                        SSLCertificateMetadata certificate = certificates.next();
+                        testSSLCertificates.put(DaseinTestManager.STATELESS, certificate.getCertificateId());
+                        return certificate.getCertificateId();
+                    }
+                }
+            } catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return null;
+
+    }
+
     private @Nullable String findStatelessNetworkFirewall() {
         NetworkServices networkServices = provider.getNetworkServices();
 
@@ -1012,6 +1062,38 @@ public class NetworkResources {
             if( services != null ) {
                 try {
                     return provisionLoadBalancer(label, null, false);
+                } catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String getTestSSLCertificateId(@Nonnull String label, boolean provisionIfNull) {
+        if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String, String> entry : testSSLCertificates.entrySet() ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if (id != null) {
+                        return id;
+                    }
+                }
+            }
+            return findStatelessSSLCertificate();
+        }
+        String id = testSSLCertificates.get(label);
+
+        if ( id != null ) {
+            return id;
+        }
+        if( provisionIfNull ) {
+            NetworkServices services = provider.getNetworkServices();
+
+            if( services != null ) {
+                try {
+                    return provisionSSLCertificate(label, null, false);
                 } catch( Throwable ignore ) {
                     // ignore
                 }
@@ -1664,6 +1746,84 @@ public class NetworkResources {
                 label = label + random.nextInt(9);
             }
             testLBs.put(label, id);
+        }
+        return id;
+    }
+
+    public @Nonnull String provisionSSLCertificate(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
+        NetworkServices services = provider.getNetworkServices();
+
+        if( services == null ) {
+            throw new CloudException("This cloud does not support load balancers");
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            throw new CloudException("This cloud does not support load balancers");
+        }
+
+        String name = ( namePrefix == null ? "dsnssl" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
+
+        final String testSslCertificateBody = "-----BEGIN CERTIFICATE-----\n" +
+                "MIIDdTCCAl2gAwIBAgIJAJ0yH+H1fw8nMA0GCSqGSIb3DQEBBQUAMFExCzAJBgNV\n" +
+                "BAYTAlVTMRUwEwYDVQQHDAxEZWZhdWx0IENpdHkxHDAaBgNVBAoME1RoZSBXZWF0\n" +
+                "aGVyIENoYW5uZWwxDTALBgNVBAMMBHRlc3QwHhcNMTQwNDE4MTUyMzI2WhcNMjQw\n" +
+                "NDE1MTUyMzI2WjBRMQswCQYDVQQGEwJVUzEVMBMGA1UEBwwMRGVmYXVsdCBDaXR5\n" +
+                "MRwwGgYDVQQKDBNUaGUgV2VhdGhlciBDaGFubmVsMQ0wCwYDVQQDDAR0ZXN0MIIB\n" +
+                "IjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAyZc/utwao8R+vfCkTx50vNHl\n" +
+                "2aL7L4Gpm4bdHGU4LSmwaS0Q6eRob+bZEKb5Wfb0xmkx0Rl+VEkoxyVTxg8JtrIr\n" +
+                "8m63ohr24FH8fQpx2jZTyJKYLO94Ls2sTY4IJiYX6tnHOSQEnmk+BHwk7uTAI4Il\n" +
+                "TiY70tRCbUuIgei18jAR2FsevYoereotkukA0aD3n50JCpBNC4rgiCFZD4dP6tFx\n" +
+                "GUSKpCoxjH+pcW3txCV3op1JIK7nQ5L21vw4phSlOznoxO9QY/phqGQGorY7KxRi\n" +
+                "gvX6OjD6suRyrqKmOulBdTJP5Sqgrl/yET2Yhocs/rSGnaLA3Y7b6DkKts5O6wID\n" +
+                "AQABo1AwTjAdBgNVHQ4EFgQUVfdyopff30iphehCoyXsk1FJ85IwHwYDVR0jBBgw\n" +
+                "FoAUVfdyopff30iphehCoyXsk1FJ85IwDAYDVR0TBAUwAwEB/zANBgkqhkiG9w0B\n" +
+                "AQUFAAOCAQEANQBsY17sSckU+LRDwi3KdaCljkgVaCeRBxvu29jB4Vzhbagwya1u\n" +
+                "PhO2avn2VErsv8wj56qY68SM+GAb7Jl7ZY5V1us+YEy5zAoLj23bCMMjBUOOdNNx\n" +
+                "BeQx32D5lB3qKMiTNSJO6N3OsAp+gcAcwb63S4bpaGQlfX4gy4nh9H1kY3X0ZAty\n" +
+                "Hip4sKXZgj9nJKtmIH7jP91NODfcwvRSdrElGU7rOiIy4f228tQhPMPkEB0CYlhT\n" +
+                "pZUfKI90+uyjEQEc9Af11VNP3+g6CB3dgLkYOFStxG2eueTyz1V70b94dBGeMBYW\n" +
+                "Zp1tE1iQ+jfkGFJuEiqsIMF6NAcjXFe/YA==\n" +
+                "-----END CERTIFICATE-----\n";
+        final String testSslCertificatePrivateKey = "-----BEGIN RSA PRIVATE KEY-----\n" +
+                "MIIEowIBAAKCAQEAyZc/utwao8R+vfCkTx50vNHl2aL7L4Gpm4bdHGU4LSmwaS0Q\n" +
+                "6eRob+bZEKb5Wfb0xmkx0Rl+VEkoxyVTxg8JtrIr8m63ohr24FH8fQpx2jZTyJKY\n" +
+                "LO94Ls2sTY4IJiYX6tnHOSQEnmk+BHwk7uTAI4IlTiY70tRCbUuIgei18jAR2Fse\n" +
+                "vYoereotkukA0aD3n50JCpBNC4rgiCFZD4dP6tFxGUSKpCoxjH+pcW3txCV3op1J\n" +
+                "IK7nQ5L21vw4phSlOznoxO9QY/phqGQGorY7KxRigvX6OjD6suRyrqKmOulBdTJP\n" +
+                "5Sqgrl/yET2Yhocs/rSGnaLA3Y7b6DkKts5O6wIDAQABAoIBACOO8kbbnDdW6aRH\n" +
+                "VjQ+gwjrXUfOX9A5ZtlwKIBhuk79E4j50gnvqBxU8+TkDwe3b+WvmIHxpT7oyLCX\n" +
+                "/PbqoCQBuY7ByNJnPzTCQW8s8Hg1LQIsGXuTofdfgA0OCJHyFjXuxB1oJQhsN+xC\n" +
+                "maEp6FpbEol+ZP8DQdRVhnajvbRCRgWyO7sEYGRDvuYVo4Pn4kXFsIXajzA5ZnvJ\n" +
+                "U/VeicaPaj4T1uI2EDFDAZYLVd3x9vKop+8FKqhuZMhrSNbBoD+qucOcD7fZ3jjT\n" +
+                "ZS8m4R3TkYLx0myLB0zOu0zARg0GUbMmIXpBk5IxwqIp6iZfXz8U0DKU//2OKiFC\n" +
+                "TmJoNwECgYEA9M4rfvBugItZzTQ+woPx84+MSirwJUU5ToklSpVSuQZE3nuucRV7\n" +
+                "bdQp0MGMYIFUvGVdwH9a/MUCYLtfCvsYbk0leTu6Ycb6h74TsIptIcGEZplyMOM3\n" +
+                "1Yt5F5VLPAmKBHRXXRrxQa2OWCGKuywsrz0HHAD8BGzNtyUka+dWoBsCgYEA0s8v\n" +
+                "alvmCgNKrnU9yM939WkAfAE330Dm8m9PVCGRnmXZ+ZpDQUjyveN9/9EUIjn2AR24\n" +
+                "1Svu5WjtezSXqJLWJYoYH9mCdKOE8WsTQl+Xk4zkJqQrniX0oYaZam9dBZ/TIYK4\n" +
+                "Hz/K3qdpJUbDEW6xh+OaTIH2OaNJY32I2NC9GXECgYAb3awN0wiBEVuzhBLwyVwt\n" +
+                "QVXSy3hyhaK0UeAw0TaNYS1Ntf5xWOSn59KqtJ1qDs66cz9svhJ5W2Od5zY2Zcau\n" +
+                "J5HwbuAUaTXzZauQGPG7Oe/8TdM1xWeBo1KxYIkj2GIhh6y6KGr18u+VEJxeGfUs\n" +
+                "LWI1ydbmGgyAoHW44qh1qQKBgCMJJAw9McJAQc001wvkzz8OMHJrkWmdU8S/EyQc\n" +
+                "YCM/Mjb1mG/lO9KrWGmHyhzWHTiaQ/nJz255Pd7YIsx1evnKNbA1aiUQeCvXa+AA\n" +
+                "GyT+qXxylH04OawOvridwYwJwAE1xHwNEh5nHGaBmDHxf7fh7+b/QnjZ1nyehHvk\n" +
+                "VUlBAoGBAPBNvBRDMAPEAaxl6QSxZD2O3dG51S+JEy0Xw7egiQlFEQTPiazkGqzc\n" +
+                "pWusEXgU82S4R2DYhcCk3dJ1AsE1hexDXTvrBIK1q9yAUUEw9X9YPhfzAadULNcx\n" +
+                "SoUufwzG5X1lxMIzP95FAvFgOwGY1yqoFGLZrp5Gm37RBNqoAp7a\n" +
+                "-----END RSA PRIVATE KEY-----";
+
+        SSLCertificateCreateOptions options = SSLCertificateCreateOptions.getInstance(testSslCertificateBody, null,
+                testSslCertificatePrivateKey, name, null);
+
+        final SSLCertificateMetadata sslCertificate = support.createSSLCertificate(options);
+        final String id = sslCertificate.getCertificateId();
+
+        synchronized ( testSSLCertificates ) {
+            while( testSSLCertificates.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testSSLCertificates.put(label, id);
         }
         return id;
     }

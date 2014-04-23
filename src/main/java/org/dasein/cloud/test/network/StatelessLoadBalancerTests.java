@@ -34,6 +34,8 @@ import org.dasein.cloud.network.LoadBalancerAddressType;
 import org.dasein.cloud.network.LoadBalancerEndpoint;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.SSLCertificate;
+import org.dasein.cloud.network.SSLCertificateMetadata;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -79,6 +81,7 @@ public class StatelessLoadBalancerTests {
     public final TestName name = new TestName();
 
     private String testLoadBalancerId;
+    private String testSslCertificateId;
 
     public StatelessLoadBalancerTests() { }
 
@@ -87,6 +90,7 @@ public class StatelessLoadBalancerTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, false);
+        testSslCertificateId = tm.getTestSSLCertificateId(DaseinTestManager.STATELESS, false);
     }
 
     @After
@@ -129,6 +133,13 @@ public class StatelessLoadBalancerTests {
         if( listener.getPersistence().equals(LbPersistence.COOKIE) ) {
             assertNotNull("When the session persistence is set to server cookie, a cookie value must be set", listener.getCookie());
         }
+
+        if( LbProtocol.HTTP.equals( listener.getNetworkProtocol() ) ) {
+            assertNull("HTTP listener cannot have an SSL certificate", listener.getProviderSslCertificateId());
+        }
+        else if( LbProtocol.HTTPS.equals( listener.getNetworkProtocol() ) ) {
+            assertNotNull("HTTPS listener must have an SSL certificate", listener.getProviderSslCertificateId());
+        }
     }
 
     private void assertLoadBalancer(@Nonnull LoadBalancerSupport support, @Nonnull LoadBalancer lb) throws CloudException, InternalException {
@@ -170,6 +181,17 @@ public class StatelessLoadBalancerTests {
         for( LbListener listener : listeners ) {
             assertListener(support, listener);
         }
+    }
+
+    private void assertSSLCertificate(@Nonnull SSLCertificate certificate) throws CloudException, InternalException {
+        assertNotNull("The SSL certificate body may not be null", certificate.getCertificateBody());
+        assertNotNull("The SSL certificate metadata may not be null", certificate.getMetadata());
+        assertSSLCertificateMetadata(certificate.getMetadata());
+    }
+
+    private void assertSSLCertificateMetadata(@Nonnull SSLCertificateMetadata metadata) throws CloudException, InternalException {
+        assertNotNull("The SSL certificate ID may not be null", metadata.getCertificateId());
+        assertNotNull("The SSL certificate provider ID may not be null", metadata.getProviderCertificateId());
     }
 
     @Test
@@ -489,4 +511,130 @@ public class StatelessLoadBalancerTests {
         }
         tm.out("Matches");
     }
+
+    @Test
+    public void getBogusSSLCertificate() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        SSLCertificate sslCertificate = support.getSSLCertificate(UUID.randomUUID().toString());
+
+        tm.out("Bogus SSL certificate", sslCertificate);
+        assertNull("Found a valid SSL certificate for a bogus ID", sslCertificate);
+    }
+
+    @Test
+    public void getSSLCertificate() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testSslCertificateId != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateId);
+
+            tm.out("SSL Certificate", certificate);
+            assertNotNull("No SSL certificate was found for the test ID", certificate);
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Test was not run because this account is not subscribed for SSL certificates");
+            }
+            else {
+                fail("No test SSL certificate exists for the test " + name.getMethodName());
+            }
+        }
+    }
+
+    @Test
+    public void sslCertificateContent() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testSslCertificateId != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateId);
+
+            assertNotNull("No SSL certificate was found for the test ID", certificate);
+
+            tm.out("SSL certificate ID", certificate.getMetadata().getCertificateId());
+            tm.out("SSL certificate provider ID", certificate.getMetadata().getProviderCertificateId());
+            tm.out("SSL certificate upload date", certificate.getMetadata().getUploadDate());
+            tm.out("SSL certificate path", certificate.getMetadata().getPath());
+            tm.out("SSL certificate chain", certificate.getCertificateChain());
+            tm.out("SSL certificate body", certificate.getCertificateBody());
+
+            assertSSLCertificate(certificate);
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Test was not run because this account is not subscribed for SSL certificates");
+            }
+            else {
+                fail("No test SSL certificate exists for the test " + name.getMethodName());
+            }
+        }
+    }
+
+    @Test
+    public void listSSLCertificates() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<SSLCertificateMetadata> certificates = support.listSSLCertificates();
+        int count = 0;
+
+        assertNotNull("The list of SSL certificates may not be null", certificates);
+        for( SSLCertificateMetadata certificate : certificates ) {
+            count++;
+            tm.out("SSL certificate", certificate);
+        }
+        tm.out("SSL certificates count", count);
+
+        if( !support.isSubscribed() ) {
+            assertEquals("The SSL certificate count should be zero since this account is not subscribed to this service", 0, count);
+        }
+        else if( count == 0 ) {
+            tm.warn("This test is likely invalid as no SSL certificates were provided in the results for validation");
+        }
+        if( count > 0 ) {
+            for( SSLCertificateMetadata certificate : certificates ) {
+                assertSSLCertificateMetadata(certificate);
+            }
+        }
+    }
+
 }
