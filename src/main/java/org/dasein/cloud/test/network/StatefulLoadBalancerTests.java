@@ -69,6 +69,7 @@ public class StatefulLoadBalancerTests {
     private String testDataCenterId;
     private String testLoadBalancerId;
     private String testVirtualMachineId;
+    private String testSSLCertificateId;
 
     public StatefulLoadBalancerTests() { }
 
@@ -255,6 +256,9 @@ public class StatefulLoadBalancerTests {
                 // ignore
             }
         }
+        else if( name.getMethodName().equals("removeSSLCertificate") ) {
+            testSSLCertificateId = tm.getTestSSLCertificateId(DaseinTestManager.REMOVED, true);
+        }
     }
 
     @After
@@ -263,6 +267,7 @@ public class StatefulLoadBalancerTests {
             testLoadBalancerId = null;
             testDataCenterId = null;
             testVirtualMachineId = null;
+            testSSLCertificateId = null;
         }
         finally {
             tm.end();
@@ -271,6 +276,15 @@ public class StatefulLoadBalancerTests {
 
     @Test
     public void createLoadBalancer() throws CloudException, InternalException {
+        createLoadBalancer(false);
+    }
+
+    @Test
+    public void createLoadBalancerWithHttpsListener() throws CloudException, InternalException {
+        createLoadBalancer(true);
+    }
+
+    private void createLoadBalancer(boolean withHttpsListener) throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services == null ) {
@@ -288,7 +302,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false);
+        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false, withHttpsListener);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
@@ -774,4 +788,66 @@ public class StatefulLoadBalancerTests {
             //TODO: do test
         }
     }
+
+    @Test
+    public void createSSLCertificate() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        NetworkResources network = DaseinTestManager.getNetworkResources();
+
+        if( network == null ) {
+            fail("Failed to initialize network capabilities for tests");
+        }
+        String id = network.provisionSSLCertificate("provision", "dsnssltest");
+
+        tm.out("New SSL certificate", id);
+        assertNotNull("The newly created SSL certificate ID was null", id);
+
+        SSLCertificate certificate = support.getSSLCertificate(id);
+
+        assertNotNull("The newly created SSL certificate is null", certificate);
+    }
+
+    @Test
+    public void removeSSLCertificate() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testSSLCertificateId != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSSLCertificateId);
+
+            assertNotNull("The SSL certificate is null prior to the test", certificate);
+            support.removeSSLCertificate(testSSLCertificateId);
+            certificate = support.getSSLCertificate(testSSLCertificateId);
+            assertNull("The SSL certificate still exists after removing", certificate);
+        }
+        else {
+            if( support.isSubscribed() ) {
+                fail("No test SSL certificate for " + name.getMethodName());
+            }
+            else {
+                tm.ok("SSL certificate support is not subscribed so this test is not entirely valid");
+            }
+        }
+    }
+
 }

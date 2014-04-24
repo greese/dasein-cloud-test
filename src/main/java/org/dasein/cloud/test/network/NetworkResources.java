@@ -1093,7 +1093,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionSSLCertificate(label, null, false);
+                    return provisionSSLCertificate(label, null);
                 } catch( Throwable ignore ) {
                     // ignore
                 }
@@ -1577,6 +1577,11 @@ public class NetworkResources {
     }
 
     public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
+        return provisionLoadBalancer(label, namePrefix, internal, false);
+    }
+
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix,
+                                 boolean internal, boolean withHttps) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -1629,7 +1634,21 @@ public class NetworkResources {
         }
 
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
-            options.havingListeners(LbListener.getInstance(1000 + random.nextInt(10000), 1000 + random.nextInt(10000)));
+            final int publicPort = 1000 + random.nextInt(10000);
+            final int privatePort = 1000 + random.nextInt(10000);
+            if ( !withHttps ) {
+                options.havingListeners(LbListener.getInstance(publicPort, privatePort));
+            } else {
+                String certificateId = provisionSSLCertificate("provision", "dsnssltest");
+                SSLCertificate certificate = support.getSSLCertificate(certificateId);
+                try {
+                    // Wait as in some clouds it takes time before SSL certificate can be linked to a listener
+                    Thread.sleep(2000L);
+                } catch( InterruptedException ignore ) {
+                }
+                options.havingListeners(LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
+                        certificate.getMetadata().getProviderCertificateId()));
+            }
         }
         String[] dcIds = new String[2];
         String testSubnetId = null;
@@ -1750,7 +1769,7 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionSSLCertificate(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
+    public @Nonnull String provisionSSLCertificate(@Nonnull String label, @Nullable String namePrefix) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
