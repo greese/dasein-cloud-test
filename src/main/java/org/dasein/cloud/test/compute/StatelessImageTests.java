@@ -739,6 +739,42 @@ public class StatelessImageTests {
     }
 
     @Test
+    public void findAllPublicImages() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            MachineImageSupport support = services.getImageSupport();
+
+            if( support != null ) {
+                boolean supported = false;
+
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
+                    if( cls.equals(ImageClass.MACHINE) ) {
+                        supported = true;
+                    }
+                }
+
+                Iterable<MachineImage> images = support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).matchingAny());
+                int count = 0;
+
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    count++;
+                    tm.out("Image", image);
+                }
+                tm.out("Total Machine Image Count", count);
+                if( !supported ) {
+                    assertTrue("Because machine images are not supported, the list of images should be empty", count == 0);
+                }
+                if( count > 0 ) {
+                    assertImageContent(images, ImageClass.MACHINE);
+                }
+            }
+        }
+    }
+
+    @Test
     public void findUbuntuOrWindowsOrRHELInPublicLibrary() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
