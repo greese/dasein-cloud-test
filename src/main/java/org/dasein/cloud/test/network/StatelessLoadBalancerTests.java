@@ -35,7 +35,6 @@ import org.dasein.cloud.network.LoadBalancerEndpoint;
 import org.dasein.cloud.network.LoadBalancerSupport;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.SSLCertificate;
-import org.dasein.cloud.network.SSLCertificateMetadata;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -185,13 +184,8 @@ public class StatelessLoadBalancerTests {
 
     private void assertSSLCertificate(@Nonnull SSLCertificate certificate) throws CloudException, InternalException {
         assertNotNull("The SSL certificate body may not be null", certificate.getCertificateBody());
-        assertNotNull("The SSL certificate metadata may not be null", certificate.getMetadata());
-        assertSSLCertificateMetadata(certificate.getMetadata());
-    }
-
-    private void assertSSLCertificateMetadata(@Nonnull SSLCertificateMetadata metadata) throws CloudException, InternalException {
-        assertNotNull("The SSL certificate ID may not be null", metadata.getCertificateId());
-        assertNotNull("The SSL certificate provider ID may not be null", metadata.getProviderCertificateId());
+        assertNotNull("The SSL certificate ID may not be null", certificate.getCertificateId());
+        assertNotNull("The SSL certificate provider ID may not be null", certificate.getProviderCertificateId());
     }
 
     @Test
@@ -581,10 +575,10 @@ public class StatelessLoadBalancerTests {
 
             assertNotNull("No SSL certificate was found for the test ID", certificate);
 
-            tm.out("SSL certificate ID", certificate.getMetadata().getCertificateId());
-            tm.out("SSL certificate provider ID", certificate.getMetadata().getProviderCertificateId());
-            tm.out("SSL certificate upload date", certificate.getMetadata().getUploadDate());
-            tm.out("SSL certificate path", certificate.getMetadata().getPath());
+            tm.out("SSL certificate ID", certificate.getCertificateId());
+            tm.out("SSL certificate provider ID", certificate.getProviderCertificateId());
+            tm.out("SSL certificate upload date", certificate.getUploadDate());
+            tm.out("SSL certificate path", certificate.getPath());
             tm.out("SSL certificate chain", certificate.getCertificateChain());
             tm.out("SSL certificate body", certificate.getCertificateBody());
 
@@ -614,11 +608,11 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        Iterable<SSLCertificateMetadata> certificates = support.listSSLCertificates();
+        Iterable<SSLCertificate> certificates = support.listSSLCertificates();
         int count = 0;
 
         assertNotNull("The list of SSL certificates may not be null", certificates);
-        for( SSLCertificateMetadata certificate : certificates ) {
+        for( SSLCertificate certificate : certificates ) {
             count++;
             tm.out("SSL certificate", certificate);
         }
@@ -631,8 +625,8 @@ public class StatelessLoadBalancerTests {
             tm.warn("This test is likely invalid as no SSL certificates were provided in the results for validation");
         }
         if( count > 0 ) {
-            for( SSLCertificateMetadata certificate : certificates ) {
-                assertSSLCertificateMetadata(certificate);
+            for( SSLCertificate certificate : certificates ) {
+                assertSSLCertificate(certificate);
             }
         }
     }

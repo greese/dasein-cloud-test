@@ -810,9 +810,9 @@ public class NetworkResources {
 
             try {
                 if( support != null && support.isSubscribed() ) {
-                    Iterator<SSLCertificateMetadata> certificates = support.listSSLCertificates().iterator();
+                    Iterator<SSLCertificate> certificates = support.listSSLCertificates().iterator();
                     if ( certificates.hasNext() ) {
-                        SSLCertificateMetadata certificate = certificates.next();
+                        SSLCertificate certificate = certificates.next();
                         testSSLCertificates.put(DaseinTestManager.STATELESS, certificate.getCertificateId());
                         return certificate.getCertificateId();
                     }
@@ -1647,7 +1647,7 @@ public class NetworkResources {
                 } catch( InterruptedException ignore ) {
                 }
                 options.havingListeners(LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
-                        certificate.getMetadata().getProviderCertificateId()));
+                        certificate.getProviderCertificateId()));
             }
         }
         String[] dcIds = new String[2];
@@ -1835,7 +1835,7 @@ public class NetworkResources {
         SSLCertificateCreateOptions options = SSLCertificateCreateOptions.getInstance(testSslCertificateBody, null,
                 testSslCertificatePrivateKey, name, null);
 
-        final SSLCertificateMetadata sslCertificate = support.createSSLCertificate(options);
+        final SSLCertificate sslCertificate = support.createSSLCertificate(options);
         final String id = sslCertificate.getCertificateId();
 
         synchronized ( testSSLCertificates ) {
