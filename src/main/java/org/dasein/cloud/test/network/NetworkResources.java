@@ -1640,14 +1640,13 @@ public class NetworkResources {
                 options.havingListeners(LbListener.getInstance(publicPort, privatePort));
             } else {
                 String certificateId = provisionSSLCertificate("provision", "dsnssltest");
-                SSLCertificate certificate = support.getSSLCertificate(certificateId);
                 try {
                     // Wait as in some clouds it takes time before SSL certificate can be linked to a listener
                     Thread.sleep(2000L);
                 } catch( InterruptedException ignore ) {
                 }
                 options.havingListeners(LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
-                        certificate.getProviderCertificateId()));
+                        certificateId));
             }
         }
         String[] dcIds = new String[2];

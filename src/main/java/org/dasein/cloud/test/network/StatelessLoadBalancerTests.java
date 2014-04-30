@@ -134,10 +134,10 @@ public class StatelessLoadBalancerTests {
         }
 
         if( LbProtocol.HTTP.equals( listener.getNetworkProtocol() ) ) {
-            assertNull("HTTP listener cannot have an SSL certificate", listener.getProviderSslCertificateId());
+            assertNull("HTTP listener cannot have an SSL certificate", listener.getSslCertificateId());
         }
         else if( LbProtocol.HTTPS.equals( listener.getNetworkProtocol() ) ) {
-            assertNotNull("HTTPS listener must have an SSL certificate", listener.getProviderSslCertificateId());
+            assertNotNull("HTTPS listener must have an SSL certificate", listener.getSslCertificateId());
         }
     }
 
