@@ -769,13 +769,14 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( support.getCapabilities().healthCheckRequiresLoadBalancer() ){
-            if( testLoadBalancerId != null ){
+        if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
+            if ( testLoadBalancerId != null ) {
                 //TODO: Clean these values up
                 LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
                 assertNotNull("Could not create a loadbalancer with healthcheck", lbhc);
+
             }
-            else{
+            else {
                 if( support.isSubscribed() ) {
                     fail("No test load balancer for " + name.getMethodName());
                 }
