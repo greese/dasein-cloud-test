@@ -182,8 +182,11 @@ public class StatelessLoadBalancerTests {
         }
     }
 
-    private void assertSSLCertificate(@Nonnull SSLCertificate certificate) throws CloudException, InternalException {
-        assertNotNull("The SSL certificate body may not be null", certificate.getCertificateBody());
+    private void assertSSLCertificate(@Nonnull SSLCertificate certificate, boolean isBodyRequired)
+            throws CloudException, InternalException {
+        if (isBodyRequired) {
+            assertNotNull("The SSL certificate body may not be null", certificate.getCertificateBody());
+        }
         assertNotNull("The SSL certificate ID may not be null", certificate.getCertificateId());
         assertNotNull("The SSL certificate provider ID may not be null", certificate.getProviderCertificateId());
     }
@@ -577,12 +580,12 @@ public class StatelessLoadBalancerTests {
 
             tm.out("SSL certificate ID", certificate.getCertificateId());
             tm.out("SSL certificate provider ID", certificate.getProviderCertificateId());
-            tm.out("SSL certificate upload date", certificate.getUploadDate());
+            tm.out("SSL certificate upload date", certificate.getCreatedTimestamp());
             tm.out("SSL certificate path", certificate.getPath());
             tm.out("SSL certificate chain", certificate.getCertificateChain());
             tm.out("SSL certificate body", certificate.getCertificateBody());
 
-            assertSSLCertificate(certificate);
+            assertSSLCertificate(certificate, true);
         }
         else {
             if( !support.isSubscribed() ) {
@@ -626,7 +629,7 @@ public class StatelessLoadBalancerTests {
         }
         if( count > 0 ) {
             for( SSLCertificate certificate : certificates ) {
-                assertSSLCertificate(certificate);
+                assertSSLCertificate(certificate, false);
             }
         }
     }
