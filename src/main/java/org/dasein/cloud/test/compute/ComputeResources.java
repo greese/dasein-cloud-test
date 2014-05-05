@@ -418,7 +418,7 @@ public class ComputeResources {
                     VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
 
                     if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState())) && provisionIfNull ) {
-                        id = provisionVM(support, label, "Dasein Test " + label, "dsnvm", preferredDataCenterId);
+                        id = provisionVM(support, label, "Dasein Test " + label, provider.getContext().getCloud().getUserName() + "dsnvm", preferredDataCenterId);
                         vm = support.getVirtualMachine(id);
                     }
                     if( vm != null && desiredState != null ) {

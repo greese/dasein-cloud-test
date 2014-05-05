@@ -95,7 +95,7 @@ public class DaseinTestManager {
         */
 
         try{
-            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "";
+            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "";
 
             prop = overrideAccount == null ? System.getProperty("accountNumber") : overrideAccount;
             if( prop != null ) {
@@ -117,8 +117,11 @@ public class DaseinTestManager {
             if( prop != null ) {
                 regionId = prop;
             }
-
-            Cloud cloud = Cloud.register(providerName, cloudName, endpoint, (Class<? extends CloudProvider>) Class.forName(cname));
+            prop = System.getProperty("userName");
+            if( prop != null ) {
+                userName = prop;
+            }
+            Cloud cloud = Cloud.register(providerName, cloudName, endpoint, userName, (Class<? extends CloudProvider>) Class.forName(cname));
 
             ContextRequirements requirements = cloud.buildProvider().getContextRequirements();
             List<ContextRequirements.Field> fields = requirements.getConfigurableValues();
