@@ -813,8 +813,8 @@ public class NetworkResources {
                     Iterator<SSLCertificate> certificates = support.listSSLCertificates().iterator();
                     if ( certificates.hasNext() ) {
                         SSLCertificate certificate = certificates.next();
-                        testSSLCertificates.put(DaseinTestManager.STATELESS, certificate.getCertificateId());
-                        return certificate.getCertificateId();
+                        testSSLCertificates.put(DaseinTestManager.STATELESS, certificate.getCertificateName());
+                        return certificate.getCertificateName();
                     }
                 }
             } catch( Throwable ignore ) {
@@ -1070,7 +1070,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nullable String getTestSSLCertificateId(@Nonnull String label, boolean provisionIfNull) {
+    public @Nullable String getTestSSLCertificateName(@Nonnull String label, boolean provisionIfNull) {
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String, String> entry : testSSLCertificates.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
@@ -1639,14 +1639,14 @@ public class NetworkResources {
             if ( !withHttps ) {
                 options.havingListeners(LbListener.getInstance(publicPort, privatePort));
             } else {
-                String certificateId = provisionSSLCertificate("provision", "dsnssltest");
+                String certificateName = provisionSSLCertificate("provision", "dsnssltest");
                 try {
                     // Wait as in some clouds it takes time before SSL certificate can be linked to a listener
-                    Thread.sleep(2000L);
+                    Thread.sleep(5000L);
                 } catch( InterruptedException ignore ) {
                 }
                 options.havingListeners(LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
-                        certificateId));
+                        certificateName));
             }
         }
         String[] dcIds = new String[2];
@@ -1835,15 +1835,15 @@ public class NetworkResources {
                 testSslCertificatePrivateKey, name, null);
 
         final SSLCertificate sslCertificate = support.createSSLCertificate(options);
-        final String id = sslCertificate.getCertificateId();
+        final String certificateName = sslCertificate.getCertificateName();
 
         synchronized ( testSSLCertificates ) {
             while( testSSLCertificates.containsKey(label) ) {
                 label = label + random.nextInt(9);
             }
-            testSSLCertificates.put(label, id);
+            testSSLCertificates.put(label, certificateName);
         }
-        return id;
+        return certificateName;
     }
 
     public @Nonnull String provisionNetworkFirewall(@Nonnull String label, @Nullable String vlanId) throws CloudException, InternalException {

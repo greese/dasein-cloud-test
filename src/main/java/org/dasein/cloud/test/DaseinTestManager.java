@@ -37,8 +37,6 @@ import org.dasein.cloud.test.platform.PlatformResources;
 import org.dasein.cloud.test.storage.StorageResources;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -619,8 +617,8 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestSSLCertificateId(@Nonnull String label, boolean provisionIfNull) {
-        return (networkResources == null ? null : networkResources.getTestSSLCertificateId(label, provisionIfNull));
+    public @Nullable String getTestSSLCertificateName(@Nonnull String label, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestSSLCertificateName(label, provisionIfNull));
     }
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {

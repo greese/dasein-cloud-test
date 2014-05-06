@@ -69,7 +69,7 @@ public class StatefulLoadBalancerTests {
     private String testDataCenterId;
     private String testLoadBalancerId;
     private String testVirtualMachineId;
-    private String testSSLCertificateId;
+    private String testSSLCertificateName;
 
     public StatefulLoadBalancerTests() { }
 
@@ -257,7 +257,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("removeSSLCertificate") ) {
-            testSSLCertificateId = tm.getTestSSLCertificateId(DaseinTestManager.REMOVED, true);
+            testSSLCertificateName = tm.getTestSSLCertificateName(DaseinTestManager.REMOVED, true);
         }
     }
 
@@ -267,7 +267,7 @@ public class StatefulLoadBalancerTests {
             testLoadBalancerId = null;
             testDataCenterId = null;
             testVirtualMachineId = null;
-            testSSLCertificateId = null;
+            testSSLCertificateName = null;
         }
         finally {
             tm.end();
@@ -833,12 +833,12 @@ public class StatefulLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSSLCertificateId != null ) {
-            SSLCertificate certificate = support.getSSLCertificate(testSSLCertificateId);
+        if( testSSLCertificateName != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSSLCertificateName);
 
             assertNotNull("The SSL certificate is null prior to the test", certificate);
-            support.removeSSLCertificate(testSSLCertificateId);
-            certificate = support.getSSLCertificate(testSSLCertificateId);
+            support.removeSSLCertificate(testSSLCertificateName);
+            certificate = support.getSSLCertificate(testSSLCertificateName);
             assertNull("The SSL certificate still exists after removing", certificate);
         }
         else {

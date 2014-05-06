@@ -80,7 +80,7 @@ public class StatelessLoadBalancerTests {
     public final TestName name = new TestName();
 
     private String testLoadBalancerId;
-    private String testSslCertificateId;
+    private String testSslCertificateName;
 
     public StatelessLoadBalancerTests() { }
 
@@ -89,7 +89,7 @@ public class StatelessLoadBalancerTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, false);
-        testSslCertificateId = tm.getTestSSLCertificateId(DaseinTestManager.STATELESS, false);
+        testSslCertificateName = tm.getTestSSLCertificateName(DaseinTestManager.STATELESS, false);
     }
 
     @After
@@ -134,10 +134,10 @@ public class StatelessLoadBalancerTests {
         }
 
         if( LbProtocol.HTTP.equals( listener.getNetworkProtocol() ) ) {
-            assertNull("HTTP listener cannot have an SSL certificate", listener.getSslCertificateId());
+            assertNull("HTTP listener cannot have an SSL certificate", listener.getSslCertificateName());
         }
         else if( LbProtocol.HTTPS.equals( listener.getNetworkProtocol() ) ) {
-            assertNotNull("HTTPS listener must have an SSL certificate", listener.getSslCertificateId());
+            assertNotNull("HTTPS listener must have an SSL certificate", listener.getSslCertificateName());
         }
     }
 
@@ -187,7 +187,7 @@ public class StatelessLoadBalancerTests {
         if (isBodyRequired) {
             assertNotNull("The SSL certificate body may not be null", certificate.getCertificateBody());
         }
-        assertNotNull("The SSL certificate ID may not be null", certificate.getCertificateId());
+        assertNotNull("The SSL certificate ID may not be null", certificate.getCertificateName());
         assertNotNull("The SSL certificate provider ID may not be null", certificate.getProviderCertificateId());
     }
 
@@ -543,8 +543,8 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSslCertificateId != null ) {
-            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateId);
+        if( testSslCertificateName != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
             tm.out("SSL Certificate", certificate);
             assertNotNull("No SSL certificate was found for the test ID", certificate);
@@ -573,12 +573,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testSslCertificateId != null ) {
-            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateId);
+        if( testSslCertificateName != null ) {
+            SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
             assertNotNull("No SSL certificate was found for the test ID", certificate);
 
-            tm.out("SSL certificate ID", certificate.getCertificateId());
+            tm.out("SSL certificate name", certificate.getCertificateName());
             tm.out("SSL certificate provider ID", certificate.getProviderCertificateId());
             tm.out("SSL certificate upload date", certificate.getCreatedTimestamp());
             tm.out("SSL certificate path", certificate.getPath());
