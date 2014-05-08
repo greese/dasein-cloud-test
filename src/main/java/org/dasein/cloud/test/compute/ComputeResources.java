@@ -30,6 +30,7 @@ import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
+import org.dasein.cloud.test.platform.PlatformResources;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -52,11 +53,12 @@ public class ComputeResources {
 
     private CloudProvider   provider;
 
-    private final HashMap<String,String> testMachineImages = new HashMap<String,String>();
-    private final HashMap<String,String> testSnapshots     = new HashMap<String, String>();
-    private final HashMap<String,String> testVMs           = new HashMap<String, String>();
-    private final HashMap<String,String> testVolumes       = new HashMap<String, String>();
+    private final Map<String, String> testMachineImages = new HashMap<String,String>();
+    private final Map<String, String> testSnapshots     = new HashMap<String, String>();
+    private final Map<String, String> testVMs           = new HashMap<String, String>();
+    private final Map<String, String> testVolumes       = new HashMap<String, String>();
 
+    //defaults
     private String        testDataCenterId;
     private Platform      testImagePlatform;
     private String        testVMProductId;
@@ -686,7 +688,8 @@ public class ComputeResources {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
                     if( currentProduct != null ) {
-                        for( Platform platform : new Platform[] { Platform.UBUNTU, Platform.CENT_OS, Platform.WINDOWS, Platform.RHEL } ) {
+                        // Let WINDOWS come first for a greater chance of StatelessVMTests#getVMPassword to work
+                        for( Platform platform : new Platform[] { Platform.WINDOWS, Platform.UBUNTU, Platform.CENT_OS, Platform.RHEL } ) {
                             ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
 
                             try {
