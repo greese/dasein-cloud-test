@@ -144,7 +144,7 @@ public class StatefulStaticIPTests {
                     try {
                         IPVersion version = (name.getMethodName().contains("IPv6") ? IPVersion.IPV6 : IPVersion.IPV4);
 
-                        if( support != null && support.isForwarding(version) ) {
+                        if( support != null && support.getCapabilities().isForwarding(version) ) {
                             testRuleId = support.forward(testIpAddress, 8000, Protocol.TCP, 9000, testVMId);
                         }
                     }

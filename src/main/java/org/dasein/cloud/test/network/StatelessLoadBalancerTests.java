@@ -203,7 +203,7 @@ public class StatelessLoadBalancerTests {
         tm.out("Can Add Endpoints", support.getCapabilities().supportsAddingEndpoints());
         tm.out("Supports Multiple IP Versions", support.getCapabilities().supportsMultipleTrafficTypes());
 
-        assertNotNull("The provider term for a load balancer may not be null", support.getProviderTermForLoadBalancer(Locale.getDefault()));
+        assertNotNull("The provider term for a load balancer may not be null", support.getCapabilities().getProviderTermForLoadBalancer(Locale.getDefault()));
         assertNotNull("The address type may not be null", support.getCapabilities().getAddressType());
         if( LoadBalancerAddressType.DNS.equals(support.getCapabilities().getAddressType()) ) {
             assertTrue("DNS-based load balancers must have the load balancer address assigned by the cloud provider", support.getCapabilities().isAddressAssignedByProvider());

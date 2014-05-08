@@ -674,7 +674,7 @@ public class ComputeResources {
                 boolean volumeBased = false;
 
                 try {
-                    for( MachineImageType type : imageSupport.listSupportedImageTypes() ) {
+                    for( MachineImageType type : imageSupport.getCapabilities().listSupportedImageTypes() ) {
                         if( type.equals(MachineImageType.VOLUME) ) {
                             volumeBased = true;
                             break;
@@ -745,7 +745,7 @@ public class ComputeResources {
                             defaultProduct = product;
                         }
                         else {
-                            if( volumeSupport.isVolumeSizeDeterminedByProduct() ) {
+                            if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
                                 if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
                                     defaultProduct = product;
                                 }
@@ -830,7 +830,7 @@ public class ComputeResources {
         String imageId = vm.getProviderMachineImageId();
         MachineImage image = support.getImage(imageId);
 
-        if( image == null || support.supportsImageCapture(image.getType()) ) {
+        if( image == null || support.getCapabilities().supportsImageCapture(image.getType()) ) {
             String id = ImageCreateOptions.getInstance(vm, namePrefix + (System.currentTimeMillis()%10000), "Test machine image with label " + label).build(provider);
 
             synchronized( testMachineImages ) {
@@ -841,8 +841,8 @@ public class ComputeResources {
             }
             return id;
         }
-        else if( !support.identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
-            Iterator<MachineImageFormat> formats = support.listSupportedFormatsForBundling().iterator();
+        else if( !support.getCapabilities().identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
+            Iterator<MachineImageFormat> formats = support.getCapabilities().listSupportedFormatsForBundling().iterator();
             MachineImageFormat format = (formats.hasNext() ? formats.next() : null);
 
             if( format != null ) {
@@ -887,14 +887,14 @@ public class ComputeResources {
                     }
                 }
             }
-            if( volume != null && volume.getProviderVirtualMachineId() == null && support.identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
+            if( volume != null && volume.getProviderVirtualMachineId() == null && support.getCapabilities().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
                 String vmId = getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, volume.getProviderDataCenterId());
 
                 if( vmId != null ) {
                     @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(vmId);
 
                     if( vm != null ) {
-                        for( String deviceId : vs.listPossibleDeviceIds(vm.getPlatform()) ) {
+                        for( String deviceId : vs.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
                             try {
                                 vs.attach(volumeId, vmId, deviceId);
                                 break;
@@ -1173,7 +1173,7 @@ public class ComputeResources {
         VolumeCreateOptions options;
 
         if( desiredFormat == null ) {
-            for( VolumeFormat fmt : support.listSupportedFormats() ) {
+            for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
                 if( fmt.equals(VolumeFormat.BLOCK) ) {
                     desiredFormat = VolumeFormat.BLOCK;
                     break;
@@ -1183,10 +1183,10 @@ public class ComputeResources {
                 desiredFormat = VolumeFormat.NFS;
             }
         }
-        if( support.getVolumeProductRequirement().equals(Requirement.REQUIRED) && testVolumeProductId != null ) {
+        if( support.getCapabilities().getVolumeProductRequirement().equals(Requirement.REQUIRED) && testVolumeProductId != null ) {
             Storage<Gigabyte> size;
 
-            if( support.isVolumeSizeDeterminedByProduct() ) {
+            if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
                 VolumeProduct prd = null;
 
                 for( VolumeProduct product : support.listVolumeProducts() ) {
@@ -1198,15 +1198,15 @@ public class ComputeResources {
                 if( prd != null ) {
                     size = prd.getVolumeSize();
                     if( size == null ) {
-                        size = support.getMinimumVolumeSize();
+                        size = support.getCapabilities().getMinimumVolumeSize();
                     }
                 }
                 else {
-                    size = support.getMinimumVolumeSize();
+                    size = support.getCapabilities().getMinimumVolumeSize();
                 }
             }
             else {
-                size = support.getMinimumVolumeSize();
+                size = support.getCapabilities().getMinimumVolumeSize();
             }
             if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
                 options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
@@ -1228,7 +1228,7 @@ public class ComputeResources {
         }
         else {
             if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
-                options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Test Integration tests volume");
+                options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Test Integration tests volume");
             }
             else {
                 NetworkResources network = DaseinTestManager.getNetworkResources();
@@ -1238,10 +1238,10 @@ public class ComputeResources {
                     testVlanId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
                 }
                 if( testVlanId != null ) {
-                    options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis() % 10000), "Dasein Cloud Integration Tests Volume Tests");
+                    options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis() % 10000), "Dasein Cloud Integration Tests Volume Tests");
                 }
                 else {
-                    options = VolumeCreateOptions.getInstance(support.getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests");
+                    options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests");
                 }
             }
         }

@@ -581,10 +581,10 @@ public class DaseinTestManager {
 
             try {
                 if( support != null && support.isSubscribed() ) {
-                    if( support.supportsFirewallCreation(false) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(false) ) {
                         return getTestGeneralFirewallId(label, provisionIfNull);
                     }
-                    else if( support.supportsFirewallCreation(true) ) {
+                    else if( support.getCapabilities().supportsFirewallCreation(true) ) {
                         return getTestVLANFirewallId(DaseinTestManager.REMOVED, true, null);
                     }
                 }
