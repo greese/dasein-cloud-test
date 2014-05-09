@@ -381,7 +381,7 @@ public class StatefulNetworkFirewallTests {
             assertTrue("The firewall remains available", (firewall == null || !firewall.isActive()));
         }
         else {
-            if( !support.supportsNetworkFirewallCreation() ) {
+            if( !support.getCapabilities().supportsNetworkFirewallCreation() ) {
                 tm.ok("Firewall creation/deletion is not supported in " + tm.getProvider().getCloudName());
             }
             if( support.isSubscribed() ) {

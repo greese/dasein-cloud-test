@@ -373,6 +373,16 @@ public class StatelessVMTests {
         }
     }
 
+    /**
+     * This test is likely to fail most of the times, as password is not always available (e.g. in AWS
+     * it's only available on clean Amazon images), and requires for instance to be up for some time for
+     * password to be ready.
+     *
+     * TODO: This test needs more attention.
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
     @Test
     public void getVMPassword() throws CloudException, InternalException {
       assumeTrue(!tm.isTestSkipped());
@@ -476,16 +486,14 @@ public class StatelessVMTests {
                     tm.out("Clonable", vm.isClonable());
                     tm.out("Imageable", vm.isImagable());
                     tm.out("Rebootable", vm.isRebootable());
+                    tm.out("Description", vm.getDescription());
 
                     Map<String,String> tags = vm.getTags();
+                    assertNotNull("Tags may not be null", vm.getTags());
 
-                    //noinspection ConstantConditions
-                    if( tags != null ) {
-                        for( Map.Entry<String,String> entry : tags.entrySet() ) {
-                            tm.out("Tag " + entry.getKey(), entry.getValue());
-                        }
+                    for( Map.Entry<String,String> entry : tags.entrySet() ) {
+                        tm.out("Tag " + entry.getKey(), entry.getValue());
                     }
-                    tm.out("Description", vm.getDescription());
 
                     assertNotNull("VM ID may not be null", vm.getProviderVirtualMachineId());
                     assertNotNull("VM state may not be null", vm.getCurrentState());
@@ -503,7 +511,6 @@ public class StatelessVMTests {
                     assertNotNull("Private IP addresses must not be null", vm.getPrivateAddresses());
                     assertNotNull("Shell key ID list may not be null", vm.getProviderShellKeyIds());
                     assertNotNull("Firewall ID list may not be null", vm.getProviderFirewallIds());
-                    assertNotNull("Tags may not be null", vm.getTags());
                 }
                 else if( support.isSubscribed() ) {
                     fail("No test virtual machine exists and thus no test could be run for getVirtualMachine");
