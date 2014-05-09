@@ -37,8 +37,6 @@ import org.dasein.cloud.test.platform.PlatformResources;
 import org.dasein.cloud.test.storage.StorageResources;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -171,7 +169,16 @@ public class DaseinTestManager {
                 }
                 else {
                     String value = System.getProperty(f.name);
-                    values.add(ProviderContext.Value.parseValue(f, value));
+                    if( value != null && value.trim().length() > 0 ) {
+                        values.add(ProviderContext.Value.parseValue(f, value));
+                    } else if( f.required ) {
+                        String error = String.format("%s field is missing, but declared as REQUIRED. " +
+                                        "Check the Maven profile and pom.xml.",
+                                f.name);
+                        Logger logger = Logger.getLogger(DaseinTestManager.class);
+                        logger.fatal(error);
+                        throw new RuntimeException(error);
+                    }
                 }
             }
 
@@ -330,12 +337,15 @@ public class DaseinTestManager {
         logger.info("BEGIN Test Initialization ------------------------------------------------------------------------------");
         try {
             testStart = System.currentTimeMillis();
-            storageResources = new StorageResources(constructProvider());
-            platformResources = new PlatformResources(constructProvider());
-            networkResources = new NetworkResources(constructProvider());
-            identityResources = new IdentityResources(constructProvider());
-            ciResources = new CIResources(constructProvider());
-            computeResources = new ComputeResources(constructProvider());
+
+            CloudProvider cloudProvider = constructProvider();
+            storageResources = new StorageResources(cloudProvider);
+            platformResources = new PlatformResources(cloudProvider);
+            networkResources = new NetworkResources(cloudProvider);
+            identityResources = new IdentityResources(cloudProvider);
+            ciResources = new CIResources(cloudProvider);
+            computeResources = new ComputeResources(cloudProvider);
+
             computeResources.init();
 
             String prop = System.getProperty("dasein.inclusions");
@@ -601,10 +611,10 @@ public class DaseinTestManager {
 
             try {
                 if( support != null && support.isSubscribed() ) {
-                    if( support.supportsFirewallCreation(false) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(false) ) {
                         return getTestGeneralFirewallId(label, provisionIfNull);
                     }
-                    else if( support.supportsFirewallCreation(true) ) {
+                    else if( support.getCapabilities().supportsFirewallCreation(true) ) {
                         return getTestVLANFirewallId(DaseinTestManager.REMOVED, true, null);
                     }
                 }

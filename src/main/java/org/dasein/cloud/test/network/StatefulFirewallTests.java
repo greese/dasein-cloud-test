@@ -550,7 +550,7 @@ public class StatefulFirewallTests {
 
                 if( net != null ) {
                     int p = port++;
-                    if( support.supportsFirewallCreation(true) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
                             String id = net.provisionFirewall("provision", testVLANId, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
