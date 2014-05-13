@@ -186,9 +186,9 @@
         </executions>
       </plugin>       
     </plugins>
-  </build>
+  </build>  
 
-  <distributionManagement>
+    <distributionManagement>
       <repository>
           <id>sonatype-nexus-staging</id>
           <url>https://oss.sonatype.org/service/local/staging/deploy/maven2</url>
