@@ -93,7 +93,7 @@ public class DaseinTestManager {
         */
 
         try{
-            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "";
+            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "", zoneId = "";
 
             prop = overrideAccount == null ? System.getProperty("accountNumber") : overrideAccount;
             if( prop != null ) {
@@ -118,6 +118,10 @@ public class DaseinTestManager {
             prop = System.getProperty("userName");
             if( prop != null ) {
                 userName = prop;
+            }
+            prop = System.getProperty("zoneId");
+            if( prop != null ) {
+                zoneId = prop;
             }
             Cloud cloud = Cloud.register(providerName, cloudName, endpoint, userName, (Class<? extends CloudProvider>) Class.forName(cname));
 
@@ -182,7 +186,7 @@ public class DaseinTestManager {
                 }
             }
 
-            ProviderContext ctx = cloud.createContext(account, regionId, values.toArray(new ProviderContext.Value[0]));
+            ProviderContext ctx = cloud.createContext(account, regionId, zoneId, values.toArray(new ProviderContext.Value[0]));
             provider = ctx.connect();
         }
         catch( ClassNotFoundException e ) {
