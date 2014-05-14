@@ -659,6 +659,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestSSLCertificateName(@Nonnull String label, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestSSLCertificateName(label, provisionIfNull));
+    }
+
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
         return (networkResources == null ? null : networkResources.getTestNetworkFirewallId(label, provisionIfNull, inVlanId));
     }
