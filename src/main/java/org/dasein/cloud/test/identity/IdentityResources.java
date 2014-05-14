@@ -113,7 +113,6 @@ public class IdentityResources {
         catch( Throwable ignore ) {
             // ignore
         }
-        provider.close();
         return count;
     }
 

@@ -642,7 +642,6 @@ public class NetworkResources {
         } catch( Throwable ignore ) {
             // ignore
         }
-        provider.close();
         return count;
     }
 

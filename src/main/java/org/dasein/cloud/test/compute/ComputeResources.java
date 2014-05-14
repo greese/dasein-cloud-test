@@ -219,7 +219,6 @@ public class ComputeResources {
                 }
             }
         }
-        provider.close();
         return count;
     }
 
