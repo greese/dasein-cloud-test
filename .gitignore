@@ -4,9 +4,18 @@
 *.jar
 *.war
 *.ear
-
 *.idea
 *.iml
 target
 
 .DS_Store
+
+# IDE Files #
+*.iml
+*.ipr
+*.iws
+.idea
+.classpath
+.project
+.settings
+target-eclipse
