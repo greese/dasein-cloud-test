@@ -104,7 +104,6 @@ public class CIResources {
                 }
             }
         }
-        provider.close();
         return count;
     }
 
