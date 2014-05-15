@@ -623,6 +623,7 @@ public class ComputeResources {
 
     public void init() {
         ComputeServices computeServices = provider.getComputeServices();
+        String dataCenterId = System.getProperty("test.dataCenter");
 
         if( computeServices != null ) {
             HashMap<Architecture,VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
@@ -634,7 +635,7 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            for( VirtualMachineProduct product : vmSupport.listProducts(architecture) ) {
+                            for( VirtualMachineProduct product : vmSupport.listProducts(architecture, dataCenterId) ) {
                                 if( defaultProduct == null ) {
                                     defaultProduct = product;
                                 }
