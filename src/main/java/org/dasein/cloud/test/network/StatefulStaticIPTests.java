@@ -507,7 +507,13 @@ public class StatefulStaticIPTests {
 
     @Test
     public void assignPostLaunchIPv6inVLAN() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV6);
+        if( !inVlan ) {
+            tm.ok("VM is launched outside VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        }
+        else {
+            assignPostLaunch(IPVersion.IPV6);
+        }
     }
 
     @Test
