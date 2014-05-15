@@ -1402,7 +1402,7 @@ public class NetworkResources {
         } else {
             map = ( version.equals(IPVersion.IPV4) ? testIps4VLAN : testIps6VLAN );
         }
-        String id;
+        String id = null;
 
         if( vlanId == null ) {
             id = support.request(version);
