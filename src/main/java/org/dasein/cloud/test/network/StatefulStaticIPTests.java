@@ -19,11 +19,9 @@
 
 package org.dasein.cloud.test.network;
 
-import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
-import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
@@ -86,7 +84,7 @@ public class StatefulStaticIPTests {
     @Rule
     public final TestName name = new TestName();
 
-    private String testIpAddress;
+    private String testIpAddressId;
     private String testRuleId;
     private String testVlanId;
     private String testVMId;
@@ -117,25 +115,25 @@ public class StatefulStaticIPTests {
             }
         }
         if( name.getMethodName().equals("releaseFromPool") ) {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
-            if( testIpAddress == null ) {
-                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, true, null);
+            testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, false, null);
+            if( testIpAddressId == null ) {
+                testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.REMOVED, true, null, true, testVlanId);
             }
         }
         else if( name.getMethodName().startsWith("forward") ) {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
-            if( testIpAddress == null ) {
-                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddressId == null ) {
+                testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, testVlanId);
             }
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().startsWith("stopForward") ) {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
-            if( testIpAddress == null ) {
-                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddressId == null ) {
+                testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, testVlanId);
             }
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
-            if( testIpAddress != null && testVMId != null ) {
+            if( testIpAddressId != null && testVMId != null ) {
                 NetworkServices services = tm.getProvider().getNetworkServices();
 
                 if( services != null ) {
@@ -145,7 +143,7 @@ public class StatefulStaticIPTests {
                         IPVersion version = (name.getMethodName().contains("IPv6") ? IPVersion.IPV6 : IPVersion.IPV4);
 
                         if( support != null && support.getCapabilities().isForwarding(version) ) {
-                            testRuleId = support.forward(testIpAddress, 8000, Protocol.TCP, 9000, testVMId);
+                            testRuleId = support.forward(testIpAddressId, 8000, Protocol.TCP, 9000, testVMId);
                         }
                     }
                     catch( Throwable ignore ) {
@@ -155,9 +153,9 @@ public class StatefulStaticIPTests {
             }
         }
         else if( name.getMethodName().equals("releaseFromVirtualMachine") ) {
-            testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
-            if( testIpAddress == null ) {
-                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, null);
+            testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, false, null);
+            if( testIpAddressId == null ) {
+                testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, null, true, testVlanId);
             }
             testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
             if( testVMId != null ) {
@@ -168,7 +166,7 @@ public class StatefulStaticIPTests {
 
                     if( support != null ) {
                         try {
-                            support.assign(testIpAddress, testVMId);
+                            support.assign(testIpAddressId, testVMId);
                         }
                         catch( Throwable ignore ) {
                             // ignore
@@ -200,7 +198,7 @@ public class StatefulStaticIPTests {
                         testVMId = null;
                     }
                     else if( vm != null ) {
-                        testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, version, false, null);
+                        testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL, true, version, false, null);
                     }
                 }
             }
@@ -274,7 +272,7 @@ public class StatefulStaticIPTests {
                         VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
 
                         testVlanId = vm.getProviderVlanId();
-                        testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATEFUL + testVlanId, true, version, true, testVlanId);
+                        testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL + testVlanId, true, version, true, testVlanId);
                     }
                     catch( Throwable ignore ) {
                         // ignore
@@ -304,9 +302,9 @@ public class StatefulStaticIPTests {
                             // ignore
                         }
                     }
-                    if( testIpAddress != null ) {
+                    if( testIpAddressId != null ) {
                         try {
-                            support.releaseFromServer(testIpAddress);
+                            support.releaseFromServer(testIpAddressId);
                         }
                         catch( Throwable ignore ) {
                             // ignore
@@ -314,7 +312,7 @@ public class StatefulStaticIPTests {
                     }
                 }
             }
-            testIpAddress = null;
+            testIpAddressId = null;
             testRuleId = null;
         }
         finally {
@@ -408,7 +406,7 @@ public class StatefulStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testIpAddress == null ) {
+        if( testIpAddressId == null ) {
             if( !support.isSubscribed() ) {
                 tm.ok("No IP address subscription exists for this account in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName() + ", so this test is invalid");
             }
@@ -433,7 +431,7 @@ public class StatefulStaticIPTests {
         }
         if( support.getCapabilities().isAssignablePostLaunch(version) ) {
             @SuppressWarnings("ConstantConditions") VirtualMachineSupport vmSupport = tm.getProvider().getComputeServices().getVirtualMachineSupport();
-            IpAddress address = support.getIpAddress(testIpAddress);
+            IpAddress address = support.getIpAddress(testIpAddressId);
 
             assertNotNull("The test IP address has gone away", address);
             assertNotNull("No virtual machine support exists in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName(), vmSupport);
@@ -443,15 +441,15 @@ public class StatefulStaticIPTests {
             assertNotNull("The test virtual machine disappeared before the test could run", vm);
             tm.out("VM Before", address.getServerId());
             tm.out("Address Before", vm.getProviderAssignedIpAddressId());
-            assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddress.equals(vm.getProviderAssignedIpAddressId()));
-            support.assign(testIpAddress, testVMId);
+            assertTrue("The current assignment to the test virtual machine is the test IP address, cannot reasonably tests this", !testIpAddressId.equals(vm.getProviderAssignedIpAddressId()));
+            support.assign(testIpAddressId, testVMId);
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
 
             while( System.currentTimeMillis() < timeout ) {
                 try { vm = vmSupport.getVirtualMachine(testVMId); }
                 catch( Throwable ignore ) { }
                 assertNotNull("Virtual machine disappeared post-assignment", vm);
-                try { address = support.getIpAddress(testIpAddress); }
+                try { address = support.getIpAddress(testIpAddressId); }
                 catch( Throwable ignore ) { }
                 assertNotNull("IP address disappeared post-assignment", address);
                 if( address.getServerId() != null && vm.getProviderAssignedIpAddressId() != null ) {
@@ -462,12 +460,12 @@ public class StatefulStaticIPTests {
             }
             tm.out("VM After", address.getServerId());
             tm.out("Address After", vm.getProviderAssignedIpAddressId());
-            assertEquals("The IP address assigned to the virtual machine does not match the test IP address", testIpAddress, vm.getProviderAssignedIpAddressId());
+            assertEquals("The IP address assigned to the virtual machine does not match the test IP address", testIpAddressId, vm.getProviderAssignedIpAddressId());
             assertEquals("The virtual machine associated with the IP address does not match the test VM", testVMId, address.getServerId());
         }
         else {
             try {
-                support.assign(testIpAddress, testVMId);
+                support.assign(testIpAddressId, testVMId);
                 fail("Assigning an IP address post-launch succeeded even though meta-data suggests it should not have");
             }
             catch( OperationNotSupportedException expected ) {
@@ -498,12 +496,24 @@ public class StatefulStaticIPTests {
 
     @Test
     public void assignPostLaunchIPv4InVLAN() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV4);
+        if( !inVlan ) {
+            tm.ok("VM is launched outside VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        }
+        else {
+            assignPostLaunch(IPVersion.IPV4);
+        }
     }
 
     @Test
     public void assignPostLaunchIPv6inVLAN() throws CloudException, InternalException {
-        assignPostLaunch(IPVersion.IPV6);
+        if( !inVlan ) {
+            tm.ok("VM is launched outside VLAN, skipping the test "+name.getMethodName());
+            tm.skip();
+        }
+        else {
+            assignPostLaunch(IPVersion.IPV6);
+        }
     }
 
     @Test
@@ -520,7 +530,7 @@ public class StatefulStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testIpAddress == null ) {
+        if( testIpAddressId == null ) {
             if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
@@ -529,13 +539,13 @@ public class StatefulStaticIPTests {
             }
         }
         else {
-            IpAddress address = support.getIpAddress(testIpAddress);
+            IpAddress address = support.getIpAddress(testIpAddressId);
 
-            assertNotNull("Test IP addresss " + testIpAddress + " does not exist", address);
-            support.releaseFromPool(testIpAddress);
-            address = support.getIpAddress(testIpAddress);
+            assertNotNull("Test IP addresss " + testIpAddressId + " does not exist", address);
+            support.releaseFromPool(testIpAddressId);
+            address = support.getIpAddress(testIpAddressId);
             tm.out("Result", address);
-            assertNull("The test IP address " + testIpAddress + " still exists in the IP address pool", address);
+            assertNull("The test IP address " + testIpAddressId + " still exists in the IP address pool", address);
         }
     }
 
@@ -553,7 +563,7 @@ public class StatefulStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        if( testIpAddress == null ) {
+        if( testIpAddressId == null ) {
             if( !support.getCapabilities().isRequestable(IPVersion.IPV4) && !support.getCapabilities().isRequestable(IPVersion.IPV6) ) {
                 tm.ok("Requesting/releasing addresses is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
@@ -563,7 +573,7 @@ public class StatefulStaticIPTests {
         }
         else {
 
-            IpAddress address = support.getIpAddress(testIpAddress);
+            IpAddress address = support.getIpAddress(testIpAddressId);
 
             assertNotNull("Test IP addresss " + address + " does not exist", address);
 
@@ -579,7 +589,7 @@ public class StatefulStaticIPTests {
                 tm.out("VM Before", vm.getProviderAssignedIpAddressId());
                 tm.out("Address Before", address.getServerId());
 
-                support.releaseFromServer(testIpAddress);
+                support.releaseFromServer(testIpAddressId);
 
                 long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*10L);
 
@@ -587,7 +597,7 @@ public class StatefulStaticIPTests {
                     try { vm = vmSupport.getVirtualMachine(testVMId); }
                     catch( Throwable ignore ) { }
                     assertNotNull("Virtual machine disappeared post-assignment", vm);
-                    try { address = support.getIpAddress(testIpAddress); }
+                    try { address = support.getIpAddress(testIpAddressId); }
                     catch( Throwable ignore ) { }
                     assertNotNull("IP address disappeared post-assignment", address);
                     if( address.getServerId() == null && vm.getProviderAssignedIpAddressId() == null ) {
@@ -627,21 +637,21 @@ public class StatefulStaticIPTests {
         }
 
         if( support.getCapabilities().isForwarding(version) ) {
-            if( testIpAddress != null ) {
+            if( testIpAddressId != null ) {
                 assertNotNull("Test VM is null", testVMId);
 
                 int ext = 8000 + random.nextInt(1000);
                 int prv = 9000 + random.nextInt(1000);
-                testRuleId = support.forward(testIpAddress, ext, Protocol.TCP, prv, testVMId);
+                testRuleId = support.forward(testIpAddressId, ext, Protocol.TCP, prv, testVMId);
 
                 tm.out("New Rule", testRuleId);
                 assertNotNull("Forwarding must provide a rule ID", testRuleId);
 
                 boolean found = false;
 
-                for( IpForwardingRule rule : support.listRules(testIpAddress) ) {
+                for( IpForwardingRule rule : support.listRules(testIpAddressId) ) {
                     if( testRuleId.equals(rule.getProviderRuleId()) ) {
-                        assertTrue("Matching rule does not match address", testIpAddress.equals(rule.getAddressId()));
+                        assertTrue("Matching rule does not match address", testIpAddressId.equals(rule.getAddressId()));
                         assertTrue("Matching rule does not match virtual machine", testVMId.equals(rule.getServerId()));
                         assertTrue("Public ports do not match", rule.getPublicPort() == ext);
                         assertTrue("Private ports do not match", rule.getPrivatePort() == prv);
@@ -698,7 +708,7 @@ public class StatefulStaticIPTests {
                 while( timeout > System.currentTimeMillis() ) {
                     boolean found = false;
 
-                    for( IpForwardingRule rule : support.listRules(testIpAddress) ) {
+                    for( IpForwardingRule rule : support.listRules(testIpAddressId) ) {
                         if( testRuleId.equals(rule.getProviderRuleId()) ) {
                             found = true;
                         }
