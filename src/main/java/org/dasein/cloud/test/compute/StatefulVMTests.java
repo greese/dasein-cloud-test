@@ -66,9 +66,10 @@ public class StatefulVMTests {
 
     private String testVmId = null;
 
-    public StatefulVMTests() { }
+    public StatefulVMTests() {
+    }
 
-    private @Nullable VirtualMachine awaitState(@Nonnull VirtualMachine vm, @Nonnull VmState targetState, @Nonnegative long timeout) {
+    private @Nullable VirtualMachine awaitState( @Nonnull VirtualMachine vm, @Nonnull VmState targetState, @Nonnegative long timeout ) {
         VmState currentState = vm.getCurrentState();
         VirtualMachine v = vm;
         int gone = 0;
@@ -77,8 +78,10 @@ public class StatefulVMTests {
             if( targetState.equals(currentState) ) {
                 return v;
             }
-            try { Thread.sleep(15000L); }
-            catch( InterruptedException ignore ) { }
+            try {
+                Thread.sleep(15000L);
+            } catch( InterruptedException ignore ) {
+            }
             try {
                 //noinspection ConstantConditions
                 v = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(vm.getProviderVirtualMachineId());
@@ -94,8 +97,7 @@ public class StatefulVMTests {
                 else {
                     currentState = v.getCurrentState();
                 }
-            }
-            catch( Throwable ignore ) {
+            } catch( Throwable ignore ) {
                 // ignore
             }
         }
@@ -116,8 +118,7 @@ public class StatefulVMTests {
                     try {
                         //noinspection ConstantConditions
                         testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", null);
-                    }
-                    catch( Throwable t ) {
+                    } catch( Throwable t ) {
                         tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
                     }
                 }
@@ -133,7 +134,7 @@ public class StatefulVMTests {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
         }
         else if( name.getMethodName().equals("modifyInstance") ) {
-          testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
         }
         else if( name.getMethodName().equals("pause") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
@@ -229,8 +230,7 @@ public class StatefulVMTests {
                         //noinspection ConstantConditions
                         DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
                         fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
-                    }
-                    catch( CloudException ok ) {
+                    } catch( CloudException ok ) {
                         tm.ok("Got exception when not subscribed: " + ok.getMessage());
                     }
                 }
@@ -270,8 +270,7 @@ public class StatefulVMTests {
                         //noinspection ConstantConditions
                         DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
                         fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
-                    }
-                    catch( CloudException ok ) {
+                    } catch( CloudException ok ) {
                         tm.ok("Got exception when not subscribed: " + ok.getMessage());
                     }
                 }
@@ -347,8 +346,8 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canStop(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.stop(testVmId, true);
-                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.STOPPED, currentState);
                         }
@@ -356,8 +355,7 @@ public class StatefulVMTests {
                             try {
                                 support.stop(testVmId);
                                 fail("Start/stop is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("STOP -> Operation not supported exception");
                             }
                         }
@@ -381,48 +379,50 @@ public class StatefulVMTests {
 
     @Test
     public void modifyInstance() throws CloudException, InternalException {
-      assumeTrue(!tm.isTestSkipped());
-      ComputeServices services = tm.getProvider().getComputeServices();
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
 
-      if( services != null ) {
-        VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
 
-        if( support != null ) {
-          if( testVmId != null ) {
-            VirtualMachine vm = support.getVirtualMachine(testVmId);
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
 
-            if( vm != null ) {
-                if (support.getCapabilities().canAlter(vm.getCurrentState())) {
-                  tm.out( "Before", vm.getProductId() );
-                  String modifiedProductId = "m1.large";
-                  support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
-                  try { Thread.sleep(5000L); }
-                  catch( InterruptedException ignore ) { }
-                  vm = support.getVirtualMachine(testVmId);
                     if( vm != null ) {
-                        tm.out( "After", vm.getProductId() );
-                        assertEquals( "Current product id does not match the target product id", modifiedProductId, vm.getProductId() );
+                        if( support.getCapabilities().canAlter(vm.getCurrentState()) ) {
+                            tm.out("Before", vm.getProductId());
+                            String modifiedProductId = "m1.large";
+                            support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            try {
+                                Thread.sleep(5000L);
+                            } catch( InterruptedException ignore ) {
+                            }
+                            vm = support.getVirtualMachine(testVmId);
+                            if( vm != null ) {
+                                tm.out("After", vm.getProductId());
+                                assertEquals("Current product id does not match the target product id", modifiedProductId, vm.getProductId());
+                            }
+                        }
+                        else {
+                            tm.ok("Alter vm not supported for vm state " + vm.getCurrentState());
+                        }
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
                     }
                 }
                 else {
-                    tm.ok("Alter vm not supported for vm state "+vm.getCurrentState());
+                    tm.warn("No test virtual machine was found for this test");
                 }
             }
             else {
-              tm.warn("Test virtual machine " + testVmId + " no longer exists");
+                tm.ok("No virtual machine support in this cloud");
             }
-          }
-          else {
-            tm.warn("No test virtual machine was found for this test");
-          }
         }
         else {
-          tm.ok("No virtual machine support in this cloud");
+            tm.ok("No compute services in this cloud");
         }
-      }
-      else {
-        tm.ok("No compute services in this cloud");
-      }
     }
 
     @Test
@@ -438,11 +438,11 @@ public class StatefulVMTests {
                     VirtualMachine vm = support.getVirtualMachine(testVmId);
 
                     if( vm != null ) {
-                        if( support.getCapabilities().canStart(vm.getCurrentState())) {
+                        if( support.getCapabilities().canStart(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.start(testVmId);
-                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
                         }
@@ -450,8 +450,7 @@ public class StatefulVMTests {
                             try {
                                 support.start(testVmId);
                                 fail("Start/stop is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("START -> Operation not supported exception");
                             }
                         }
@@ -489,8 +488,8 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canPause(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.pause(testVmId);
-                            vm = awaitState(vm, VmState.PAUSED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.PAUSED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.PAUSED, currentState);
                         }
@@ -498,8 +497,7 @@ public class StatefulVMTests {
                             try {
                                 support.pause(testVmId);
                                 fail("Pause/unpause is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("PAUSE -> Operation not supported exception");
                             }
                         }
@@ -537,8 +535,8 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canUnpause(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.unpause(testVmId);
-                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
                         }
@@ -546,8 +544,7 @@ public class StatefulVMTests {
                             try {
                                 support.unpause(testVmId);
                                 fail("Pause/unpause is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("UNPAUSE -> Operation not supported exception");
                             }
                         }
@@ -585,8 +582,8 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canSuspend(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.suspend(testVmId);
-                            vm = awaitState(vm, VmState.SUSPENDED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.SUSPENDED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.SUSPENDED, currentState);
                         }
@@ -594,8 +591,7 @@ public class StatefulVMTests {
                             try {
                                 support.suspend(testVmId);
                                 fail("Suspend/resume is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("SUSPEND -> Operation not supported exception");
                             }
                         }
@@ -633,8 +629,8 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canResume(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
                             support.resume(testVmId);
-                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                            VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                            vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
                             assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
                         }
@@ -642,8 +638,7 @@ public class StatefulVMTests {
                             try {
                                 support.resume(testVmId);
                                 fail("Suspend/resume is unsupported, yet the method completed without an error");
-                            }
-                            catch( OperationNotSupportedException expected ) {
+                            } catch( OperationNotSupportedException expected ) {
                                 tm.ok("RESUME -> Operation not supported exception");
                             }
                         }
@@ -680,8 +675,8 @@ public class StatefulVMTests {
                     if( vm != null ) {
                         tm.out("Before", vm.getCurrentState());
                         support.terminate(vm.getProviderVirtualMachineId());
-                        vm = awaitState(vm, VmState.TERMINATED, System.currentTimeMillis() + (CalendarWrapper.MINUTE * 20L));
-                        VmState currentState = (vm == null ? VmState.TERMINATED : vm.getCurrentState());
+                        vm = awaitState(vm, VmState.TERMINATED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                        VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                         tm.out("After", currentState);
                         assertEquals("Current state does not match the target state", VmState.TERMINATED, currentState);
                     }
