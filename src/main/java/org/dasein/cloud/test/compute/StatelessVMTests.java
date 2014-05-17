@@ -41,13 +41,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -125,18 +119,12 @@ public class StatelessVMTests {
                 }
 
                 Iterable<Architecture> architectures = support.getCapabilities().listSupportedArchitectures();
-
-                if( architectures == null ) {
-                    tm.out("Supported Architectures", null);
+                List<Architecture> tmp = new ArrayList<Architecture>();
+                for( Architecture a : architectures ) {
+                    tmp.add(a);
                 }
-                else {
-                    ArrayList<Architecture> tmp = new ArrayList<Architecture>();
+                tm.out("Supported Architectures", tmp);
 
-                    for( Architecture a : architectures ) {
-                        tmp.add(a);
-                    }
-                    tm.out("Supported Architectures", tmp);
-                }
                 for( ImageClass cls : ImageClass.values() ) {
                     r = support.getCapabilities().identifyImageRequirement(cls);
                     tm.out("Image Class Req [" + cls.name() + "]", r);

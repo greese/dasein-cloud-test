@@ -432,7 +432,7 @@ public class StatefulVLANTests {
               }
               else if( support.isSubscribed() ) {
                 try {
-                  String id = resources.provisionRoutingTable(support, testVLANId, "provisionKeypair", "dnsrtb");
+                  resources.provisionRoutingTable(support, testVLANId, "provisionKeypair", "dnsrtb");
                   fail("Route Table provisioning completed even though it isn't supported");
                 }
                 catch( OperationNotSupportedException expected ) {

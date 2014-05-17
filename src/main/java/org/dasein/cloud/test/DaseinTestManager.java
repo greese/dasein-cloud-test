@@ -179,20 +179,9 @@ public class DaseinTestManager {
         catch( ClassNotFoundException e ) {
             throw new RuntimeException("No such class: " + e.getMessage());
         }
-        catch( IllegalAccessException e ) {
-
-        }
-        catch( InstantiationException e) {
-
-        }
-        catch( UnsupportedEncodingException e ) {
-
-        }
-        catch( InternalException e ) {
-
-        }
-        catch( CloudException e ) {
-
+        catch( Exception e ) {
+            // catch all other possible exceptions and bomb out
+            throw new RuntimeException("Unable to initialise CloudProvider: " + e.getMessage(), e);
         }
         return provider;
 
