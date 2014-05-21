@@ -430,6 +430,7 @@ public class StatefulLoadBalancerTests {
     public void addIP() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
+        String testIpAddress = "196.91.70.2"; // "162.222.179.154;" // for GCE
         if( services == null ) {
             tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
