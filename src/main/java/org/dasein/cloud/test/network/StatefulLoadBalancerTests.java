@@ -83,6 +83,9 @@ public class StatefulLoadBalancerTests {
         else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
         }
+        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true, true);
+        }
         else if( name.getMethodName().equals("removeIP") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
             NetworkServices services = tm.getProvider().getNetworkServices();
@@ -302,7 +305,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false, withHttpsListener);
+        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false, withHttpsListener, false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
@@ -310,6 +313,42 @@ public class StatefulLoadBalancerTests {
         LoadBalancer lb = support.getLoadBalancer(id);
 
         assertNotNull("The newly created load balancer is null", lb);
+    }
+
+    @Test
+    public void createLoadBalancerWithHealthCheck() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        NetworkResources network = DaseinTestManager.getNetworkResources();
+
+        if( network == null ) {
+            fail("Failed to initialize network capabilities for tests");
+        }
+        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false);
+
+        tm.out("New Load Balancer", id);
+        assertNotNull("The newly created load balancer ID was null", id);
+
+        LoadBalancer lb = support.getLoadBalancer(id);
+        assertNotNull(String.format("Load Balancer %s failed to create.", id));
+
+        LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
+        assertNotNull(String.format("Load Balancer Health Check %s failed to create.", lb.getProviderLBHealthCheckId()));
+        assertEquals(lb.getProviderLBHealthCheckId(), lbhc.getName());
+        assertEquals(lbhc.getHost(), NetworkResources.TEST_HC_HOST);
+        assertEquals(lbhc.getPort(), NetworkResources.TEST_HC_PORT);
+        assertEquals(lbhc.getProtocol(), NetworkResources.TEST_HC_PROTOCOL);
+        assertEquals(lbhc.getPath(), NetworkResources.TEST_HC_PATH);
     }
 
     @Test
@@ -772,7 +811,7 @@ public class StatefulLoadBalancerTests {
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             if ( testLoadBalancerId != null ) {
                 //TODO: Clean these values up
-                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
+                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
                 assertNotNull("Could not create a loadbalancer with healthcheck", lbhc);
 
             }
