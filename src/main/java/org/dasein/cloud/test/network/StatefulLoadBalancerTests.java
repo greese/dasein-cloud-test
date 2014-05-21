@@ -772,7 +772,7 @@ public class StatefulLoadBalancerTests {
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             if ( testLoadBalancerId != null ) {
                 //TODO: Clean these values up
-                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(LBHealthCheckCreateOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
+                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
                 assertNotNull("Could not create a loadbalancer with healthcheck", lbhc);
 
             }
