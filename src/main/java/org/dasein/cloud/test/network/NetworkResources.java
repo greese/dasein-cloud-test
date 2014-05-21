@@ -57,6 +57,12 @@ public class NetworkResources {
 
     static public final String TEST_CIDR = "209.98.98.98/32";
 
+    static public final String TEST_HC_PATH = "/index.htm";
+    static public final LoadBalancerHealthCheck.HCProtocol TEST_HC_PROTOCOL = LoadBalancerHealthCheck.HCProtocol.HTTP;
+    static public final String TEST_HC_HOST = "localhost";
+    static public final int TEST_HC_PORT = 8080;
+
+
     private CloudProvider   provider;
 
     private final HashMap<String,String> testGeneralFirewalls = new HashMap<String, String>();
@@ -1052,7 +1058,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testLBs.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
@@ -1075,7 +1081,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, null, false);
+                    return provisionLoadBalancer(label, null, false, withHealthCheck);
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -1580,7 +1586,13 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal)
+            throws CloudException, InternalException {
+        return provisionLoadBalancer(label, namePrefix, internal, false);
+    }
+
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal,
+                                                 boolean withHealthCheck) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -1743,6 +1755,11 @@ public class NetworkResources {
         }
         if( internal && testSubnetId != null ) {
           options.withProviderSubnetIds(testSubnetId);
+        }
+
+        if( withHealthCheck ) {
+            options.withHealthCheckOptions(HealthCheckOptions.getInstance(
+                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60.0, 100.0, 3, 10));
         }
 
         String id = options.build(provider);
