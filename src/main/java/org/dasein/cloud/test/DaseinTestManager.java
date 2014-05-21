@@ -179,20 +179,9 @@ public class DaseinTestManager {
         catch( ClassNotFoundException e ) {
             throw new RuntimeException("No such class: " + e.getMessage());
         }
-        catch( IllegalAccessException e ) {
-
-        }
-        catch( InstantiationException e) {
-
-        }
-        catch( UnsupportedEncodingException e ) {
-
-        }
-        catch( InternalException e ) {
-
-        }
-        catch( CloudException e ) {
-
+        catch( Exception e ) {
+            // catch all other possible exceptions and bomb out
+            throw new RuntimeException("Unable to initialise CloudProvider: " + e.getMessage(), e);
         }
         return provider;
 
@@ -643,8 +632,12 @@ public class DaseinTestManager {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, withHealthCheck));
+    }
+
     public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull));
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, false));
     }
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
