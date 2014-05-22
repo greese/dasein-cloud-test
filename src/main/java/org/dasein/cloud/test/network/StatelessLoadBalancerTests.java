@@ -660,4 +660,5 @@ public class StatelessLoadBalancerTests {
             assertHealthCheck(testLoadBalancerId, support, lbhc);
         }
     }
+
 }
