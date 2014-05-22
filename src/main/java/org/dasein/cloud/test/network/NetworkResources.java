@@ -1604,7 +1604,7 @@ public class NetworkResources {
             throw new CloudException("This cloud does not support load balancers");
         }
 
-        String name = ( namePrefix == null ? provider.getContext().getCloud().getUserName() + "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
+        String name = ( namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
         String description = "Dasein Cloud LB Test";
         LoadBalancerCreateOptions options;
 
@@ -1759,7 +1759,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60.0, 100.0, 3, 10));
+                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
         String id = options.build(provider);
