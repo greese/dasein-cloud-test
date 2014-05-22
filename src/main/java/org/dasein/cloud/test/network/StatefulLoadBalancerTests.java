@@ -430,6 +430,7 @@ public class StatefulLoadBalancerTests {
     public void addIP() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
+        String testIpAddress = "196.91.70.2"; // "162.222.179.154;" // for GCE
         if( services == null ) {
             tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
@@ -451,7 +452,7 @@ public class StatefulLoadBalancerTests {
         if( testLoadBalancerId != null ) {
             if( support.getCapabilities().supportsAddingEndpoints() && ips ) {
                 tm.out("Before", support.listEndpoints(testLoadBalancerId));
-                support.addIPEndpoints(testLoadBalancerId, "196.91.70.2");
+                support.addIPEndpoints(testLoadBalancerId, testIpAddress);
 
                 Iterable<LoadBalancerEndpoint> endpoints = support.listEndpoints(testLoadBalancerId);
 
@@ -459,7 +460,7 @@ public class StatefulLoadBalancerTests {
                 boolean ok = false;
 
                 for( LoadBalancerEndpoint endpoint : endpoints ) {
-                    if( endpoint.getEndpointType().equals(LbEndpointType.IP) && endpoint.getEndpointValue().equals("196.91.70.2") ) {
+                    if( endpoint.getEndpointType().equals(LbEndpointType.IP) && endpoint.getEndpointValue().equals(testIpAddress) ) {
                         ok = true;
                     }
                 }
@@ -467,7 +468,7 @@ public class StatefulLoadBalancerTests {
             }
             else {
                 try {
-                    support.addIPEndpoints(testLoadBalancerId, "196.91.70.2");
+                    support.addIPEndpoints(testLoadBalancerId, testIpAddress);
                     fail("Should not be able to add endpoints in this cloud, but the operation completed");
                 }
                 catch( OperationNotSupportedException expected ) {
