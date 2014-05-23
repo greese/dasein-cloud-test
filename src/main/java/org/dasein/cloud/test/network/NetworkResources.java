@@ -1041,7 +1041,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull, boolean withHealthCheck) {
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String, String> entry : testLBs.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
@@ -1064,7 +1064,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, null, false);
+                    return provisionLoadBalancer(label, lbNamePrefix, false);
                 } catch( Throwable ignore ) {
                     // ignore
                 }
@@ -1228,8 +1228,11 @@ public class NetworkResources {
         }
         return null;
     }
-
     public @Nullable String getTestSubnetId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
+    	return getTestSubnetId(label, "dsnlb", provisionIfNull, vlanId, preferredDataCenterId);
+    }
+    
+    public @Nullable String getTestSubnetId(@Nonnull String label, @Nonnull String lbName, boolean provisionIfNull, @Nullable String vlanId, @Nullable String preferredDataCenterId) {
         String id;
         if( label.equals(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String, String> entry : testSubnets.entrySet() ) {
@@ -1596,7 +1599,7 @@ public class NetworkResources {
             throw new CloudException("This cloud does not support load balancers");
         }
 
-        String name = ( namePrefix == null ? provider.getContext().getCloud().getUserName() + "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
+        String name = ( namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
         String description = "Dasein Cloud LB Test";
         LoadBalancerCreateOptions options;
 
@@ -1762,7 +1765,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60.0, 100.0, 3, 10));
+                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
         String id = options.build(provider);

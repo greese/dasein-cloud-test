@@ -88,7 +88,7 @@ public class StatelessLoadBalancerTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, false);
+        testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, tm.getUserName() + "-dsnlb", false);
         testSslCertificateName = tm.getTestSSLCertificateName(DaseinTestManager.STATELESS, false);
     }
 
