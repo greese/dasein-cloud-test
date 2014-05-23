@@ -1648,7 +1648,7 @@ public class NetworkResources {
         }
 
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
-            options.havingListeners(LbListener.getInstance(1000 + random.nextInt(10000), 1000 + random.nextInt(10000)));
+            options.havingListeners(LbListener.getInstance(1024 + random.nextInt(10000), 1024 + random.nextInt(10000)));
         }
         String[] dcIds = new String[2];
         String testSubnetId = null;

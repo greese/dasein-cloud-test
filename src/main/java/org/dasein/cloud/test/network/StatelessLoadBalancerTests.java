@@ -498,7 +498,7 @@ public class StatelessLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(HealthCheckFilterOptions.getInstance(true));
+        Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(null);
         int count = 0;
 
         assertNotNull("The list of LB health checks may not be null", healthChecks);
@@ -514,9 +514,17 @@ public class StatelessLoadBalancerTests {
         else if( count == 0 ) {
             tm.warn("This test is likely invalid as no LB health checks were provided in the results for validation");
         }
+        boolean found = false;
         for( LoadBalancerHealthCheck lbhc : healthChecks ) {
-            assertHealthCheck(testLoadBalancerId, support, lbhc);
+            if( NetworkResources.TEST_HC_PATH.equals(lbhc.getPath())
+                    && NetworkResources.TEST_HC_PROTOCOL.equals(lbhc.getProtocol())
+                    && NetworkResources.TEST_HC_PORT == lbhc.getPort() ) {
+                assertHealthCheck(testLoadBalancerId, support, lbhc);
+                found = true;
+                break;
+            }
         }
+        assertTrue("Unable to find the test load balancer in the returned list", found);
     }
 
 }
