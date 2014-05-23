@@ -115,11 +115,8 @@ public class DaseinTestManager {
             if( prop != null ) {
                 regionId = prop;
             }
-            prop = System.getProperty("userName");
-            if( prop != null ) {
-                userName = prop;
-            }
-            Cloud cloud = Cloud.register(providerName, cloudName, endpoint, userName, (Class<? extends CloudProvider>) Class.forName(cname));
+
+            Cloud cloud = Cloud.register(providerName, cloudName, endpoint, (Class<? extends CloudProvider>) Class.forName(cname));
 
             ContextRequirements requirements = cloud.buildProvider().getContextRequirements();
             List<ContextRequirements.Field> fields = requirements.getConfigurableValues();
@@ -508,12 +505,18 @@ public class DaseinTestManager {
     private CloudProvider           provider;
     private long                    startTimestamp;
     private String                  suite;
+    private String                  userName = "";
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
         logger = Logger.getLogger(testClass);
         suite = testClass.getSimpleName();
         provider = constructProvider();
         changePrefix();
+        
+        String prop = System.getProperty("userName");
+        if( prop != null ) {
+            userName = prop;
+        }
     }
 
     public void begin(@Nonnull String name) {
@@ -655,12 +658,12 @@ public class DaseinTestManager {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, withHealthCheck));
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull, boolean withHealthCheck) {
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, lbNamePrefix, provisionIfNull, withHealthCheck));
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, false));
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, lbNamePrefix, provisionIfNull, false));
     }
 
     public @Nullable String getTestSSLCertificateName(@Nonnull String label, boolean provisionIfNull) {
@@ -757,10 +760,14 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+    	return getTestVMId(label, getUserName() + "-dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    }
+    
+    public @Nullable String getTestVMId(@Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;
         }
-        return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
+        return computeResources.getTestVmId(label, vmName, desiredState, provisionIfNull, preferredDataCenterId);
     }
 
     public @Nullable String getTestVLANVMId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
@@ -894,5 +901,9 @@ public class DaseinTestManager {
 
     public void warn(@Nonnull String message) {
         logger.warn(prefix + "WARNING: " + message);
+    }
+    
+    public String getUserName() {
+    	return userName;
     }
 }

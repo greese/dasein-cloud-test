@@ -78,16 +78,16 @@ public class StatefulLoadBalancerTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("removeLoadBalancer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true);
         }
         else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
         else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             NetworkServices services = tm.getProvider().getNetworkServices();
 
             if( services != null ) {
@@ -104,7 +104,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("addServer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             LoadBalancer lb = null;
 
             NetworkServices net = tm.getProvider().getNetworkServices();
@@ -132,7 +132,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("addDataCenter") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             if( testLoadBalancerId != null ) {
                 NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -185,7 +185,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("removeDataCenter") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             if( testLoadBalancerId != null ) {
                 NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -228,7 +228,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("removeServer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             NetworkServices net = tm.getProvider().getNetworkServices();
 
             try {
@@ -305,7 +305,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false, withHttpsListener, false);
+        String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, withHttpsListener, false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
@@ -334,7 +334,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionLoadBalancer("provision", "dsncrlbtest", false);
+        String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
@@ -370,7 +370,7 @@ public class StatefulLoadBalancerTests {
       if( network == null ) {
         fail("Failed to initialize network capabilities for tests");
       }
-      String id = network.provisionLoadBalancer("provision", "dsncrintlbtest", true);
+      String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrintlbtest", true);
 
       tm.out("New Internal Load Balancer", id);
       assertNotNull("The newly created load balancer ID was null", id);
@@ -812,7 +812,7 @@ public class StatefulLoadBalancerTests {
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             if ( testLoadBalancerId != null ) {
                 //TODO: Clean these values up
-                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30.0, 3.0, 2, 2));
+                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3, 2, 2));
                 assertNotNull("Could not create a loadbalancer with healthcheck", lbhc);
 
             }
@@ -849,7 +849,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String id = network.provisionSSLCertificate("provision", "dsnssltest");
+        String id = network.provisionSSLCertificate("provision", tm.getUserName() + "-dsnssltest");
 
         tm.out("New SSL certificate", id);
         assertNotNull("The newly created SSL certificate ID was null", id);
