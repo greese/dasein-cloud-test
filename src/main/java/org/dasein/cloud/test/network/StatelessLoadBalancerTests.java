@@ -627,6 +627,7 @@ public class StatelessLoadBalancerTests {
         }
     }
 
+    @Test
     public void listLoadBalancerHealthChecks() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
