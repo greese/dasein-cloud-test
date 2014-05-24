@@ -1495,7 +1495,8 @@ public class NetworkResources {
 
         if( vlanId == null ) {
             id = support.request(version);
-        } else {
+        }
+        else {
             if( support.getCapabilities().identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
                 id = support.requestForVLAN(version);
             } else {
@@ -1640,8 +1641,8 @@ public class NetworkResources {
         }
 
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
-            final int publicPort = 1000 + random.nextInt(10000);
-            final int privatePort = 1000 + random.nextInt(10000);
+            final int publicPort = 1024 + random.nextInt(10000);
+            final int privatePort = 1024 + random.nextInt(10000);
             if ( !withHttps ) {
                 options.havingListeners(LbListener.getInstance(publicPort, privatePort));
             } else {
