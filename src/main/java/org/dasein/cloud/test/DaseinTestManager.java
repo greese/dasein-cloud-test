@@ -130,10 +130,37 @@ public class DaseinTestManager {
                     String shared = overrideShared == null ? System.getProperty(f.name + "Shared") : overrideShared;
                     String secret = overrideSecret == null ? System.getProperty(f.name + "Secret") : overrideSecret;
                     if( shared != null && secret != null ) {
-                        values.add(ProviderContext.Value.parseValue(f, shared, secret));
+
+                        //I would rather not have this but its the only way to pass in the binary file from a path
+                        boolean p12 = false;
+                        byte[] p12Bytes = null;
+                        if(f.name.contains("p12")){
+                            String p12Path = System.getProperty(f.name + "Shared");
+                            File file = new File(p12Path);
+                            p12Bytes = new byte[(int) file.length()];
+                            InputStream ios = null;
+                            try {
+                                ios = new FileInputStream(file);
+                                if ( ios.read(p12Bytes) == -1 ) {
+                                    throw new IOException("EOF reached while trying to read p12 certificate");
+                                }
+                                p12 = true;
+                            }
+                            catch(IOException ex){
+                                //Bummer
+                            }
+                            finally {
+                                try {
+                                    if ( ios != null )
+                                        ios.close();
+                                } catch ( IOException e) {}
+                            }
+                        }
+                        if(p12) values.add(new ProviderContext.Value<byte[][]>("p12Certificate", new byte[][] { p12Bytes, secret.getBytes() }));
+                        else values.add(ProviderContext.Value.parseValue(f, shared, secret));
                     } else {
-                        String error = String.format("Keypair parameters are not set up correctly: " +
-                                        "%sShared = %s, %sSecret = %s. Check the Maven profile and pom.xml.",
+                        String error = String.format("Keypair fields are not set up correctly: " +
+                                "%sShared = %s, %sSecret = %s. Check the Maven profile and pom.xml.",
                                 f.name, shared, f.name, secret);
                         Logger logger = Logger.getLogger(DaseinTestManager.class);
                         logger.fatal(error);
@@ -152,20 +179,9 @@ public class DaseinTestManager {
         catch( ClassNotFoundException e ) {
             throw new RuntimeException("No such class: " + e.getMessage());
         }
-        catch( IllegalAccessException e ) {
-
-        }
-        catch( InstantiationException e) {
-
-        }
-        catch( UnsupportedEncodingException e ) {
-
-        }
-        catch( InternalException e ) {
-
-        }
-        catch( CloudException e ) {
-
+        catch( Exception e ) {
+            // catch all other possible exceptions and bomb out
+            throw new RuntimeException("Unable to initialise CloudProvider: " + e.getMessage(), e);
         }
         return provider;
 
@@ -616,8 +632,12 @@ public class DaseinTestManager {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, withHealthCheck));
+    }
+
     public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull));
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, false));
     }
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {

@@ -10,3 +10,8 @@
 target
 
 .DS_Store
+
+# Eclipse Related Files #
+*.project
+*.classpath
+.settings

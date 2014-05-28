@@ -209,12 +209,10 @@ public class StatefulStaticIPTests {
 
                 if( productId != null && imageId != null ) {
                     VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
-                    String vlanId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
+                    String subnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVlanId, null);
                     String dataCenterId = null;
 
-                    if( vlanId == null ) {
-                        vlanId = testVlanId;
-
+                    if( subnetId == null ) {
                         try {
                             @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVlanId);
 
@@ -228,7 +226,7 @@ public class StatefulStaticIPTests {
                     }
                     else {
                         try {
-                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(vlanId);
+                            @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(subnetId);
 
                             if( subnet != null ) {
                                 dataCenterId = subnet.getProviderDataCenterId();
@@ -254,8 +252,7 @@ public class StatefulStaticIPTests {
                     assert dataCenterId != null;
 
                     options.inDataCenter(dataCenterId);
-                    options.inVlan(null, dataCenterId, vlanId);
-
+                    options.inSubnet(null, dataCenterId, testVlanId, subnetId);
                     ComputeResources compute = DaseinTestManager.getComputeResources();
 
                     if( compute != null ) {
@@ -264,7 +261,7 @@ public class StatefulStaticIPTests {
                             testVMId = compute.provisionVM(tm.getProvider().getComputeServices().getVirtualMachineSupport(), DaseinTestManager.STATEFUL + "vlan", options, dataCenterId);
                         }
                         catch( Throwable t ) {
-                            tm.warn("Unable to provision test VM with VLAN/subnet=" + vlanId + " in " + dataCenterId);
+                            tm.warn("Unable to provision test VM with VLAN=" + testVlanId + ", subnet=" + subnetId + " in " + dataCenterId);
                         }
                     }
                 }

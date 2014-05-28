@@ -400,7 +400,11 @@ public class StatefulVMTests {
                       if (products.iterator().hasNext()) {
                           modifiedProductId = products.iterator().next().getProviderProductId();
                       }
-                      support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                      if (modifiedProductId != null ) {
+                          support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                      } else {
+                          tm.warn("Unable to find modified product");
+                      }
                       try {
                           Thread.sleep(5000L);
                       } catch (InterruptedException ignore) {

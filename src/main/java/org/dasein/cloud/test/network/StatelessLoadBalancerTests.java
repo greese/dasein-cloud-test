@@ -23,17 +23,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.IpAddressSupport;
-import org.dasein.cloud.network.LbAlgorithm;
-import org.dasein.cloud.network.LbListener;
-import org.dasein.cloud.network.LbPersistence;
-import org.dasein.cloud.network.LbProtocol;
-import org.dasein.cloud.network.LoadBalancer;
-import org.dasein.cloud.network.LoadBalancerAddressType;
-import org.dasein.cloud.network.LoadBalancerEndpoint;
-import org.dasein.cloud.network.LoadBalancerSupport;
-import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -51,7 +41,11 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.dasein.cloud.test.network.StatefulLoadBalancerTests.assertHealthCheck;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -489,4 +483,48 @@ public class StatelessLoadBalancerTests {
         }
         tm.out("Matches");
     }
+
+    @Test
+    public void listLoadBalancerHealthChecks() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(null);
+        int count = 0;
+
+        assertNotNull("The list of LB health checks may not be null", healthChecks);
+        for( LoadBalancerHealthCheck lbhc : healthChecks ) {
+            count++;
+            tm.out("LB Health Check", lbhc);
+        }
+        tm.out("LB Health Check Count", count);
+
+        if( !support.isSubscribed() ) {
+            assertEquals("The LB health check count should be zero since this account is not subscribed to this service", 0, count);
+        }
+        else if( count == 0 ) {
+            tm.warn("This test is likely invalid as no LB health checks were provided in the results for validation");
+        }
+        boolean found = false;
+        for( LoadBalancerHealthCheck lbhc : healthChecks ) {
+            if( NetworkResources.TEST_HC_PATH.equals(lbhc.getPath())
+                    && NetworkResources.TEST_HC_PROTOCOL.equals(lbhc.getProtocol())
+                    && NetworkResources.TEST_HC_PORT == lbhc.getPort() ) {
+                assertHealthCheck(testLoadBalancerId, support, lbhc);
+                found = true;
+                break;
+            }
+        }
+        assertTrue("Unable to find the test load balancer in the returned list", found);
+    }
+
 }

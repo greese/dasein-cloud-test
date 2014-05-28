@@ -57,6 +57,12 @@ public class NetworkResources {
 
     static public final String TEST_CIDR = "209.98.98.98/32";
 
+    static public final String TEST_HC_PATH = "/index.htm";
+    static public final LoadBalancerHealthCheck.HCProtocol TEST_HC_PROTOCOL = LoadBalancerHealthCheck.HCProtocol.HTTP;
+    static public final String TEST_HC_HOST = "localhost";
+    static public final int TEST_HC_PORT = 8080;
+
+
     private CloudProvider   provider;
 
     private final HashMap<String,String> testGeneralFirewalls = new HashMap<String, String>();
@@ -940,7 +946,7 @@ public class NetworkResources {
                             Subnet foundSubnet = null;
                             // other tests depend on this being correct
                             if( vlan.getCidr().contains("192.168.1.")) {
-                              if( !vlanSupport.getSubnetSupport().equals(Requirement.NONE) ) {
+                              if( !vlanSupport.getCapabilities().getSubnetSupport().equals(Requirement.NONE) ) {
                                   for( Subnet subnet : vlanSupport.listSubnets(vlan.getProviderVlanId()) ) {
                                       if( foundSubnet == null || SubnetState.AVAILABLE.equals(subnet.getCurrentState()) ) {
                                           foundSubnet = subnet;
@@ -977,7 +983,7 @@ public class NetworkResources {
                             if (firstVlan == null) {
                                 firstVlan = vlan;
                             }
-                            if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && defaultInternetGateway != null && defaultRouteTable != null && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getSubnetSupport().equals(Requirement.NONE)) ) {
+                            if( VLANState.AVAILABLE.equals(vlan.getCurrentState()) && defaultInternetGateway != null && defaultRouteTable != null && ((foundSubnet != null && SubnetState.AVAILABLE.equals(foundSubnet.getCurrentState())) || vlanSupport.getCapabilities().getSubnetSupport().equals(Requirement.NONE)) ) {
                                 break;
                             }
                         }
@@ -1052,7 +1058,7 @@ public class NetworkResources {
         return null;
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String,String> entry : testLBs.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
@@ -1075,7 +1081,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, null, false);
+                    return provisionLoadBalancer(label, null, false, withHealthCheck);
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -1127,7 +1133,7 @@ public class NetworkResources {
                 return null;
             }
             try {
-                for( IPVersion v : support.listSupportedIPVersions() ) {
+                for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
                     String id = getTestStaticIpId(label, provisionIfNull, v, inVlan, vlanId);
 
                     if( id != null ) {
@@ -1464,8 +1470,8 @@ public class NetworkResources {
 
     public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version, @Nullable String vlanId) throws CloudException, InternalException {
         if( version == null ) {
-            for( IPVersion v : support.listSupportedIPVersions() ) {
-                if( support.isRequestable(v) ) {
+            for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
+                if( support.getCapabilities().isRequestable(v) ) {
                     version = v;
                     break;
                 }
@@ -1488,7 +1494,7 @@ public class NetworkResources {
             id = support.request(version);
         }
         else {
-            if( support.identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
+            if( support.getCapabilities().identifyVlanForVlanIPRequirement().equals(Requirement.NONE) ) {
                 id = support.requestForVLAN(version);
             }
             else {
@@ -1517,7 +1523,7 @@ public class NetworkResources {
         if( support == null ) {
             throw new OperationNotSupportedException("No firewall support in cloud");
         }
-        if( !support.supportsRules(direction, permission, false) ) {
+        if( !support.getCapabilities().supportsRules(direction, permission, false) ) {
             throw new OperationNotSupportedException("Firewall rules are not supported for " + direction + "/" + permission);
         }
         RuleTarget sourceEndpoint, destinationEndpoint;
@@ -1580,7 +1586,13 @@ public class NetworkResources {
         return id;
     }
 
-    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal) throws CloudException, InternalException {
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal)
+            throws CloudException, InternalException {
+        return provisionLoadBalancer(label, namePrefix, internal, false);
+    }
+
+    public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix, boolean internal,
+                                                 boolean withHealthCheck) throws CloudException, InternalException {
         NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
@@ -1592,11 +1604,11 @@ public class NetworkResources {
             throw new CloudException("This cloud does not support load balancers");
         }
 
-        String name = (namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000));
+        String name = ( namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
         String description = "Dasein Cloud LB Test";
         LoadBalancerCreateOptions options;
 
-        if( !support.isAddressAssignedByProvider() && support.getAddressType().equals(LoadBalancerAddressType.IP) ) {
+        if( !support.getCapabilities().isAddressAssignedByProvider() && support.getCapabilities().getAddressType().equals(LoadBalancerAddressType.IP) ) {
             IpAddressSupport ipSupport = services.getIpAddressSupport();
 
             if( ipSupport == null ) {
@@ -1605,7 +1617,7 @@ public class NetworkResources {
             else {
                 IpAddress address = null;
 
-                for( IPVersion version : ipSupport.listSupportedIPVersions() ) {
+                for( IPVersion version : ipSupport.getCapabilities().listSupportedIPVersions() ) {
                     Iterator<IpAddress> addrs = ipSupport.listIpPool(version, true).iterator();
 
                     if( addrs.hasNext() ) {
@@ -1614,8 +1626,8 @@ public class NetworkResources {
                     }
                 }
                 if( address == null ) {
-                    for( IPVersion version : ipSupport.listSupportedIPVersions() ) {
-                        if( ipSupport.isRequestable(version) ) {
+                    for( IPVersion version : ipSupport.getCapabilities().listSupportedIPVersions() ) {
+                        if( ipSupport.getCapabilities().isRequestable(version) ) {
                             address = ipSupport.getIpAddress(ipSupport.request(version));
                             if( address != null ) {
                                 break;
@@ -1635,14 +1647,14 @@ public class NetworkResources {
             options = LoadBalancerCreateOptions.getInstance(name, description);
         }
 
-        if( support.identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
-            options.havingListeners(LbListener.getInstance(1000 + random.nextInt(10000), 1000 + random.nextInt(10000)));
+        if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            options.havingListeners(LbListener.getInstance(1024 + random.nextInt(10000), 1024 + random.nextInt(10000)));
         }
         String[] dcIds = new String[2];
         String testSubnetId = null;
 
-        if( support.identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
-            Iterable<LbEndpointType> types = support.listSupportedEndpointTypes();
+        if( support.getCapabilities().identifyEndpointsOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            Iterable<LbEndpointType> types = support.getCapabilities().listSupportedEndpointTypes();
             boolean vmBased = false;
 
             for( LbEndpointType t : types ) {
@@ -1723,7 +1735,7 @@ public class NetworkResources {
                 options.withIpAddresses("207.32.82.72");
             }
         }
-        if( support.isDataCenterLimited() ) {
+        if( support.getCapabilities().isDataCenterLimited() ) {
             if( dcIds[0] != null && dcIds[1] != null ) {
                 options.limitedTo(dcIds);
             }
@@ -1743,6 +1755,11 @@ public class NetworkResources {
         }
         if( internal && testSubnetId != null ) {
           options.withProviderSubnetIds(testSubnetId);
+        }
+
+        if( withHealthCheck ) {
+            options.withHealthCheckOptions(HealthCheckOptions.getInstance(
+                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
         String id = options.build(provider);
@@ -1827,7 +1844,7 @@ public class NetworkResources {
         options.withMetaData(tags);
         String id;
 
-        options.withSupportedTraffic(support.listSupportedIPVersions().iterator().next());
+        options.withSupportedTraffic(support.getCapabilities().listSupportedIPVersions().iterator().next());
         try {
             id = options.build(provider);
         }
@@ -1847,7 +1864,7 @@ public class NetworkResources {
     }
 
     public @Nullable String provisionInternetGateway(@Nonnull VLANSupport support, @Nonnull String label, @Nonnull String vlanId) throws CloudException, InternalException {
-      if( support.isSubnetDataCenterConstrained() ) {
+      if( support.getCapabilities().isSubnetDataCenterConstrained() ) {
         VLAN vlan = support.getVlan(vlanId);
         if( vlan == null ) {
           throw new CloudException("No such VLAN: " + vlanId);
