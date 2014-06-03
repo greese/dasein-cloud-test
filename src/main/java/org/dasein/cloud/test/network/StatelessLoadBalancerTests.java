@@ -34,6 +34,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
@@ -45,7 +46,6 @@ import static org.dasein.cloud.test.network.StatefulLoadBalancerTests.assertHeal
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -641,6 +641,13 @@ public class StatelessLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+     
+        /* Need to create a loadbalancer with a health check for the test to find...? */
+
+        
+        /* should be created now. */
+        
+        
         Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(null);
         int count = 0;
 
@@ -667,6 +674,8 @@ public class StatelessLoadBalancerTests {
                 break;
             }
         }
+        
+        // fails here because it never created a loadbalancer to find.
         assertTrue("Unable to find the test load balancer in the returned list", found);
     }
 

@@ -252,6 +252,11 @@ public class NetworkResources {
                                 try {
                                     if( lb != null ) {
                                         lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        
+                                        try {
+                                        	lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convienence.
+                                        } catch (Throwable t ) { /* ignore if not supported */ }
+                                        
                                         count++;
                                     } else {
                                         count++;
@@ -1064,7 +1069,7 @@ public class NetworkResources {
 
             if( services != null ) {
                 try {
-                    return provisionLoadBalancer(label, lbNamePrefix, false);
+                    return provisionLoadBalancer(label, lbNamePrefix, false, false, withHealthCheck);
                 } catch( Throwable ignore ) {
                     // ignore
                 }
@@ -1589,7 +1594,7 @@ public class NetworkResources {
 
     public @Nonnull String provisionLoadBalancer(@Nonnull String label, @Nullable String namePrefix,
                                  boolean internal, boolean withHttps, boolean withHealthCheck) throws CloudException, InternalException {
-        NetworkServices services = provider.getNetworkServices();
+    	NetworkServices services = provider.getNetworkServices();
 
         if( services == null ) {
             throw new CloudException("This cloud does not support load balancers");
@@ -1637,6 +1642,7 @@ public class NetworkResources {
                 }
             }
         } else {
+        	// not sure if options need tweeking
             options = LoadBalancerCreateOptions.getInstance(name, description);
         }
 
@@ -1766,7 +1772,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
+            		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
         String id = options.build(provider);
