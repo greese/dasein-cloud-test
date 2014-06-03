@@ -252,6 +252,11 @@ public class NetworkResources {
                                 try {
                                     if( lb != null ) {
                                         lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+
+                                        try {
+                                        	lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convienence.
+                                        } catch (Throwable t ) { /* ignore if not supported */ }
+
                                         count++;
                                     }
                                     else {
@@ -1759,7 +1764,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
+                    name, "LB Desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
         String id = options.build(provider);
