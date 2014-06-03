@@ -410,8 +410,7 @@ public class StatefulLoadBalancerTests {
     private void assertCompareOptionsWithLBHC( HealthCheckOptions requested, LoadBalancerHealthCheck actual) {
         assertNotNull("Health check may not be null", actual);
         assertEquals("Failed to modify health check 'path'", requested.getPath(), actual.getPath());
-        // TODO: how to sort this. GCE does not support Protocol.
-        // assertEquals("Failed to modify health check 'protocol'", requested.getProtocol(), actual.getProtocol());
+        assertEquals("Failed to modify health check 'protocol'", requested.getProtocol(), actual.getProtocol());
         assertEquals("Failed to modify health check 'port'", requested.getPort(), actual.getPort());
         assertEquals("Failed to modify health check 'interval'", requested.getInterval(), actual.getInterval());
         assertEquals("Failed to modify health check 'timeout'", requested.getTimeout(), actual.getTimeout());
