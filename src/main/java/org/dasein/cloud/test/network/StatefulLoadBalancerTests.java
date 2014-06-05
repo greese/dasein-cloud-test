@@ -894,5 +894,6 @@ public class StatefulLoadBalancerTests {
         else {
             assertNotNull("Could not create a standalone healthcheck", lbhc);
         }
+        support.removeLoadBalancerHealthCheck("foobar");
     }
 }
