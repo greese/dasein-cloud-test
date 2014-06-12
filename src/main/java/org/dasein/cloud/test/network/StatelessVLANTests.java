@@ -708,7 +708,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test internet gatway was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getCapabilities().supportsInternetGatewayCreation() ) {
+            else if( !support.getCapabilities().supportsInternetGatewayCreation() ) {
               tm.ok("Internet Gateways are not supported so there is no test for " + name.getMethodName());
             }
             else {

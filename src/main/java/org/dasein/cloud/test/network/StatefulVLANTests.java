@@ -599,93 +599,107 @@ public class StatefulVLANTests {
             tm.ok("No compute services in " + tm.getProvider().getCloudName());
             return;
         }
-        ComputeResources compute = DaseinTestManager.getComputeResources();
+        NetworkServices networkServices = tm.getProvider().getNetworkServices();
 
-        if( compute != null ) {
-            String productId = tm.getTestVMProductId();
+        if( networkServices != null ) {
+            VLANSupport netSupport = networkServices.getVlanSupport();
 
-            assertNotNull("Unable to identify a VM product for test launch", productId);
-            String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+            if( netSupport != null ) {
+                ComputeResources compute = DaseinTestManager.getComputeResources();
 
-            assertNotNull("Unable to identify a test image for test launch", imageId);
-            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + ( System.currentTimeMillis() % 10000 ), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+                if( compute != null ) {
+                    String productId = tm.getTestVMProductId();
 
-            if( testSubnetId != null ) {
-                tm.out("Subnet Id", testSubnetId);
-                @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
+                    assertNotNull("Unable to identify a VM product for test launch", productId);
+                    String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
 
-                assertNotNull("Subnet went away before test could be executed", subnet);
-                String dataCenterId = subnet.getProviderDataCenterId();
+                    assertNotNull("Unable to identify a test image for test launch", imageId);
+                    VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + ( System.currentTimeMillis() % 10000 ), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
 
-                if( dataCenterId == null ) {
-                    for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                        dataCenterId = dc.getProviderDataCenterId();
+                    if( testSubnetId != null ) {
+                        tm.out("Subnet Id", testSubnetId);
+                        @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
+
+                        assertNotNull("Subnet went away before test could be executed", subnet);
+                        String dataCenterId = subnet.getProviderDataCenterId();
+
+                        if( dataCenterId == null ) {
+                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                dataCenterId = dc.getProviderDataCenterId();
+                            }
+                        }
+                        assertNotNull("Could not identify a data center for VM launch", dataCenterId);
+                        options.inDataCenter(dataCenterId);
+                        options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
                     }
-                }
-                assertNotNull("Could not identify a data center for VM launch", dataCenterId);
-                options.inDataCenter(dataCenterId);
-                options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
-            }
-            else if( testVLANId != null ) {
-                @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
+                    else if( testVLANId != null ) {
+                        @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
 
-                assertNotNull("VLAN went away before test could be executed", vlan);
-                String dataCenterId = vlan.getProviderDataCenterId();
+                        assertNotNull("VLAN went away before test could be executed", vlan);
+                        String dataCenterId = vlan.getProviderDataCenterId();
 
-                if( dataCenterId == null ) {
-                    for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                        dataCenterId = dc.getProviderDataCenterId();
+                        if( dataCenterId == null ) {
+                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                dataCenterId = dc.getProviderDataCenterId();
+                            }
+                        }
+                        assertNotNull("Could not identify a data center for VM launch", dataCenterId);
+                        options.inDataCenter(dataCenterId);
+                        options.inVlan(null, dataCenterId, testVLANId);
                     }
+                    else {
+                        if (!tm.getProvider().getNetworkServices().getVlanSupport().getCapabilities().allowsNewVlanCreation()) {
+                            tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
+                        }
+                        else if( !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
+                            fail("No test VLAN or subnet in which to launch a VM");
+                        } else {
+                            tm.ok("Launching into VLANs is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+                        }
+                        return;
+                    }
+
+                    String vmId = compute.provisionVM(support, "vlanLaunch", options, options.getDataCenterId());
+
+                    tm.out("Virtual Machine", vmId);
+                    assertNotNull("No error received launching VM in VLAN/subnet, but there was no virtual machine", vmId);
+
+                    VirtualMachine vm = support.getVirtualMachine(vmId);
+
+                    long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
+
+                    while( timeout > System.currentTimeMillis() ) {
+                        if( vm == null ) {
+                            break;
+                        }
+                        if( vm.getProviderVlanId() != null ) {
+                            break;
+                        }
+                        if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                            break;
+                        }
+                        try {
+                            Thread.sleep(15000L);
+                        } catch( InterruptedException ignore ) {
+                        }
+                        try {
+                            vm = support.getVirtualMachine(vmId);
+                        } catch( Throwable ignore ) {
+                        }
+                    }
+                    assertNotNull("Launched VM does not exist", vm);
+                    tm.out("In VLAN", vm.getProviderVlanId());
+                    tm.out("In Subnet", vm.getProviderSubnetId());
+                    assertEquals("The subnet for the launched VM does not match the target subnet", testSubnetId, vm.getProviderSubnetId());
+                    assertEquals("The VLAN for the launched VM does not match the target VLAN", testVLANId, vm.getProviderVlanId());
                 }
-                assertNotNull("Could not identify a data center for VM launch", dataCenterId);
-                options.inDataCenter(dataCenterId);
-                options.inVlan(null, dataCenterId, testVLANId);
             }
             else {
-                if (!tm.getProvider().getNetworkServices().getVlanSupport().getCapabilities().allowsNewVlanCreation()) {
-                    tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
-                }
-                else if( !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
-                    fail("No test VLAN or subnet in which to launch a VM");
-                } else {
-                    tm.ok("Launching into VLANs is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-                }
-                return;
+                tm.ok("No VLAN support in this cloud");
             }
-
-            String vmId = compute.provisionVM(support, "vlanLaunch", options, options.getDataCenterId());
-
-            tm.out("Virtual Machine", vmId);
-            assertNotNull("No error received launching VM in VLAN/subnet, but there was no virtual machine", vmId);
-
-            VirtualMachine vm = support.getVirtualMachine(vmId);
-
-            long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
-
-            while( timeout > System.currentTimeMillis() ) {
-                if( vm == null ) {
-                    break;
-                }
-                if( vm.getProviderVlanId() != null ) {
-                    break;
-                }
-                if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
-                    break;
-                }
-                try {
-                    Thread.sleep(15000L);
-                } catch( InterruptedException ignore ) {
-                }
-                try {
-                    vm = support.getVirtualMachine(vmId);
-                } catch( Throwable ignore ) {
-                }
-            }
-            assertNotNull("Launched VM does not exist", vm);
-            tm.out("In VLAN", vm.getProviderVlanId());
-            tm.out("In Subnet", vm.getProviderSubnetId());
-            assertEquals("The subnet for the launched VM does not match the target subnet", testSubnetId, vm.getProviderSubnetId());
-            assertEquals("The VLAN for the launched VM does not match the target VLAN", testVLANId, vm.getProviderVlanId());
+        }
+        else {
+                tm.ok("No network services in this cloud");
         }
     }
 
