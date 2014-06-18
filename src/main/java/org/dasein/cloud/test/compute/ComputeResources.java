@@ -1085,6 +1085,8 @@ public class ComputeResources {
                                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
                                         if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
                                             dcId = dc.getProviderDataCenterId();
+                                            if (preferredDataCenter.equals(dcId)) // Give a preference for the preferredDataCenter
+                                            	break;
                                         }
                                     }
                                 }
