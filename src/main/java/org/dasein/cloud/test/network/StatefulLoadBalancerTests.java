@@ -79,13 +79,13 @@ public class StatefulLoadBalancerTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("removeLoadBalancer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
         else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
@@ -229,7 +229,7 @@ public class StatefulLoadBalancerTests {
             }
         }
         else if( name.getMethodName().equals("removeServer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
             NetworkServices net = tm.getProvider().getNetworkServices();
 
             try {
