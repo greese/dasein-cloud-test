@@ -65,6 +65,7 @@ public class StatefulVMTests {
     public final TestName name = new TestName();
 
     private String testVmId = null;
+	private String testDataCenterId = null;
 
     public StatefulVMTests() {
     }
@@ -107,6 +108,11 @@ public class StatefulVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        try {
+			testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+        } catch( Throwable ignore ) {
+            // ignore
+        }
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("filterVMs") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
@@ -117,7 +123,7 @@ public class StatefulVMTests {
                 if( support != null ) {
                     try {
                         //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", null);
+                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", testDataCenterId);
                     } catch( Throwable t ) {
                         tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
                     }
@@ -125,31 +131,31 @@ public class StatefulVMTests {
             }
         }
         else if( name.getMethodName().equals("terminate") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, VmState.RUNNING, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, VmState.RUNNING, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("start") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("stop") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("modifyInstance") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("pause") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("unpause") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.PAUSED, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.PAUSED, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("suspend") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("resume") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.SUSPENDED, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.SUSPENDED, true, testDataCenterId);
         }
         else {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, null, true, null);
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, null, true, testDataCenterId);
         }
     }
 
@@ -219,7 +225,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null);
+                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", testDataCenterId);
 
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
@@ -228,7 +234,7 @@ public class StatefulVMTests {
                 else {
                     try {
                         //noinspection ConstantConditions
-                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", testDataCenterId);
                         fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
                     } catch( CloudException ok ) {
                         tm.ok("Got exception when not subscribed: " + ok.getMessage());
@@ -268,7 +274,7 @@ public class StatefulVMTests {
                 else {
                     try {
                         //noinspection ConstantConditions
-                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", testDataCenterId);
                         fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
                     } catch( CloudException ok ) {
                         tm.ok("Got exception when not subscribed: " + ok.getMessage());

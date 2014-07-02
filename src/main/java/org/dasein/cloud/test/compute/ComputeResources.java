@@ -1088,11 +1088,15 @@ public class ComputeResources {
                                 String dcId = vlan.getProviderDataCenterId();
 
                                 if( dcId == null ) {
-                                    for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
-                                            dcId = dc.getProviderDataCenterId();
-                                        }
-                                    }
+                                	if( preferredDataCenter != null ) // If we have a preferredDataCenter, lets run with it!
+                            			dcId = preferredDataCenter;
+                        			else
+                        				// so lets just go through all the dataCenters and pick the last one we find. why?
+	                                    for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+	                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+	                                            dcId = dc.getProviderDataCenterId();
+	                                        }
+	                                    }
                                 }
                                 options.inVlan(null, dcId, networkId);
                             }
