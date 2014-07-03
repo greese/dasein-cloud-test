@@ -49,7 +49,6 @@ import org.junit.rules.TestName;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -82,17 +81,23 @@ public class StatefulVolumeTests {
     private String testVLANId;
     private String testVMId;
     private String testVolumeId;
+	private String testDataCenterId;
 
     public StatefulVolumeTests() { }
 
     @Before
     public void before() {
+    	try {
+			testDataCenterId = System.getProperty("test.dataCenter");
+		} catch (Throwable ignore) {
+			// ignore
+		}
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("createNFSVolume") ) {
-            testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
+            testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, testDataCenterId);
             if( testVLANId == null ) {
-                testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, testDataCenterId);
             }
         }
         else if( name.getMethodName().equals("createFromSnapshot") ) {
@@ -102,7 +107,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("removeVolume") ) {
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.REMOVED, true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.REMOVED, true, null, testDataCenterId);
         }
         else if( name.getMethodName().equals("filterVolumes") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
@@ -113,7 +118,7 @@ public class StatefulVolumeTests {
                 if( support != null ) {
                     try {
                         //noinspection ConstantConditions
-                        testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, null);
+                        testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, testDataCenterId);
                     }
                     catch( Throwable t ) {
                         tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
@@ -122,7 +127,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("attach") ) {
-            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
             String dc = null;
 
             if( testVMId != null ) {
@@ -156,7 +161,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("detach") ) {
-            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
+            testVMId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
             String dc = null;
 
             if( testVMId != null ) {
@@ -215,7 +220,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("attachToBogusVM") ) {
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
 
             if( testVolumeId != null ) {
                 try {
@@ -234,7 +239,7 @@ public class StatefulVolumeTests {
             }
         }
         else if( name.getMethodName().equals("detachUnattachedVolume") ) {
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
 
             if( testVolumeId != null ) {
                 try {
@@ -297,6 +302,7 @@ public class StatefulVolumeTests {
             testSnapshotId = null;
             testVolumeId = null;
             testVLANId = null;
+            testDataCenterId = null;
         }
         finally {
             tm.end();

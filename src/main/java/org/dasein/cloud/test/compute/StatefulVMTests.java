@@ -109,7 +109,7 @@ public class StatefulVMTests {
     public void before() {
         tm.begin(name.getMethodName());
         try {
-			testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+			testDataCenterId = System.getProperty("test.dataCenter");
         } catch( Throwable ignore ) {
             // ignore
         }

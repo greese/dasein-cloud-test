@@ -626,6 +626,11 @@ public class ComputeResources {
     }
 
     public void init() {
+    	try {
+			testDataCenterId = System.getProperty("test.dataCenter");
+		} catch (Throwable ignore) {
+			// ignore
+		}
         ComputeServices computeServices = provider.getComputeServices();
         String dataCenterId = System.getProperty("test.dataCenter");
 
@@ -773,7 +778,7 @@ public class ComputeResources {
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
@@ -788,7 +793,7 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null ) {
+                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
