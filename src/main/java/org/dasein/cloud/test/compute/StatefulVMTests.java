@@ -25,12 +25,7 @@ import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnegative;
@@ -48,6 +43,10 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatefulVMTests {
     static private DaseinTestManager tm;
+    @Rule
+    public final TestName name = new TestName();
+
+    private String testVmId = null;
 
     @BeforeClass
     static public void configure() {
@@ -60,11 +59,6 @@ public class StatefulVMTests {
             tm.close();
         }
     }
-
-    @Rule
-    public final TestName name = new TestName();
-
-    private String testVmId = null;
 
     public StatefulVMTests() {
     }
@@ -219,7 +213,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null);
+                    @SuppressWarnings( "ConstantConditions" ) String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null);
 
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
@@ -254,7 +248,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null, 2);
+                    @SuppressWarnings( "ConstantConditions" ) Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null, 2);
                     int count = 0;
 
                     for( String id : ids ) {
@@ -696,4 +690,5 @@ public class StatefulVMTests {
             tm.ok("No compute services in this cloud");
         }
     }
+
 }
