@@ -23,38 +23,24 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.compute.Architecture;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.ImageClass;
-import org.dasein.cloud.compute.Platform;
-import org.dasein.cloud.compute.VMScalingCapabilities;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineProduct;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
+import static org.junit.matchers.JUnitMatchers.both;
 
 /**
  * Tests on {@link org.dasein.cloud.compute.VirtualMachineSupport} that do not involve making any changes to the system.
  * <p>Created by George Reese: 2/17/13 3:22 PM</p>
+ *
  * @author George Reese
  * @version 2013.04 initial version
  * @since 2013.04
@@ -78,14 +64,19 @@ public class StatelessVMTests {
     public final TestName name = new TestName();
 
     private String testVMId;
+    private String testImageId;
+    private String testProductId;
 
-    public StatelessVMTests() { }
+    public StatelessVMTests() {
+    }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, false, null);
+        testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+        testProductId = tm.getTestVMProductId();
     }
 
     @After
@@ -103,7 +94,7 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                HashMap<String,Requirement> requirements = new HashMap<String, Requirement>();
+                Map<String, Requirement> requirements = new HashMap<String, Requirement>();
                 Requirement r;
 
                 tm.out("Subscribed", support.isSubscribed());
@@ -130,7 +121,7 @@ public class StatelessVMTests {
                     tm.out("Supported Architectures", null);
                 }
                 else {
-                    ArrayList<Architecture> tmp = new ArrayList<Architecture>();
+                    List<Architecture> tmp = new ArrayList<Architecture>();
 
                     for( Architecture a : architectures ) {
                         tmp.add(a);
@@ -179,7 +170,7 @@ public class StatelessVMTests {
                     tm.out("SCALE [Alter for Change Vol]", r);
                     requirements.put("Scaling [Alter VM for Change Volume]", r);
                 }
-                HashMap<VmState,Float> costFactors = new HashMap<VmState, Float>();
+                Map<VmState, Float> costFactors = new HashMap<VmState, Float>();
 
                 for( VmState state : VmState.values() ) {
                     float costFactor = support.getCapabilities().getCostFactor(state);
@@ -191,10 +182,10 @@ public class StatelessVMTests {
                 assertTrue("Max VM count must be -2, -1, or non-negative", maxVmCount >= -2);
                 assertNotNull("Supported architectures may not be null", architectures);
                 assertNotNull("Term for VM may not be null for any locale (Used " + Locale.getDefault() + ")", termForServer);
-                for( Map.Entry<String,Requirement> entry : requirements.entrySet() ) {
+                for( Map.Entry<String, Requirement> entry : requirements.entrySet() ) {
                     assertNotNull(entry.getKey() + " may not be null", entry.getValue());
                 }
-                for( Map.Entry<VmState,Float> entry : costFactors.entrySet() ) {
+                for( Map.Entry<VmState, Float> entry : costFactors.entrySet() ) {
                     assertTrue("Cost factor for " + entry.getKey().name() + " must be at least 0.0f", entry.getValue() >= 0.0f);
                     assertTrue("Cost factor for " + entry.getKey().name() + " must be no more than 100.0f", entry.getValue() <= 100.0f);
                 }
@@ -240,11 +231,9 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String prdId = tm.getTestVMProductId();
+                assertNotNull("No test product was setup during configuration and so there's no test product to fetch", testProductId);
 
-                assertNotNull("No test product was setup during configuration and so there's no test product to fetch", prdId);
-
-                VirtualMachineProduct prd = support.getProduct(prdId);
+                VirtualMachineProduct prd = support.getProduct(testProductId);
 
                 tm.out("Product", prd);
                 assertNotNull("Test product was not found in the request", prd);
@@ -267,11 +256,9 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String prdId = tm.getTestVMProductId();
+                assertNotNull("No test product was setup during configuration and so there's no test product to fetch", testProductId);
 
-                assertNotNull("No test product was setup during configuration and so there's no test product to fetch", prdId);
-
-                VirtualMachineProduct prd = support.getProduct(prdId);
+                VirtualMachineProduct prd = support.getProduct(testProductId);
 
                 assertNotNull("Test product was not found in the request", prd);
                 tm.out("Product ID", prd.getProviderProductId());
@@ -310,7 +297,6 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                String id = tm.getTestVMProductId();
                 boolean found = false;
                 int total = 0;
 
@@ -323,22 +309,22 @@ public class StatelessVMTests {
                         count++;
                         total++;
                         tm.out("VM Product [" + architecture.name() + "]", product);
-                        if( id != null && id.equals(product.getProviderProductId()) ) {
+                        if( testProductId != null && testProductId.equals(product.getProviderProductId()) ) {
                             found = true;
                         }
                     }
                     tm.out("Total " + architecture.name() + " Product Count", count);
                 }
                 if( total < 1 && support.isSubscribed() ) {
-                    if( id == null ) {
+                    if( testProductId == null ) {
                         tm.warn("No products were listed and thus the test may be in error");
                     }
                     else {
-                        fail("Should have found test product " + id + ", but none were found");
+                        fail("Should have found test product " + testProductId + ", but none were found");
                     }
                 }
-                else if( id != null ) {
-                    assertTrue("Failed to find test product " + id + " among the listed products", found);
+                else if( testProductId != null ) {
+                    assertTrue("Failed to find test product " + testProductId + " among the listed products", found);
                 }
             }
             else {
@@ -377,7 +363,7 @@ public class StatelessVMTests {
      * This test is likely to fail most of the times, as password is not always available (e.g. in AWS
      * it's only available on clean Amazon images), and requires for instance to be up for some time for
      * password to be ready.
-     *
+     * <p/>
      * TODO: This test needs more attention.
      *
      * @throws CloudException
@@ -385,30 +371,30 @@ public class StatelessVMTests {
      */
     @Test
     public void getVMPassword() throws CloudException, InternalException {
-      assumeTrue(!tm.isTestSkipped());
-      ComputeServices services = tm.getProvider().getComputeServices();
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
 
-      if( services != null ) {
-        VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
 
-        if( support != null ) {
-          if( testVMId != null ) {
-            String pass = support.getPassword(testVMId);
+            if( support != null ) {
+                if( testVMId != null ) {
+                    String pass = support.getPassword(testVMId);
 
-            tm.out("Password for vm: ", pass);
-            assertNotNull("Did not find the password for test virtual machine " + testVMId, pass);
-          }
-          else if( support.isSubscribed() ) {
-            fail("No test virtual machine exists and thus no test could be run for getVMPassword");
-          }
+                    tm.out("Password for vm: ", pass);
+                    assertNotNull("Did not find the password for test virtual machine " + testVMId, pass);
+                }
+                else if( support.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for getVMPassword");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
         }
         else {
-          tm.ok("No virtual machine support in this cloud");
+            tm.ok("No compute services in this cloud");
         }
-      }
-      else {
-        tm.ok("No compute services in this cloud");
-      }
     }
 
     @Test
@@ -456,7 +442,7 @@ public class StatelessVMTests {
                     tm.out("Virtual Machine ID", vm.getProviderVirtualMachineId());
                     tm.out("Current State", vm.getCurrentState());
                     tm.out("Name", vm.getName());
-                    tm.out("Created", (new Date(vm.getCreationTimestamp())));
+                    tm.out("Created", ( new Date(vm.getCreationTimestamp()) ));
                     tm.out("Owner Account", vm.getProviderOwnerId());
                     tm.out("Region ID", vm.getProviderRegionId());
                     tm.out("Data Center ID", vm.getProviderDataCenterId());
@@ -488,10 +474,10 @@ public class StatelessVMTests {
                     tm.out("Rebootable", vm.isRebootable());
                     tm.out("Description", vm.getDescription());
 
-                    Map<String,String> tags = vm.getTags();
+                    Map<String, String> tags = vm.getTags();
                     assertNotNull("Tags may not be null", vm.getTags());
 
-                    for( Map.Entry<String,String> entry : tags.entrySet() ) {
+                    for( Map.Entry<String, String> entry : tags.entrySet() ) {
                         tm.out("Tag " + entry.getKey(), entry.getValue());
                     }
 
@@ -569,6 +555,51 @@ public class StatelessVMTests {
     }
 
     @Test
+    public void listSpotPriceHistories() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                long timeEnd = System.currentTimeMillis();
+                long timeStart = System.currentTimeMillis() - 2 * 60 * 60 * 1000; // half an hour back
+                SpotPriceHistoryFilterOptions options = SpotPriceHistoryFilterOptions.getInstance().matchingAny().matchingInterval(timeStart, timeEnd);
+                Iterable<SpotPriceHistory> histories = support.listSpotPriceHistories(options);
+                int count = 0;
+                int prices = 0;
+                assertNotNull("listSpotPriceHistories() must return at least an empty collection and never a null", histories);
+                for( SpotPriceHistory h : histories ) {
+                    count++;
+                    tm.out("SpotPriceHistory", h);
+                    for( SpotPrice price : h.getPriceHistory() ) {
+                        assertThat("SpotPrice timestamp outside requested bounds", price.getTimestamp(), is(both(greaterThan(timeStart)).and(lessThan(timeEnd))));
+                        prices++;
+                    }
+                }
+                tm.out("Total SpotPriceHistory Count", count);
+                tm.out("Total SpotPrice Count", prices);
+
+                if( count > 0 ) {
+                    SpotPriceHistory sph = histories.iterator().next();
+                    VirtualMachineProduct prod = support.getProduct(sph.getProductId());
+                    assertNotNull("SpotPriceHistory belongs to an unknown product (" + sph.getProductId() + ")", prod);
+                }
+                else {
+                    tm.warn("SpotPriceHistory is empty, the test is likely INVALID");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
     public void listVMStatus() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
@@ -620,14 +651,14 @@ public class StatelessVMTests {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
-                HashMap<String,Map<String,Boolean>> map = new HashMap<String, Map<String, Boolean>>();
+                Map<String, Map<String, Boolean>> map = new HashMap<String, Map<String, Boolean>>();
                 Iterable<VirtualMachine> vms = support.listVirtualMachines();
                 Iterable<ResourceStatus> status = support.listVirtualMachineStatus();
 
                 assertNotNull("listVirtualMachines() must return at least an empty collections and may not be null", vms);
                 assertNotNull("listVirtualMachineStatus() must return at least an empty collections and may not be null", status);
                 for( ResourceStatus s : status ) {
-                    Map<String,Boolean> current = map.get(s.getProviderResourceId());
+                    Map<String, Boolean> current = map.get(s.getProviderResourceId());
 
                     if( current == null ) {
                         current = new HashMap<String, Boolean>();
@@ -636,7 +667,7 @@ public class StatelessVMTests {
                     current.put("status", true);
                 }
                 for( VirtualMachine vm : vms ) {
-                    Map<String,Boolean> current = map.get(vm.getProviderVirtualMachineId());
+                    Map<String, Boolean> current = map.get(vm.getProviderVirtualMachineId());
 
                     if( current == null ) {
                         current = new HashMap<String, Boolean>();
@@ -644,7 +675,7 @@ public class StatelessVMTests {
                     }
                     current.put("vm", true);
                 }
-                for( Map.Entry<String,Map<String,Boolean>> entry : map.entrySet() ) {
+                for( Map.Entry<String, Map<String, Boolean>> entry : map.entrySet() ) {
                     Boolean s = entry.getValue().get("status");
                     Boolean v = entry.getValue().get("vm");
 
@@ -660,4 +691,89 @@ public class StatelessVMTests {
             tm.ok("No compute services in this cloud");
         }
     }
+
+    @Test
+    public void requestSpotVm() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        ComputeServices computeServices = tm.getProvider().getComputeServices();
+        if( computeServices == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
+
+        if( vmSupport != null ) {
+            // we need to make sure the image has been created
+            assertNotNull("Test imageId is null", testImageId);
+            assertNotNull("Test productId is null", testProductId);
+            List<VirtualMachine> before = new ArrayList<VirtualMachine>();
+            for( VirtualMachine vm : vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withLifecycles(VirtualMachineLifecycle.SPOT)) ) {
+                before.add(vm);
+            }
+            if( before.size() > 0 ) {
+                tm.warn("There are " + before.size() + " spot VMs already running, test may not be clean or you may have leaking resources.");
+            }
+            long validFrom = ( System.currentTimeMillis() / 1000 ) * 1000 + ( 15 * 1000 ); // now + 15 seconds
+            long validUntil = validFrom + ( 10 * 60 * 1000 ); // +5 minutes
+            float price = 0.05f;
+            SpotVirtualMachineRequest request = vmSupport.createSpotVirtualMachineRequest(SpotVirtualMachineRequestCreateOptions.getInstance(testProductId, testImageId, price).validFrom(validFrom).validUntil(validUntil).ofType(SpotVirtualMachineRequestType.ONE_TIME));
+            assertNotNull(request);
+            assertEquals("Created Spot VM request has an invalid product", testProductId, request.getProductId());
+            assertEquals("Created Spot VM request has an invalid image", testImageId, request.getProviderMachineImageId());
+            assertEquals("Created Spot VM request has an invalid price", price, request.getSpotPrice(), 0.01);
+            assertEquals("Created Spot VM request has an incorrect valid-from time", validFrom, request.getValidFromTimestamp());
+            assertEquals("Created Spot VM request has an incorrect valid-until time", validUntil, request.getValidUntilTimestamp());
+            assertEquals("Created Spot VM request has an incorrect type", SpotVirtualMachineRequestType.ONE_TIME, request.getType());
+            if( System.currentTimeMillis() < validFrom ) {
+                assertNull("Created Spot VM request indicates a fulfilled DC but it is too soon", request.getFulfillmentDataCenterId());
+                assertEquals("Created Spot VM request indicates a fulfillment time but it is too soon", 0, request.getFulfillmentTimestamp());
+            }
+
+            VirtualMachine launchedVm = null;
+            while( launchedVm == null ) {
+                Iterator<VirtualMachine> vms = vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withSpotRequestId(request.getProviderSpotVmRequestId())).iterator();
+                if( vms.hasNext() ) {
+                    launchedVm = vms.next();
+                }
+                try {
+                    Thread.sleep(60000);
+                } catch( InterruptedException e ) {
+                }
+                if( System.currentTimeMillis() > validUntil ) {
+                    break;
+                }
+            }
+            if( launchedVm != null ) {
+                assertEquals("Found Spot VM is an incorrect product", testProductId, launchedVm.getProductId());
+                assertEquals("Found Spot VM is launched from incorrect image", testImageId, launchedVm.getProviderMachineImageId());
+            }
+            else {
+                tm.warn("Spot VM has failed to run within the allotted time, perhaps price is too low?");
+            }
+
+            Iterator<SpotVirtualMachineRequest> requests = vmSupport.listSpotVirtualMachineRequests(SpotVirtualMachineRequestFilterOptions.getInstance().withSpotRequestIds(request.getProviderSpotVmRequestId())).iterator();
+            SpotVirtualMachineRequest verifyRequest = null;
+            if( requests.hasNext() ) {
+                verifyRequest = requests.next();
+            }
+            assertNotNull("Expected to be able to list the known spot request, but failed", verifyRequest);
+            assertEquals("Found Spot VM request indicates an incorrect image", testImageId, verifyRequest.getProviderMachineImageId());
+            assertEquals("Found Spot VM request indicates an incorrect product", testProductId, verifyRequest.getProductId());
+            assertEquals("Found Spot VM request indicates incorrect valid-from time", validFrom, verifyRequest.getValidFromTimestamp());
+            assertEquals("Found Spot VM request indicates incorrect valid-until time", validUntil, verifyRequest.getValidUntilTimestamp());
+            assertThat("Found Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
+            assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+
+            vmSupport.cancelSpotVirtualMachineRequest(request.getProviderSpotVmRequestId());
+            if( launchedVm != null ) {
+                // TODO: add vm instance to TestManager so it would clean up instead?
+                vmSupport.terminate(launchedVm.getName());
+            }
+        }
+        else {
+            tm.ok("No virtual machine support in this cloud");
+        }
+    }
+
 }
