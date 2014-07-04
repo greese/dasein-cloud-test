@@ -51,6 +51,10 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatefulVMTests {
     static private DaseinTestManager tm;
+    @Rule
+    public final TestName name = new TestName();
+
+    private String testVmId = null;
 
     @BeforeClass
     static public void configure() {
@@ -64,10 +68,6 @@ public class StatefulVMTests {
         }
     }
 
-    @Rule
-    public final TestName name = new TestName();
-
-    private String testVmId = null;
     private String testDataCenterId;
     private String testResourcePoolId;
 
