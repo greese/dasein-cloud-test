@@ -174,7 +174,17 @@ public class StatefulLoadBalancerTests {
                                 }
                             }
                             else {
-                                testDataCenterId = System.getProperty("test.dataCenter");
+                            	try {
+                        			testDataCenterId = System.getProperty("test.dataCenter");
+                        		} catch (Throwable ignore) {
+                        			// ignore
+                        		}
+                                try {
+                        	        if (testDataCenterId == null)
+                        	    		testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+                        	    } catch (Throwable ignore) {
+                        			// ignore
+                        		}
                             }
                         }
                         catch( Throwable ignore ) {
