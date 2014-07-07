@@ -295,7 +295,7 @@ public class StatefulVMTests {
 
         DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
         if (dcServices != null) {
-            if (dcServices.supportsResourcePools()) {
+            if (dcServices.getCapabilities().supportsResourcePools()) {
                 try {
                     for( DataCenter dc : dcServices.listDataCenters(tm.getContext().getRegionId()) ) {
                         if( testDataCenterId == null || dc.isActive() ) {

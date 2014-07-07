@@ -83,7 +83,7 @@ public class StatelessDCTests {
                 }
             }
 
-            if (name.getMethodName().contains("Pool") && services.supportsResourcePools()) {
+            if (name.getMethodName().contains("Pool") && services.getCapabilities().supportsResourcePools()) {
                 if (testDataCenterId != null) {
                     for ( ResourcePool rp : services.listResourcePools(testDataCenterId)) {
                         if (testResourcePoolId == null) {
@@ -117,10 +117,10 @@ public class StatelessDCTests {
         assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-        tm.out("Term for Region", services.getProviderTermForRegion(Locale.getDefault()));
-        tm.out("Term for DataCenter", services.getProviderTermForDataCenter(Locale.getDefault()));
-        assertNotNull("The provider term for region may not be null", services.getProviderTermForRegion(Locale.getDefault()));
-        assertNotNull("The provider term for data center may not be null", services.getProviderTermForDataCenter(Locale.getDefault()));
+        tm.out("Term for Region", services.getCapabilities().getProviderTermForRegion(Locale.getDefault()));
+        tm.out("Term for DataCenter", services.getCapabilities().getProviderTermForDataCenter(Locale.getDefault()));
+        assertNotNull("The provider term for region may not be null", services.getCapabilities().getProviderTermForRegion(Locale.getDefault()));
+        assertNotNull("The provider term for data center may not be null", services.getCapabilities().getProviderTermForDataCenter(Locale.getDefault()));
     }
 
     @Test
@@ -265,7 +265,7 @@ public class StatelessDCTests {
         assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-        if (services.supportsResourcePools()) {
+        if (services.getCapabilities().supportsResourcePools()) {
             ResourcePool rp = services.getResourcePool(UUID.randomUUID().toString());
             tm.out("Bogus Resource pool", rp);
             assertNull("Dummy resource pool must be null, but one was found", rp);
@@ -286,7 +286,7 @@ public class StatelessDCTests {
             assertNotNull("Failed to find the test resource pool", rp);
         }
         else {
-            if (services.supportsResourcePools()) {
+            if (services.getCapabilities().supportsResourcePools()) {
                 fail("No test resource pool exists and thus no test for getResourcePool could be run");
             }
             else {
@@ -313,7 +313,7 @@ public class StatelessDCTests {
             assertNotNull("Data center id must not be null", rp.getDataCenterId());
         }
         else {
-            if (services.supportsResourcePools()) {
+            if (services.getCapabilities().supportsResourcePools()) {
                 fail("No test resource pool exists and thus no test for getResourcePool could be run");
             }
             else {
@@ -327,7 +327,7 @@ public class StatelessDCTests {
         assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-        if (services.supportsResourcePools() ) {
+        if (services.getCapabilities().supportsResourcePools() ) {
             Iterable<ResourcePool> resourcePools = services.listResourcePools(testDataCenterId);
             boolean found = false;
             int count = 0;
