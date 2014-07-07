@@ -90,10 +90,16 @@ public class StatefulImageTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         try {
-			testDataCenterId  = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+        	testDataCenterId = System.getProperty("test.dataCenter");
         } catch( Throwable ignore ) {
             // ignore
         }
+        try {
+	        if (testDataCenterId == null)
+	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+	    } catch (Throwable ignore) {
+			// ignore
+		}
         if( !name.getMethodName().startsWith("capture") ) {
             testImageId = tm.getTestImageId(DaseinTestManager.STATEFUL, true);
         }

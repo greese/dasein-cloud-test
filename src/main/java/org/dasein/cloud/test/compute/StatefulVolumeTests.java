@@ -87,13 +87,20 @@ public class StatefulVolumeTests {
 
     @Before
     public void before() {
-    	try {
+        tm.begin(name.getMethodName());
+        assumeTrue(!tm.isTestSkipped());
+        try {
 			testDataCenterId = System.getProperty("test.dataCenter");
 		} catch (Throwable ignore) {
 			// ignore
 		}
-        tm.begin(name.getMethodName());
-        assumeTrue(!tm.isTestSkipped());
+        try {
+	        if (testDataCenterId == null)
+	    		testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+	    } catch (Throwable ignore) {
+			// ignore
+		}
+
         if( name.getMethodName().equals("createNFSVolume") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, testDataCenterId);
             if( testVLANId == null ) {

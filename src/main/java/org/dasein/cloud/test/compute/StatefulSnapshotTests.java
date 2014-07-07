@@ -64,6 +64,7 @@ public class StatefulSnapshotTests {
     private String testSnapshotId;
     private String testSourceRegion;
     private String testVolumeId;
+	private String testDataCenterId;
 
     static private int postfix = 1;
 
@@ -73,6 +74,17 @@ public class StatefulSnapshotTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        try {
+        	testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
+        try {
+	        if (testDataCenterId == null)
+	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+	    } catch (Throwable ignore) {
+			// ignore
+		}
         ComputeServices services = tm.getProvider().getComputeServices();
         SnapshotSupport support = null;
 
@@ -81,12 +93,12 @@ public class StatefulSnapshotTests {
         }
 
         if( name.getMethodName().equals("createSnapshot") ) {
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
             if( testVolumeId != null ) {
                 if( support != null ) {
                     try {
                         if( support.getCapabilities().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
-                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, null);
+                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, testDataCenterId);
 
                             if( vmId != null ) {
                                 @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(vmId);

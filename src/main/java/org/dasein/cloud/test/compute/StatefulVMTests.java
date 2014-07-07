@@ -113,6 +113,12 @@ public class StatefulVMTests {
         } catch( Throwable ignore ) {
             // ignore
         }
+        try {
+	        if (testDataCenterId == null)
+	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+	    } catch (Throwable ignore) {
+			// ignore
+		}
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("filterVMs") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
