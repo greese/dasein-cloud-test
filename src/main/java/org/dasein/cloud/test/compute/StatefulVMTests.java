@@ -266,7 +266,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", null, 2);
+                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "Dasein Test Launch", tm.getUserName() + "dsnlaunch", testDataCenterId, 2);
                     int count = 0;
 
                     for( String id : ids ) {

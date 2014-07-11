@@ -19,12 +19,35 @@
 
 package org.dasein.cloud.test.network;
 
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.greaterThan;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Iterator;
+
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.*;
+import org.dasein.cloud.network.HealthCheckOptions;
+import org.dasein.cloud.network.LbEndpointType;
+import org.dasein.cloud.network.LoadBalancer;
+import org.dasein.cloud.network.LoadBalancerEndpoint;
+import org.dasein.cloud.network.LoadBalancerHealthCheck;
+import org.dasein.cloud.network.LoadBalancerState;
+import org.dasein.cloud.network.LoadBalancerSupport;
+import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.SSLCertificate;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -33,14 +56,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Iterator;
-
-import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Implements test cases against stateful load balancer functions.
@@ -78,6 +93,19 @@ public class StatefulLoadBalancerTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
+        try {
+            if( testDataCenterId == null )
+                testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, true);
         }
@@ -119,13 +147,15 @@ public class StatefulLoadBalancerTests {
                     }
                 }
                 if( lb != null ) {
-                    testDataCenterId = null;
                     String[] ids = lb.getProviderDataCenterIds();
 
-                    if( ids.length > 0 ) {
-                        testDataCenterId = ids[ids.length-1];
-                    }
-                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
+                    boolean found = false;
+                    for( String dataCenterId : ids )
+                        if( testDataCenterId.equals(dataCenterId) )
+                            found = true;
+                    if( !found )
+                        fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
+                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
             catch( Throwable ignore ) {
@@ -174,17 +204,17 @@ public class StatefulLoadBalancerTests {
                                 }
                             }
                             else {
-                            	try {
-                        			testDataCenterId = System.getProperty("test.dataCenter");
-                        		} catch (Throwable ignore) {
-                        			// ignore
-                        		}
                                 try {
-                        	        if (testDataCenterId == null)
-                        	    		testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-                        	    } catch (Throwable ignore) {
-                        			// ignore
-                        		}
+                                    testDataCenterId = System.getProperty("test.dataCenter");
+                                } catch (Throwable ignore) {
+                                    // ignore
+                                }
+                                try {
+                                    if (testDataCenterId == null)
+                                        testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+                                } catch (Throwable ignore) {
+                                    // ignore
+                                }
                             }
                         }
                         catch( Throwable ignore ) {
@@ -439,7 +469,7 @@ public class StatefulLoadBalancerTests {
         assertThat("The LB health check 'unhealthyCount' should be greater than zero", lbhc.getUnhealthyCount(), greaterThan(0));
         assertThat("The LB health check 'port' should be greater than zero", lbhc.getPort(), equalTo(NetworkResources.TEST_HC_PORT));
         assertNotNull("The LB health check 'protocol' may not be null", lbhc.getProtocol());
-        //assertEquals("The LB health check 'protocol' is incorrect", NetworkResources.TEST_HC_PROTOCOL, lbhc.getProtocol());
+        // assertEquals("The LB health check 'protocol' is incorrect", NetworkResources.TEST_HC_PROTOCOL, lbhc.getProtocol());
         assertNotNull("The LB health check 'providerLoadBalancerIds' may not be null", lbhc.getProviderLoadBalancerIds());
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element",
@@ -452,31 +482,31 @@ public class StatefulLoadBalancerTests {
 
     @Test
     public void createInternalLoadBalancer() throws CloudException, InternalException {
-      NetworkServices services = tm.getProvider().getNetworkServices();
+        NetworkServices services = tm.getProvider().getNetworkServices();
 
-      if( services == null ) {
-        tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-        return;
-      }
-      LoadBalancerSupport support = services.getLoadBalancerSupport();
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
 
-      if( support == null ) {
-        tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-        return;
-      }
-      NetworkResources network = DaseinTestManager.getNetworkResources();
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        NetworkResources network = DaseinTestManager.getNetworkResources();
 
-      if( network == null ) {
-        fail("Failed to initialize network capabilities for tests");
-      }
-      String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrintlbtest", true);
+        if( network == null ) {
+            fail("Failed to initialize network capabilities for tests");
+        }
+        String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrintlbtest", true);
 
-      tm.out("New Internal Load Balancer", id);
-      assertNotNull("The newly created load balancer ID was null", id);
+        tm.out("New Internal Load Balancer", id);
+        assertNotNull("The newly created load balancer ID was null", id);
 
-      LoadBalancer lb = support.getLoadBalancer(id);
+        LoadBalancer lb = support.getLoadBalancer(id);
 
-      assertNotNull("The newly created load balancer is null", lb);
+        assertNotNull("The newly created load balancer is null", lb);
     }
 
     @Test
@@ -1015,7 +1045,7 @@ public class StatefulLoadBalancerTests {
         int lbCount1 = 0;
         int lbCount2 = 0;
         for (LoadBalancer lb : loadBalancerList) {
-        	lbCount1++;
+            lbCount1++;
         }
 
         String id1 = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest1", false, false, true);
@@ -1028,14 +1058,14 @@ public class StatefulLoadBalancerTests {
         boolean lb2_found = false;
         loadBalancerList = support.listLoadBalancers();
         for (LoadBalancer lb : loadBalancerList) {
-        	lbCount2++;
-        	if (lb.getName().equals(id1)) {
-        		LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getName());
-        		assertHealthCheck(id1, support, lbhc); 
-        		lb1_found = true;
-        	} else if (lb.getName().equals(id2)) {
-        		lb2_found = true;
-        	}
+            lbCount2++;
+            if (lb.getName().equals(id1)) {
+                LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getName());
+                assertHealthCheck(id1, support, lbhc); 
+                lb1_found = true;
+            } else if (lb.getName().equals(id2)) {
+                lb2_found = true;
+            }
         }
         assertEquals("Failed to find LoadBalancer 1", true, lb1_found);
         assertEquals("Failed to find LoadBalancer 2", true, lb2_found);
