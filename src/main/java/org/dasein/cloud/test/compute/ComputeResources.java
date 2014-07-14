@@ -19,24 +19,57 @@
 
 package org.dasein.cloud.test.compute;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Random;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.*;
+import org.dasein.cloud.compute.Architecture;
+import org.dasein.cloud.compute.ComputeServices;
+import org.dasein.cloud.compute.ImageClass;
+import org.dasein.cloud.compute.ImageCreateOptions;
+import org.dasein.cloud.compute.ImageFilterOptions;
+import org.dasein.cloud.compute.MachineImage;
+import org.dasein.cloud.compute.MachineImageFormat;
+import org.dasein.cloud.compute.MachineImageState;
+import org.dasein.cloud.compute.MachineImageSupport;
+import org.dasein.cloud.compute.MachineImageType;
+import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.compute.Snapshot;
+import org.dasein.cloud.compute.SnapshotCreateOptions;
+import org.dasein.cloud.compute.SnapshotState;
+import org.dasein.cloud.compute.SnapshotSupport;
+import org.dasein.cloud.compute.VMLaunchOptions;
+import org.dasein.cloud.compute.VirtualMachine;
+import org.dasein.cloud.compute.VirtualMachineProduct;
+import org.dasein.cloud.compute.VirtualMachineSupport;
+import org.dasein.cloud.compute.VmState;
+import org.dasein.cloud.compute.Volume;
+import org.dasein.cloud.compute.VolumeCreateOptions;
+import org.dasein.cloud.compute.VolumeFormat;
+import org.dasein.cloud.compute.VolumeProduct;
+import org.dasein.cloud.compute.VolumeState;
+import org.dasein.cloud.compute.VolumeSupport;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.*;
+import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.SubnetCreateOptions;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
-
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.*;
 
 /**
  * Handles the shared compute resources for executing various tests.
@@ -373,8 +406,8 @@ public class ComputeResources {
         }
         return null;
     }
-
-    public @Nullable String getTestVmId( @Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId ) {
+    
+    public @Nullable String getTestVmId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         return getTestVmId(label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
     }
 
@@ -435,9 +468,9 @@ public class ComputeResources {
         return null;
     }
 
-    public @Nullable String getTestVLANVmId( @Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId ) {
+    public @Nullable String getTestVLANVmId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
-            for( Map.Entry<String, String> entry : testVMs.entrySet() ) {
+            for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
@@ -453,7 +486,8 @@ public class ComputeResources {
                                     return id;
                                 }
                             }
-                        } catch( Throwable ignore ) {
+                        }
+                        catch( Throwable ignore ) {
                             // ignore
                         }
                     }
@@ -472,15 +506,15 @@ public class ComputeResources {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
             if( support != null ) {
                 try {
-                    VirtualMachine vm = ( id == null ? null : support.getVirtualMachine(id) );
-                    if( ( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) || vm.getProviderVlanId() == null || !vm.getProviderVlanId().equalsIgnoreCase(vlanId) ) && provisionIfNull ) {
+                    VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
+                    if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) || vm.getProviderVlanId() == null || !vm.getProviderVlanId().equalsIgnoreCase(vlanId)) && provisionIfNull ) {
                         String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
                         if( testImageId == null ) {
                             throw new CloudException("No test image exists for provisioning a virtual machine");
                         }
                         long now = System.currentTimeMillis();
                         String name = "Dasein Test " + label + " " + now;
-                        String host = "dsnvm" + ( now % 10000 );
+                        String host = "dsnvm" + (now%10000);
                         VMLaunchOptions vmOpts = VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics();
                         NetworkResources network = DaseinTestManager.getNetworkResources();
                         if( vlanId != null ) {
@@ -490,14 +524,12 @@ public class ComputeResources {
                             Iterable<Subnet> subnets = vs.listSubnets(vlanId);
                             if( subnets.iterator().hasNext() ) {
                                 Subnet sub = subnets.iterator().next();
-                                vmOpts.inSubnet(null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
-                            }
-                            else {
+                                vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
+                            } else {
                                 Subnet sub = vs.createSubnet(SubnetCreateOptions.getInstance(vlanId, "192.168.50.0/24", "dsnsub", "dasein test create vm for vlan"));
-                                vmOpts.inSubnet(null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
+                                vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
                             }
-                        }
-                        else {
+                        } else {
                             if( network != null ) {
                                 String networkId = network.getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
 
@@ -508,7 +540,8 @@ public class ComputeResources {
                                 // wait for network to be ready
                                 try {
                                     Thread.sleep(10000L);
-                                } catch( InterruptedException ignore ) {
+                                }
+                                catch( InterruptedException ignore ) {
                                 }
 
                                 if( networkId != null ) {
@@ -521,10 +554,8 @@ public class ComputeResources {
                                     if( subnetId != null ) {
 
                                         // wait for subnet to be ready
-                                        try {
-                                            Thread.sleep(10000L);
-                                        } catch( InterruptedException ignore ) {
-                                        }
+                                        try { Thread.sleep(10000L); }
+                                        catch( InterruptedException ignore ) { }
 
                                         @SuppressWarnings("ConstantConditions") Subnet subnet = provider.getNetworkServices().getVlanSupport().getSubnet(subnetId);
 
@@ -533,7 +564,7 @@ public class ComputeResources {
 
                                             if( dcId == null ) {
                                                 for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                                    if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
+                                                    if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
                                                         dcId = dc.getProviderDataCenterId();
                                                     }
                                                 }
@@ -559,12 +590,14 @@ public class ComputeResources {
                     else {
                         return null;
                     }
-                } catch( Throwable t ) {
+                }
+                catch( Throwable t ) {
                     try {
                         if( support.isSubscribed() ) {
                             logger.warn("Unable to provision test virtual machine under label " + label + ": " + t.getMessage());
                         }
-                    } catch( Throwable ignore ) {
+                    }
+                    catch( Throwable ignore ) {
                         // ignore
                     }
                 }
@@ -618,6 +651,11 @@ public class ComputeResources {
     }
 
     public void init() {
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch (Throwable ignore) {
+            // ignore
+        }
         ComputeServices computeServices = provider.getComputeServices();
         String dataCenterId = System.getProperty("test.dataCenter");
 
@@ -759,7 +797,7 @@ public class ComputeResources {
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
@@ -773,7 +811,7 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null ) {
+                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
@@ -971,6 +1009,8 @@ public class ComputeResources {
                                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
                                         if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
                                             dcId = dc.getProviderDataCenterId();
+                                            if (dcId.equals(preferredDataCenter)) // Go with preferred one, else go with last one.
+                                                break;
                                         }
                                     }
                                 }
@@ -1074,11 +1114,15 @@ public class ComputeResources {
                                 String dcId = vlan.getProviderDataCenterId();
 
                                 if( dcId == null ) {
-                                    for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
-                                            dcId = dc.getProviderDataCenterId();
+                                    if( preferredDataCenter != null ) // If we have a preferredDataCenter, lets run with it!
+                                        dcId = preferredDataCenter;
+                                    else
+                                        // so lets just go through all the dataCenters and pick the last one we find. why?
+                                        for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+                                            if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                                dcId = dc.getProviderDataCenterId();
+                                            }
                                         }
-                                    }
                                 }
                                 options.inVlan(null, dcId, networkId);
                             }
