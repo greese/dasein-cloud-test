@@ -675,9 +675,6 @@ public class StatefulVLANTests {
                         if( vm.getProviderVlanId() != null ) {
                             break;
                         }
-                        if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
-                            break;
-                        }
                         try {
                             Thread.sleep(15000L);
                         } catch( InterruptedException ignore ) {
