@@ -27,6 +27,8 @@ import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
 import org.junit.*;
 import org.junit.rules.TestName;
 
@@ -65,6 +67,8 @@ public class StatefulSnapshotTests {
     private String testSourceRegion;
     private String testVolumeId;
 	private String testDataCenterId;
+    private String testVmId;
+    private String snapshotId;
 
     static private int postfix = 1;
 
@@ -710,4 +714,52 @@ public class StatefulSnapshotTests {
             }
         }
     }
+
+/*
+    @Test
+    public void mountVolumeFromSnapshot() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("Compute services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        SnapshotSupport support = services.getSnapshotSupport();
+
+        VolumeSupport VolumeSupport = services.getVolumeSupport();
+
+        if( support == null ) {
+            tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
+        testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
+
+        VolumeSupport.attach(testVolumeId, testVmId, "sdb");
+
+        System.out.println("PUT A BREAKPOINT HERE TO PARTITION, FORMAT DISK, AND TOUCH A TEST FILE ON IT. --Havent worked out how to automate this yet");
+        if( testVolumeId != null ) {
+            SnapshotCreateOptions options = SnapshotCreateOptions.getInstanceForCreate(testVolumeId, tm.getUserName() + "dsnsnap" + (System.currentTimeMillis()%10000), "Test Dasein Cloud Snapshot");
+
+            provisionedSnapshotId = support.createSnapshot(options);
+
+            String newVolume = null;
+            if( support.isSubscribed() ) {
+                try {
+                    VolumeCreateOptions volumeOptions = VolumeCreateOptions.getInstanceForSnapshot(provisionedSnapshotId, new Storage<Gigabyte>(1, Storage.GIGABYTE), "snap-vol-" + (System.currentTimeMillis()%10000), "mountVolumeFromSnapshot test").inDataCenter(testDataCenterId);
+                    newVolume = volumeOptions.build(tm.getProvider());
+                    VolumeSupport.attach(newVolume, testVmId, "sdc");
+                    System.out.println("PUT ANOTHER BREAKPOINT HERE TO LOOK ON VM THAT PARTITION SDC1 EXISTS AND CONTAINS YOUR TEST FILE");
+                } catch (Exception ex) {
+                    System.out.println(ex);
+                } finally {
+                    VolumeSupport.detach(newVolume);
+                    VolumeSupport.remove(newVolume);
+                    services.getSnapshotSupport().remove(provisionedSnapshotId);
+                }
+            }
+        }
+    }
+*/
 }
