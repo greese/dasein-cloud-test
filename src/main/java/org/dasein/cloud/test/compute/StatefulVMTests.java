@@ -356,6 +356,7 @@ public class StatefulVMTests {
                                 assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
 
                                 VirtualMachine virtualMachine = support.getVirtualMachine(id);
+                                tm.out("In resource pool", virtualMachine.getResourcePoolId());
                                 assertNotNull("Could not find the newly created virtual machine", virtualMachine);
                                 assertEquals("Expected resource pool not found "+testResourcePoolId, testResourcePoolId, virtualMachine.getResourcePoolId());
                             }
@@ -380,6 +381,99 @@ public class StatefulVMTests {
             }
             else {
                 tm.ok("Resource pools not supported in this cloud");
+            }
+        }
+        else{
+            tm.ok("No datacenter services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVMWithAffinityGroup() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
+        if (dcServices != null) {
+            if (dcServices.getCapabilities().supportsAffinityGroups()) {
+                ComputeServices services = tm.getProvider().getComputeServices();
+
+                if( services != null ) {
+                    AffinityGroupSupport affinityGroupSupport = services.getAffinityGroupSupport();
+                    AffinityGroupFilterOptions agFilterOptions = AffinityGroupFilterOptions.getInstance().withDataCenterId(testDataCenterId);
+                    Iterable<AffinityGroup> affinityGroup = affinityGroupSupport.list(agFilterOptions);
+                    if (affinityGroup.iterator().hasNext()) {
+                        String testAffinityGroupId = affinityGroup.iterator().next().getAffinityGroupId();
+
+                        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+                        if( support != null ) {
+                            if( support.isSubscribed() ) {
+                                ComputeResources compute = DaseinTestManager.getComputeResources();
+                                if( compute != null ) {
+                                    String productId = tm.getTestVMProductId();
+
+                                    assertNotNull("Unable to identify a VM product for test launch", productId);
+                                    String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+                                    assertNotNull("Unable to identify a test image for test launch", imageId);
+                                    VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnAffinity" + ( System.currentTimeMillis() % 10000 ), "Dasein Affinity Group Launch " + System.currentTimeMillis(), "Test launch for a VM in an affinity group");
+                                    options.inDataCenter(testDataCenterId);
+                                    options.withAffinityGroupId(testAffinityGroupId);
+                                    String id = compute.provisionVM(support, "affinityGroupLaunch", options, options.getDataCenterId());
+
+                                    tm.out("Launched", id);
+                                    assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+                                    VirtualMachine vm = support.getVirtualMachine(id);
+                                    assertNotNull("Could not find the newly created virtual machine", vm);
+
+                                    long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
+
+                                    while( timeout > System.currentTimeMillis() ) {
+                                        if( vm == null ) {
+                                            break;
+                                        }
+                                        if( vm.getAffinityGroupId() != null ) {
+                                            break;
+                                        }
+                                        try {
+                                            Thread.sleep(15000L);
+                                        } catch( InterruptedException ignore ) {
+                                        }
+                                        try {
+                                            vm = support.getVirtualMachine(id);
+                                        } catch( Throwable ignore ) {
+                                        }
+                                    }
+                                    tm.out("In affinity group", vm.getAffinityGroupId());
+                                    assertNotNull("Launched VM does not exist", vm);
+                                    assertEquals("Expected affinity group not found "+testAffinityGroupId, testAffinityGroupId, vm.getAffinityGroupId());
+                                }
+                            }
+                            else {
+                                try {
+                                    //noinspection ConstantConditions
+                                    DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                                    fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+                                } catch( CloudException ok ) {
+                                    tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                                }
+                            }
+                        }
+                        else {
+                            tm.ok("No virtual machine support in this cloud");
+                        }
+                    }
+                    else {
+                        fail("No test affinity group found: test invalid");
+                    }
+                }
+                else {
+                    tm.ok("No compute services in this cloud");
+                }
+            }
+            else {
+                tm.ok("Affinity groups not supported in this cloud");
             }
         }
         else{
@@ -495,11 +589,15 @@ public class StatefulVMTests {
                     if( vm != null ) {
                         if( support.getCapabilities().canAlter(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getProductId());
-                            String modifiedProductId = "m1.large";
+                            String modifiedProductId = null;
+                            Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
+                            if (products.iterator().hasNext()) {
+                                modifiedProductId = products.iterator().next().getProviderProductId();
+                            }
                             support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
                             try {
                                 Thread.sleep(5000L);
-                            } catch( InterruptedException ignore ) {
+                            } catch (InterruptedException ignore) {
                             }
                             vm = support.getVirtualMachine(testVmId);
                             if( vm != null ) {

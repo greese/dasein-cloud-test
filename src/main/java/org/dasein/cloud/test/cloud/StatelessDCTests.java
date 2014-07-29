@@ -282,7 +282,7 @@ public class StatelessDCTests {
         if (testResourcePoolId != null) {
             ResourcePool rp = services.getResourcePool(testResourcePoolId);
 
-            tm.out("Resource Pool", rp);
+            tm.out("Resource Pool", rp+" ["+rp.getProvideResourcePoolId()+"]");
             assertNotNull("Failed to find the test resource pool", rp);
         }
         else {
@@ -335,7 +335,7 @@ public class StatelessDCTests {
             assertNotNull("Null set of resource pools returned from listResourcePools()", resourcePools);
             for( ResourcePool resourcePool : resourcePools ) {
                 count++;
-                tm.out("Resource Pool", resourcePool);
+                tm.out("Resource Pool", resourcePool+" ["+resourcePool.getProvideResourcePoolId()+"]");
                 if( resourcePool.getProvideResourcePoolId().equals(testResourcePoolId) ) {
                     found = true;
                 }
