@@ -559,43 +559,47 @@ public class StatelessVMTests {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
-        if( services != null ) {
-            VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
 
-            if( support != null ) {
-                long timeEnd = System.currentTimeMillis();
-                long timeStart = System.currentTimeMillis() - 2 * 60 * 60 * 1000; // half an hour back
-                SpotPriceHistoryFilterOptions options = SpotPriceHistoryFilterOptions.getInstance().matchingAny().matchingInterval(timeStart, timeEnd);
-                Iterable<SpotPriceHistory> histories = support.listSpotPriceHistories(options);
-                int count = 0;
-                int prices = 0;
-                assertNotNull("listSpotPriceHistories() must return at least an empty collection and never a null", histories);
-                for( SpotPriceHistory h : histories ) {
-                    count++;
-                    tm.out("SpotPriceHistory", h);
-                    for( SpotPrice price : h.getPriceHistory() ) {
-                        assertThat("SpotPrice timestamp outside requested bounds", price.getTimestamp(), is(both(greaterThan(timeStart)).and(lessThan(timeEnd))));
-                        prices++;
-                    }
-                }
-                tm.out("Total SpotPriceHistory Count", count);
-                tm.out("Total SpotPrice Count", prices);
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
 
-                if( count > 0 ) {
-                    SpotPriceHistory sph = histories.iterator().next();
-                    VirtualMachineProduct prod = support.getProduct(sph.getProductId());
-                    assertNotNull("SpotPriceHistory belongs to an unknown product (" + sph.getProductId() + ")", prod);
-                }
-                else {
-                    tm.warn("SpotPriceHistory is empty, the test is likely INVALID");
-                }
-            }
-            else {
-                tm.ok("No virtual machine support in this cloud");
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+        if( !support.getCapabilities().supportsSpotVirtualMachines() ) {
+            tm.ok("Spot Virtual Machines are not supported in this cloud");
+            return;
+        }
+
+        long timeEnd = System.currentTimeMillis();
+        long timeStart = System.currentTimeMillis() - 2 * 60 * 60 * 1000; // half an hour back
+        SpotPriceHistoryFilterOptions options = SpotPriceHistoryFilterOptions.getInstance().matchingAny().matchingInterval(timeStart, timeEnd);
+        Iterable<SpotPriceHistory> histories = support.listSpotPriceHistories(options);
+        int count = 0;
+        int prices = 0;
+        assertNotNull("listSpotPriceHistories() must return at least an empty collection and never a null", histories);
+        for( SpotPriceHistory h : histories ) {
+            count++;
+            tm.out("SpotPriceHistory", h);
+            for( SpotPrice price : h.getPriceHistory() ) {
+                assertThat("SpotPrice timestamp outside requested bounds", price.getTimestamp(), is(both(greaterThan(timeStart)).and(lessThan(timeEnd))));
+                prices++;
             }
         }
+        tm.out("Total SpotPriceHistory Count", count);
+        tm.out("Total SpotPrice Count", prices);
+
+        if( count > 0 ) {
+            SpotPriceHistory sph = histories.iterator().next();
+            VirtualMachineProduct prod = support.getProduct(sph.getProductId());
+            assertNotNull("SpotPriceHistory belongs to an unknown product (" + sph.getProductId() + ")", prod);
+        }
         else {
-            tm.ok("No compute services in this cloud");
+            tm.warn("SpotPriceHistory is empty, the test is likely INVALID");
         }
     }
 
@@ -701,78 +705,83 @@ public class StatelessVMTests {
             tm.ok("No compute services in this cloud");
             return;
         }
+
         VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
 
-        if( vmSupport != null ) {
-            // we need to make sure the image has been created
-            assertNotNull("Test imageId is null", testImageId);
-            assertNotNull("Test productId is null", testProductId);
-            List<VirtualMachine> before = new ArrayList<VirtualMachine>();
-            for( VirtualMachine vm : vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withLifecycles(VirtualMachineLifecycle.SPOT)) ) {
-                before.add(vm);
-            }
-            if( before.size() > 0 ) {
-                tm.warn("There are " + before.size() + " spot VMs already running, test may not be clean or you may have leaking resources.");
-            }
-            long validFrom = ( System.currentTimeMillis() / 1000 ) * 1000 + ( 15 * 1000 ); // now + 15 seconds
-            long validUntil = validFrom + ( 10 * 60 * 1000 ); // +5 minutes
-            float price = 0.05f;
-            SpotVirtualMachineRequest request = vmSupport.createSpotVirtualMachineRequest(SpotVirtualMachineRequestCreateOptions.getInstance(testProductId, testImageId, price).validFrom(validFrom).validUntil(validUntil).ofType(SpotVirtualMachineRequestType.ONE_TIME));
-            assertNotNull(request);
-            assertEquals("Created Spot VM request has an invalid product", testProductId, request.getProductId());
-            assertEquals("Created Spot VM request has an invalid image", testImageId, request.getProviderMachineImageId());
-            assertEquals("Created Spot VM request has an invalid price", price, request.getSpotPrice(), 0.01);
-            assertEquals("Created Spot VM request has an incorrect valid-from time", validFrom, request.getValidFromTimestamp());
-            assertEquals("Created Spot VM request has an incorrect valid-until time", validUntil, request.getValidUntilTimestamp());
-            assertEquals("Created Spot VM request has an incorrect type", SpotVirtualMachineRequestType.ONE_TIME, request.getType());
-            if( System.currentTimeMillis() < validFrom ) {
-                assertNull("Created Spot VM request indicates a fulfilled DC but it is too soon", request.getFulfillmentDataCenterId());
-                assertEquals("Created Spot VM request indicates a fulfillment time but it is too soon", 0, request.getFulfillmentTimestamp());
-            }
+        if( vmSupport == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
 
-            VirtualMachine launchedVm = null;
-            while( launchedVm == null ) {
-                Iterator<VirtualMachine> vms = vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withSpotRequestId(request.getProviderSpotVmRequestId())).iterator();
-                if( vms.hasNext() ) {
-                    launchedVm = vms.next();
-                }
-                try {
-                    Thread.sleep(60000);
-                } catch( InterruptedException e ) {
-                }
-                if( System.currentTimeMillis() > validUntil ) {
-                    break;
-                }
-            }
-            if( launchedVm != null ) {
-                assertEquals("Found Spot VM is an incorrect product", testProductId, launchedVm.getProductId());
-                assertEquals("Found Spot VM is launched from incorrect image", testImageId, launchedVm.getProviderMachineImageId());
-            }
-            else {
-                tm.warn("Spot VM has failed to run within the allotted time, perhaps price is too low?");
-            }
+        if( !vmSupport.getCapabilities().supportsSpotVirtualMachines() ) {
+            tm.ok("Spot Virtual Machines are not supported in this cloud");
+            return;
+        }
+        // we need to make sure the image has been created
+        assertNotNull("Test imageId is null", testImageId);
+        assertNotNull("Test productId is null", testProductId);
+        List<VirtualMachine> before = new ArrayList<VirtualMachine>();
+        for( VirtualMachine vm : vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withLifecycles(VirtualMachineLifecycle.SPOT)) ) {
+            before.add(vm);
+        }
+        if( before.size() > 0 ) {
+            tm.warn("There are " + before.size() + " spot VMs already running, test may not be clean or you may have leaking resources.");
+        }
+        long validFrom = ( System.currentTimeMillis() / 1000 ) * 1000 + ( 15 * 1000 ); // now + 15 seconds
+        long validUntil = validFrom + ( 10 * 60 * 1000 ); // +5 minutes
+        float price = 0.05f;
+        SpotVirtualMachineRequest request = vmSupport.createSpotVirtualMachineRequest(SpotVirtualMachineRequestCreateOptions.getInstance(testProductId, testImageId, price).validFrom(validFrom).validUntil(validUntil).ofType(SpotVirtualMachineRequestType.ONE_TIME));
+        assertNotNull(request);
+        assertEquals("Created Spot VM request has an invalid product", testProductId, request.getProductId());
+        assertEquals("Created Spot VM request has an invalid image", testImageId, request.getProviderMachineImageId());
+        assertEquals("Created Spot VM request has an invalid price", price, request.getSpotPrice(), 0.01);
+        assertEquals("Created Spot VM request has an incorrect valid-from time", validFrom, request.getValidFromTimestamp());
+        assertEquals("Created Spot VM request has an incorrect valid-until time", validUntil, request.getValidUntilTimestamp());
+        assertEquals("Created Spot VM request has an incorrect type", SpotVirtualMachineRequestType.ONE_TIME, request.getType());
+        if( System.currentTimeMillis() < validFrom ) {
+            assertNull("Created Spot VM request indicates a fulfilled DC but it is too soon", request.getFulfillmentDataCenterId());
+            assertEquals("Created Spot VM request indicates a fulfillment time but it is too soon", 0, request.getFulfillmentTimestamp());
+        }
 
-            Iterator<SpotVirtualMachineRequest> requests = vmSupport.listSpotVirtualMachineRequests(SpotVirtualMachineRequestFilterOptions.getInstance().withSpotRequestIds(request.getProviderSpotVmRequestId())).iterator();
-            SpotVirtualMachineRequest verifyRequest = null;
-            if( requests.hasNext() ) {
-                verifyRequest = requests.next();
+        VirtualMachine launchedVm = null;
+        while( launchedVm == null ) {
+            Iterator<VirtualMachine> vms = vmSupport.listVirtualMachines(VMFilterOptions.getInstance().withSpotRequestId(request.getProviderSpotVmRequestId())).iterator();
+            if( vms.hasNext() ) {
+                launchedVm = vms.next();
             }
-            assertNotNull("Expected to be able to list the known spot request, but failed", verifyRequest);
-            assertEquals("Found Spot VM request indicates an incorrect image", testImageId, verifyRequest.getProviderMachineImageId());
-            assertEquals("Found Spot VM request indicates an incorrect product", testProductId, verifyRequest.getProductId());
-            assertEquals("Found Spot VM request indicates incorrect valid-from time", validFrom, verifyRequest.getValidFromTimestamp());
-            assertEquals("Found Spot VM request indicates incorrect valid-until time", validUntil, verifyRequest.getValidUntilTimestamp());
-            assertThat("Found Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
-            assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
-
-            vmSupport.cancelSpotVirtualMachineRequest(request.getProviderSpotVmRequestId());
-            if( launchedVm != null ) {
-                // TODO: add vm instance to TestManager so it would clean up instead?
-                vmSupport.terminate(launchedVm.getName());
+            try {
+                Thread.sleep(60000);
+            } catch( InterruptedException e ) {
+            }
+            if( System.currentTimeMillis() > validUntil ) {
+                break;
             }
         }
+        if( launchedVm != null ) {
+            assertEquals("Found Spot VM is an incorrect product", testProductId, launchedVm.getProductId());
+            assertEquals("Found Spot VM is launched from incorrect image", testImageId, launchedVm.getProviderMachineImageId());
+        }
         else {
-            tm.ok("No virtual machine support in this cloud");
+            tm.warn("Spot VM has failed to run within the allotted time, perhaps price is too low?");
+        }
+
+        Iterator<SpotVirtualMachineRequest> requests = vmSupport.listSpotVirtualMachineRequests(SpotVirtualMachineRequestFilterOptions.getInstance().withSpotRequestIds(request.getProviderSpotVmRequestId())).iterator();
+        SpotVirtualMachineRequest verifyRequest = null;
+        if( requests.hasNext() ) {
+            verifyRequest = requests.next();
+        }
+        assertNotNull("Expected to be able to list the known spot request, but failed", verifyRequest);
+        assertEquals("Found Spot VM request indicates an incorrect image", testImageId, verifyRequest.getProviderMachineImageId());
+        assertEquals("Found Spot VM request indicates an incorrect product", testProductId, verifyRequest.getProductId());
+        assertEquals("Found Spot VM request indicates incorrect valid-from time", validFrom, verifyRequest.getValidFromTimestamp());
+        assertEquals("Found Spot VM request indicates incorrect valid-until time", validUntil, verifyRequest.getValidUntilTimestamp());
+        assertThat("Found Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
+        assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+
+        vmSupport.cancelSpotVirtualMachineRequest(request.getProviderSpotVmRequestId());
+        if( launchedVm != null ) {
+            // TODO: add vm instance to TestManager so it would clean up instead?
+            vmSupport.terminate(launchedVm.getName());
         }
     }
 
