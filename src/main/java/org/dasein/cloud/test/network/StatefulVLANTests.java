@@ -66,6 +66,7 @@ public class StatefulVLANTests {
     private String testInternetGatewayId;
     private String testRoutingTableId;
     private String testVLANVMId;
+    private String testDataCenterId;
     private String[] cidrs = new String[]{"192.168.20.0/28", "192.168.40.0/28", "192.168.60.0/28", "192.168.80.0/28", "192.168.100.0/28"};
 
     public StatefulVLANTests() {
@@ -74,6 +75,11 @@ public class StatefulVLANTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
         assumeTrue(!tm.isTestSkipped());
         NetworkServices services = null;
         VLANSupport support = null;
@@ -622,12 +628,14 @@ public class StatefulVLANTests {
 
                         assertNotNull("Subnet went away before test could be executed", subnet);
                         String dataCenterId = subnet.getProviderDataCenterId();
-
-                        if( dataCenterId == null ) {
-                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                                dataCenterId = dc.getProviderDataCenterId();
+                        if (testDataCenterId != null)
+                            dataCenterId = testDataCenterId;
+                        else
+                            if( dataCenterId == null ) {
+                                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                    dataCenterId = dc.getProviderDataCenterId();
+                                }
                             }
-                        }
                         assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                         options.inDataCenter(dataCenterId);
                         options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
@@ -637,12 +645,14 @@ public class StatefulVLANTests {
 
                         assertNotNull("VLAN went away before test could be executed", vlan);
                         String dataCenterId = vlan.getProviderDataCenterId();
-
-                        if( dataCenterId == null ) {
-                            for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
-                                dataCenterId = dc.getProviderDataCenterId();
+                        if (testDataCenterId != null)
+                            dataCenterId = testDataCenterId;
+                        else
+                            if( dataCenterId == null ) {
+                                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                    dataCenterId = dc.getProviderDataCenterId();
+                                }
                             }
-                        }
                         assertNotNull("Could not identify a data center for VM launch", dataCenterId);
                         options.inDataCenter(dataCenterId);
                         options.inVlan(null, dataCenterId, testVLANId);
