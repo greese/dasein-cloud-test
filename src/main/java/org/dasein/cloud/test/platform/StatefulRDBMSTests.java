@@ -103,10 +103,10 @@ public class StatefulRDBMSTests {
         }
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
         for (DatabaseEngine engine : engines) {
-            System.out.println("ENGINE = " + engine);
+            //System.out.println("ENGINE = " + engine);
             Iterable<String> versions = support.getSupportedVersions(engine);
             for (String version : versions) {
-                System.out.println("VERSION = " + version);
+                //System.out.println("VERSION = " + version);
             }
         }
 

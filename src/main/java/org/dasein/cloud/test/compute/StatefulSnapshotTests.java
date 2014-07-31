@@ -752,7 +752,7 @@ public class StatefulSnapshotTests {
                     VolumeSupport.attach(newVolume, testVmId, "sdc");
                     System.out.println("PUT ANOTHER BREAKPOINT HERE TO LOOK ON VM THAT PARTITION SDC1 EXISTS AND CONTAINS YOUR TEST FILE");
                 } catch (Exception ex) {
-                    System.out.println(ex);
+                    // ignore
                 } finally {
                     VolumeSupport.detach(newVolume);
                     VolumeSupport.remove(newVolume);
