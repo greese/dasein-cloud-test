@@ -483,7 +483,8 @@ public class StatefulVolumeTests {
                     if( options == null ) {
                         options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                     }
-
+                    if (testDataCenterId != null)
+                        options.setDataCenterId(testDataCenterId);
                     if( supported ) {
                         provisionedVolume = options.build(tm.getProvider());
 
@@ -837,7 +838,6 @@ public class StatefulVolumeTests {
             tm.ok("No compute services in this cloud");
         }
     }
-
 
     @Test
     public void removeVolume() throws CloudException, InternalException {
