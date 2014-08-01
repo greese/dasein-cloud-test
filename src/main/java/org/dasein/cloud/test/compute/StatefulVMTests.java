@@ -26,6 +26,7 @@ import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
 import org.dasein.cloud.dc.ResourcePool;
+import org.dasein.cloud.dc.StoragePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -41,6 +42,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import java.util.Collection;
+import java.util.Map;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -166,7 +168,7 @@ public class StatefulVMTests {
         else if( name.getMethodName().equals("resume") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.SUSPENDED, true, testDataCenterId);
         }
-        else {
+        else if( !name.getMethodName().startsWith("launchVMWith")) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, null, true, testDataCenterId);
         }
     }
@@ -474,6 +476,119 @@ public class StatefulVMTests {
             }
             else {
                 tm.ok("Affinity groups not supported in this cloud");
+            }
+        }
+        else{
+            tm.ok("No datacenter services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVMWithStoragePool() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
+        if (dcServices != null) {
+            if (dcServices.getCapabilities().supportsStoragePools()) {
+                Iterable<StoragePool> pools = dcServices.listStoragePools();
+                if (pools.iterator().hasNext()) {
+                    String testStoragePoolId = "";
+                    for (StoragePool pool : pools) {
+                        String dataCenterId = pool.getDataCenterId();
+                        if (dataCenterId == null || dataCenterId.equals(testDataCenterId)) {
+                            testStoragePoolId = pool.getStoragePoolName();
+                            break;
+                        }
+                    }
+                    if (!testStoragePoolId.equals("")) {
+                        ComputeServices services = tm.getProvider().getComputeServices();
+
+                        if( services != null ) {
+                            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+                            if( support != null ) {
+                                if( support.isSubscribed() ) {
+                                    ComputeResources compute = DaseinTestManager.getComputeResources();
+                                    if( compute != null ) {
+                                        String productId = tm.getTestVMProductId();
+
+                                        assertNotNull("Unable to identify a VM product for test launch", productId);
+                                        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+                                        assertNotNull("Unable to identify a test image for test launch", imageId);
+                                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnStorage" + ( System.currentTimeMillis() % 10000 ), "Dasein Storage Pool Launch " + System.currentTimeMillis(), "Test launch for a VM in a storage pool");
+                                        options.inDataCenter(testDataCenterId);
+                                        options.withStoragePoolId(testStoragePoolId);
+                                        String id = compute.provisionVM(support, "storagePoolLaunch", options, options.getDataCenterId());
+
+                                        tm.out("Launched", id);
+                                        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+                                        VirtualMachine vm = support.getVirtualMachine(id);
+                                        assertNotNull("Could not find the newly created virtual machine", vm);
+
+                                        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
+
+                                        while( timeout > System.currentTimeMillis() ) {
+                                            if( vm == null ) {
+                                                break;
+                                            }
+                                            Map<String, String> tags = vm.getTags();
+                                            if (tags.containsKey("datastore0")) {
+                                                break;
+                                            }
+                                            try {
+                                                Thread.sleep(15000L);
+                                            } catch( InterruptedException ignore ) {
+                                            }
+                                            try {
+                                                vm = support.getVirtualMachine(id);
+                                            } catch( Throwable ignore ) {
+                                            }
+                                        }
+
+                                        boolean foundStoragePool = false;
+                                        Map<String, String> tags = vm.getTags();
+                                        for( Map.Entry<String, String> entry : tags.entrySet() ) {
+                                            if (entry.getKey().startsWith("datastore")) {
+                                                tm.out("In storage pool " + entry.getValue());
+                                                if (entry.getValue().equals(testStoragePoolId)) {
+                                                    foundStoragePool = true;
+                                                }
+                                            }
+                                        }
+                                        assertNotNull("Launched VM does not exist", vm);
+                                        assertTrue("Expected storage pool not found "+testStoragePoolId, foundStoragePool);
+                                    }
+                                }
+                                else {
+                                    try {
+                                        //noinspection ConstantConditions
+                                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                                        fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+                                    } catch( CloudException ok ) {
+                                        tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                                    }
+                                }
+                            }
+                            else {
+                                tm.ok("No virtual machine support in this cloud");
+                            }
+                        }
+                        else {
+                            tm.ok("No compute services in this cloud");
+                        }
+                    }
+                    else {
+                        fail("Couldn't find valid storage pool for datacenter "+testDataCenterId);
+                    }
+                }
+                else {
+                    fail("No test storage pool was found");
+                }
+            }
+            else {
+                tm.ok("Storage pools not supported in this cloud");
             }
         }
         else{
