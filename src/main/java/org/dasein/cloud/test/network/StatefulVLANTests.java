@@ -177,7 +177,7 @@ public class StatefulVLANTests {
             if( testVLANId != null ) {
                 testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, false, testVLANId, null);
                 if( testSubnetId == null ) {
-                    testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+                    testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, testDataCenterId);
                     // wait...
                     try {
                         Thread.sleep(5000L);
