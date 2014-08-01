@@ -138,7 +138,7 @@ public class StatefulObjectStoreTests {
             testObject = tm.getTestObject(DaseinTestManager.REMOVED, true, true);
         }
         else if( name.getMethodName().equals("removeChildObject") ) {
-            testObject = tm.getTestObject(DaseinTestManager.REMOVED, false, true);
+            testObject = tm.getTestObject(DaseinTestManager.REMOVED + name.getMethodName(), false, true);
         }
         else if( name.getMethodName().equals("clear") ) {
             StorageResources resources = DaseinTestManager.getStorageResources();
