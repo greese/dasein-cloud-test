@@ -115,9 +115,6 @@ public class StatefulLoadBalancerTests {
         else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
         }
-        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, true, true);
-        }
         else if( name.getMethodName().equals("removeIP") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
             NetworkServices services = tm.getProvider().getNetworkServices();
@@ -378,7 +375,7 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        
+
         // Need to see whats the health check NEEDS to be created in here...
         String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, false, true);
 
@@ -390,7 +387,7 @@ public class StatefulLoadBalancerTests {
 
         // lb.getProviderLBHealthCheckId() is null. why?
         LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
-        assertHealthCheck(id, support, lbhc); 
+        assertHealthCheck(id, support, lbhc);
     }
 
     /**
@@ -1064,7 +1061,7 @@ public class StatefulLoadBalancerTests {
             lbCount2++;
             if (lb.getName().equals(id1)) {
                 LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getName());
-                assertHealthCheck(id1, support, lbhc); 
+                assertHealthCheck(id1, support, lbhc);
                 lb1_found = true;
             } else if (lb.getName().equals(id2)) {
                 lb2_found = true;

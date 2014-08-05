@@ -116,13 +116,18 @@ public class StatelessVMTests {
                 }
 
                 Iterable<Architecture> architectures = support.getCapabilities().listSupportedArchitectures();
-                List<Architecture> tmp = new ArrayList<Architecture>();
-                for( Architecture a : architectures ) {
-                    tmp.add(a);
+
+                if( architectures == null ) {
+                    tm.out("Supported Architectures", null);
                 }
                 else {
                     List<Architecture> tmp = new ArrayList<Architecture>();
 
+                    for( Architecture a : architectures ) {
+                        tmp.add(a);
+                    }
+                    tm.out("Supported Architectures", tmp);
+                }
                 for( ImageClass cls : ImageClass.values() ) {
                     r = support.getCapabilities().identifyImageRequirement(cls);
                     tm.out("Image Class Req [" + cls.name() + "]", r);
