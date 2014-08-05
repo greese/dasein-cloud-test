@@ -32,32 +32,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.Architecture;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.ImageClass;
-import org.dasein.cloud.compute.ImageCreateOptions;
-import org.dasein.cloud.compute.ImageFilterOptions;
-import org.dasein.cloud.compute.MachineImage;
-import org.dasein.cloud.compute.MachineImageFormat;
-import org.dasein.cloud.compute.MachineImageState;
-import org.dasein.cloud.compute.MachineImageSupport;
-import org.dasein.cloud.compute.MachineImageType;
-import org.dasein.cloud.compute.Platform;
-import org.dasein.cloud.compute.Snapshot;
-import org.dasein.cloud.compute.SnapshotCreateOptions;
-import org.dasein.cloud.compute.SnapshotState;
-import org.dasein.cloud.compute.SnapshotSupport;
-import org.dasein.cloud.compute.VMLaunchOptions;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VirtualMachineProduct;
-import org.dasein.cloud.compute.VirtualMachineSupport;
-import org.dasein.cloud.compute.VmState;
-import org.dasein.cloud.compute.Volume;
-import org.dasein.cloud.compute.VolumeCreateOptions;
-import org.dasein.cloud.compute.VolumeFormat;
-import org.dasein.cloud.compute.VolumeProduct;
-import org.dasein.cloud.compute.VolumeState;
-import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
@@ -669,7 +644,8 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            for( VirtualMachineProduct product : vmSupport.listProducts(architecture, dataCenterId) ) {
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDatacenterId(dataCenterId);
+                            for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
                                 if( defaultProduct == null ) {
                                     defaultProduct = product;
                                 }
