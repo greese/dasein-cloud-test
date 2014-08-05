@@ -24,6 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
 import org.dasein.cloud.dc.Region;
+import org.dasein.cloud.dc.ResourcePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -65,6 +66,7 @@ public class StatelessDCTests {
     public final TestName name = new TestName();
 
     private String testDataCenterId;
+    private String testResourcePoolId;
 
     public StatelessDCTests() { }
 
@@ -78,6 +80,16 @@ public class StatelessDCTests {
             for( DataCenter dc : services.listDataCenters(tm.getContext().getRegionId()) ) {
                 if( testDataCenterId == null || dc.isActive() ) {
                     testDataCenterId = dc.getProviderDataCenterId();
+                }
+            }
+
+            if (name.getMethodName().contains("Pool") && services.getCapabilities().supportsResourcePools()) {
+                if (testDataCenterId != null) {
+                    for ( ResourcePool rp : services.listResourcePools(testDataCenterId)) {
+                        if (testResourcePoolId == null) {
+                            testResourcePoolId = rp.getProvideResourcePoolId();
+                        }
+                    }
                 }
             }
         }
@@ -105,10 +117,10 @@ public class StatelessDCTests {
         assumeTrue(!tm.isTestSkipped());
         DataCenterServices services = tm.getProvider().getDataCenterServices();
 
-        tm.out("Term for Region", services.getProviderTermForRegion(Locale.getDefault()));
-        tm.out("Term for DataCenter", services.getProviderTermForDataCenter(Locale.getDefault()));
-        assertNotNull("The provider term for region may not be null", services.getProviderTermForRegion(Locale.getDefault()));
-        assertNotNull("The provider term for data center may not be null", services.getProviderTermForDataCenter(Locale.getDefault()));
+        tm.out("Term for Region", services.getCapabilities().getProviderTermForRegion(Locale.getDefault()));
+        tm.out("Term for DataCenter", services.getCapabilities().getProviderTermForDataCenter(Locale.getDefault()));
+        assertNotNull("The provider term for region may not be null", services.getCapabilities().getProviderTermForRegion(Locale.getDefault()));
+        assertNotNull("The provider term for data center may not be null", services.getCapabilities().getProviderTermForDataCenter(Locale.getDefault()));
     }
 
     @Test
@@ -246,4 +258,95 @@ public class StatelessDCTests {
             }
         }
     }
+
+    //Resource pool tests
+    @Test
+    public void getBogusResourcePool() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsResourcePools()) {
+            ResourcePool rp = services.getResourcePool(UUID.randomUUID().toString());
+            tm.out("Bogus Resource pool", rp);
+            assertNull("Dummy resource pool must be null, but one was found", rp);
+        }
+        else {
+            tm.ok("Resource pools not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void getResourcePool() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        if (testResourcePoolId != null) {
+            ResourcePool rp = services.getResourcePool(testResourcePoolId);
+
+            tm.out("Resource Pool", rp+" ["+rp.getProvideResourcePoolId()+"]");
+            assertNotNull("Failed to find the test resource pool", rp);
+        }
+        else {
+            if (services.getCapabilities().supportsResourcePools()) {
+                fail("No test resource pool exists and thus no test for getResourcePool could be run");
+            }
+            else {
+                tm.ok("Resource pools not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void resourcePoolContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (testResourcePoolId != null) {
+            ResourcePool rp = services.getResourcePool(testResourcePoolId);
+
+            assertNotNull("Failed to find the test resource pool", rp);
+            tm.out("Resource Pool ID", rp.getProvideResourcePoolId());
+            tm.out("Name", rp.getName());
+            tm.out("Data center ID", rp.getDataCenterId());
+            tm.out("Available", rp.isAvailable());
+            assertNotNull("Resource Pool ID must not be null", rp.getProvideResourcePoolId());
+            assertNotNull("Resource Pool name must not be null", rp.getName());
+            assertNotNull("Data center id must not be null", rp.getDataCenterId());
+        }
+        else {
+            if (services.getCapabilities().supportsResourcePools()) {
+                fail("No test resource pool exists and thus no test for getResourcePool could be run");
+            }
+            else {
+                tm.ok("Resource pools not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void listResourcePools() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsResourcePools() ) {
+            Iterable<ResourcePool> resourcePools = services.listResourcePools(testDataCenterId);
+            boolean found = false;
+            int count = 0;
+
+            assertNotNull("Null set of resource pools returned from listResourcePools()", resourcePools);
+            for( ResourcePool resourcePool : resourcePools ) {
+                count++;
+                tm.out("Resource Pool", resourcePool+" ["+resourcePool.getProvideResourcePoolId()+"]");
+                if( resourcePool.getProvideResourcePoolId().equals(testResourcePoolId) ) {
+                    found = true;
+                }
+            }
+            tm.out("Total Resource Pool Count", count);
+            assertTrue("There must be at least one Resource Pool in this datacenter", count > 0);
+            assertTrue("Did not find the test Resource Pool ID among returned Resource Pools", found);
+        }
+        else {
+            tm.ok("Resource pools not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+    //End resource pool tests
 }

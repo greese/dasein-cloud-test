@@ -79,7 +79,7 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().startsWith("createVLANFirewall") ) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
         else if( name.getMethodName().equals("launchVM") ) {
@@ -555,7 +555,7 @@ public class StatefulFirewallTests {
 
                 if( net != null ) {
                     int p = port++;
-                    if( support.supportsFirewallCreation(true) ) {
+                    if( support.getCapabilities().supportsFirewallCreation(true) ) {
                         if( testVLANId != null ) {
                             String id = net.provisionFirewall("provision", testVLANId, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
@@ -837,7 +837,6 @@ public class StatefulFirewallTests {
     public void launchVM() throws CloudException, InternalException {
         ComputeServices services = tm.getProvider().getComputeServices();
         VirtualMachineSupport support;
-
         if( services != null ) {
             support = services.getVirtualMachineSupport();
             if( support != null ) {
@@ -875,7 +874,6 @@ public class StatefulFirewallTests {
                 options.behindFirewalls(testFirewallId);
                 if( testSubnetId != null ) {
                     @SuppressWarnings("ConstantConditions") Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
-
                     assertNotNull("Subnet went away before test could be executed", subnet);
                     String dataCenterId = subnet.getProviderDataCenterId();
 
@@ -921,7 +919,6 @@ public class StatefulFirewallTests {
                 }
                 return;
             }
-
             String vmId = compute.provisionVM(support, "fwLaunch", options, options.getDataCenterId());
 
             tm.out("Virtual Machine", vmId);
@@ -932,8 +929,9 @@ public class StatefulFirewallTests {
             assertNotNull("Launched VM does not exist", vm);
             tm.out("Behind firewalls", Arrays.toString(vm.getProviderFirewallIds()));
             String[] fwIds = vm.getProviderFirewallIds();
-
-            assertTrue("The firewall IDs do not match the test firewall of " + testFirewallId, fwIds.length == 1 && fwIds[0].equals(testFirewallId));
+            assertNotNull("The VM firewalls should not be null", fwIds);
+            assertEquals("The number of firewalls is incorrect", 1, fwIds.length);
+            assertEquals("The firewall IDs do not match the test firewall", testFirewallId, fwIds[0]);
         }
     }
 }

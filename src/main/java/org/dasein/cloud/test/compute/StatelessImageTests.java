@@ -401,6 +401,59 @@ public class StatelessImageTests {
         }
     }
 
+    /*
+     * This test should only be run when setup properly, so it removes a SPECIFIC machine image... Use with CAUTION!
+     */
+    /*
+    @Test
+    public void removeMachineImage() throws CloudException, InternalException {
+        String manual_name_of_image_to_be_removed = "qa-project-2_roger-test";
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            MachineImageSupport support = services.getImageSupport();
+
+            if( support != null ) {
+                boolean supported = false;
+
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
+                    if( cls.equals(ImageClass.MACHINE) ) {
+                        supported = true;
+                    }
+                }
+
+                Iterable<MachineImage> images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE));
+                int count1 = 0;
+
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    count1++;
+                    tm.out("Image", image);
+                }
+                support.remove(manual_name_of_image_to_be_removed);
+
+                int count2 = 0;
+
+                // re-catalog the images...
+                images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE));
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    count2++;
+                    tm.out("Image", image);
+                }
+                assertTrue("Image was not successfully deleted", count1 == (++count2));
+            }
+            else {
+                tm.ok("No image support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+    */
+
     @Test
     public void listKernelImages() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
@@ -735,6 +788,42 @@ public class StatelessImageTests {
         }
         else {
             tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void findAllPublicImages() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            MachineImageSupport support = services.getImageSupport();
+
+            if( support != null ) {
+                boolean supported = false;
+
+                for( ImageClass cls : support.getCapabilities().listSupportedImageClasses() ) {
+                    if( cls.equals(ImageClass.MACHINE) ) {
+                        supported = true;
+                    }
+                }
+
+                Iterable<MachineImage> images = support.searchPublicImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).matchingAny());
+                int count = 0;
+
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    count++;
+                    tm.out("Image", image);
+                }
+                tm.out("Total Machine Image Count", count);
+                if( !supported ) {
+                    assertTrue("Because machine images are not supported, the list of images should be empty", count == 0);
+                }
+                if( count > 0 ) {
+                    assertImageContent(images, ImageClass.MACHINE);
+                }
+            }
         }
     }
 

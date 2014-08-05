@@ -203,7 +203,7 @@ public class StatelessVLANTests {
                 assertNotNull("The term for a VLAN may not be null", support.getCapabilities().getProviderTermForVlan(Locale.getDefault()));
                 assertNotNull("The term for a subnet may not be null", support.getCapabilities().getProviderTermForSubnet(Locale.getDefault()));
                 assertNotNull("Specify DC for subnet may not be null", support.getCapabilities().identifySubnetDCRequirement());
-                assertTrue("isSubnetDataCenterConstrained() value conflicts with DC specification requirement", support.getCapabilities().isSubnetDataCenterConstrained() || support.identifySubnetDCRequirement().equals(Requirement.NONE));
+                assertTrue("isSubnetDataCenterConstrained() value conflicts with DC specification requirement", support.getCapabilities().isSubnetDataCenterConstrained() || support.getCapabilities().identifySubnetDCRequirement().equals(Requirement.NONE));
                 assertTrue("The maximum VLAN count must be -2 (Unknown), -1 (Unlimited), or non-negative", support.getCapabilities().getMaxVlanCount() >= -2);
                 assertNotNull("Subnet requirement must be non-null", support.getCapabilities().getSubnetSupport());
                 if( support.getCapabilities().allowsNewSubnetCreation() ) {
@@ -708,7 +708,7 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test internet gatway was identified for tests due to a lack of subscription to VLAN support");
             }
-            else if( support.getCapabilities().supportsInternetGatewayCreation() ) {
+            else if( !support.getCapabilities().supportsInternetGatewayCreation() ) {
               tm.ok("Internet Gateways are not supported so there is no test for " + name.getMethodName());
             }
             else {

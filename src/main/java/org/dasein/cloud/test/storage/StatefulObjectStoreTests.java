@@ -28,22 +28,13 @@ import org.dasein.cloud.storage.FileTransfer;
 import org.dasein.cloud.storage.StorageServices;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
-import org.dasein.util.uom.storage.*;
 import org.dasein.util.uom.storage.Byte;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.dasein.util.uom.storage.Storage;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -132,6 +123,8 @@ public class StatefulObjectStoreTests {
                             }
                             catch( Throwable ignore ) {
                                 // ignore
+                                // debug
+                                tm.out("No testObject for downloadChild - exception: " + ignore.getLocalizedMessage());
                             }
                         }
                     }
@@ -145,7 +138,7 @@ public class StatefulObjectStoreTests {
             testObject = tm.getTestObject(DaseinTestManager.REMOVED, true, true);
         }
         else if( name.getMethodName().equals("removeChildObject") ) {
-            testObject = tm.getTestObject(DaseinTestManager.REMOVED, false, true);
+            testObject = tm.getTestObject(DaseinTestManager.REMOVED + name.getMethodName(), false, true);
         }
         else if( name.getMethodName().equals("clear") ) {
             StorageResources resources = DaseinTestManager.getStorageResources();

@@ -89,7 +89,7 @@ public class StatelessObjectStoreTests {
             StorageServices services = tm.getProvider().getStorageServices();
 
             if( services != null ) {
-                BlobStoreSupport support = services.getBlobStoreSupport();
+                BlobStoreSupport support = services.getOnlineStorageSupport();
 
                 if( support != null ) {
                     try {
@@ -118,7 +118,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -196,7 +196,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -235,7 +235,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -256,7 +256,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -287,7 +287,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -320,7 +320,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -351,7 +351,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -382,7 +382,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -431,10 +431,14 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        if (!support.allowsRootObjects()) {
+            tm.ok("Root objects are not allowed in "+tm.getProvider().getCloudName());
             return;
         }
         Blob object = support.getObject(null, UUID.randomUUID().toString());
@@ -452,7 +456,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -486,7 +490,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -522,7 +526,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -553,7 +557,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -587,7 +591,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -623,7 +627,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -675,7 +679,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -696,7 +700,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -727,7 +731,7 @@ public class StatelessObjectStoreTests {
             return;
         }
 
-        BlobStoreSupport support = services.getBlobStoreSupport();
+        BlobStoreSupport support = services.getOnlineStorageSupport();
 
         if( support == null ) {
             tm.ok("No object storage is supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());

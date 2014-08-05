@@ -19,6 +19,14 @@
 
 package org.dasein.cloud.test.compute;
 
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.Random;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
@@ -26,7 +34,11 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.*;
+import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.SubnetCreateOptions;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.identity.IdentityResources;
 import org.dasein.cloud.test.network.NetworkResources;
@@ -34,13 +46,10 @@ import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 
-import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
-import java.util.*;
-
 /**
  * Handles the shared compute resources for executing various tests.
  * <p>Created by George Reese: 2/17/13 8:35 PM</p>
+ *
  * @author George Reese
  * @version 2013.04
  * @since 2013.02
@@ -50,19 +59,20 @@ public class ComputeResources {
 
     static private final Random random = new Random();
 
-    private CloudProvider   provider;
+    private CloudProvider provider;
 
-    private final HashMap<String,String> testMachineImages = new HashMap<String,String>();
-    private final HashMap<String,String> testSnapshots     = new HashMap<String, String>();
-    private final HashMap<String,String> testVMs           = new HashMap<String, String>();
-    private final HashMap<String,String> testVolumes       = new HashMap<String, String>();
+    private final Map<String, String> testMachineImages = new HashMap<String, String>();
+    private final Map<String, String> testSnapshots     = new HashMap<String, String>();
+    private final Map<String, String> testVMs           = new HashMap<String, String>();
+    private final Map<String, String> testVolumes       = new HashMap<String, String>();
 
-    private String        testDataCenterId;
-    private Platform      testImagePlatform;
-    private String        testVMProductId;
-    private String        testVolumeProductId;
+    //defaults
+    private String   testDataCenterId;
+    private Platform testImagePlatform;
+    private String   testVMProductId;
+    private String   testVolumeProductId;
 
-    public ComputeResources(@Nonnull CloudProvider provider) {
+    public ComputeResources( @Nonnull CloudProvider provider ) {
         this.provider = provider;
     }
 
@@ -100,7 +110,7 @@ public class ComputeResources {
             if( !header ) {
                 logger.info("Provisioned Compute Resources:");
             }
-            count+= testVolumes.size();
+            count += testVolumes.size();
             DaseinTestManager.out(logger, null, "---> Volumes", testVolumes.size() + " " + testVolumes);
         }
         return count;
@@ -114,7 +124,7 @@ public class ComputeResources {
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
 
             if( vmSupport != null ) {
-                for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
+                for( Map.Entry<String, String> entry : testVMs.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
                             VirtualMachine vm = vmSupport.getVirtualMachine(entry.getValue());
@@ -126,8 +136,7 @@ public class ComputeResources {
                             else {
                                 count++;
                             }
-                        }
-                        catch( Throwable t ) {
+                        } catch( Throwable t ) {
                             logger.warn("Failed to de-provision test VM " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
@@ -137,7 +146,7 @@ public class ComputeResources {
             MachineImageSupport imageSupport = computeServices.getImageSupport();
 
             if( imageSupport != null ) {
-                for( Map.Entry<String,String> entry : testMachineImages.entrySet() ) {
+                for( Map.Entry<String, String> entry : testMachineImages.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
                             MachineImage img = imageSupport.getImage(entry.getValue());
@@ -149,8 +158,7 @@ public class ComputeResources {
                             else {
                                 count++;
                             }
-                        }
-                        catch( Throwable t ) {
+                        } catch( Throwable t ) {
                             logger.warn("Failed to de-provision test image " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
@@ -160,7 +168,7 @@ public class ComputeResources {
             SnapshotSupport snapshotSupport = computeServices.getSnapshotSupport();
 
             if( snapshotSupport != null ) {
-                for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
+                for( Map.Entry<String, String> entry : testSnapshots.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
                             Snapshot snapshot = snapshotSupport.getSnapshot(entry.getValue());
@@ -172,8 +180,7 @@ public class ComputeResources {
                             else {
                                 count++;
                             }
-                        }
-                        catch( Throwable t ) {
+                        } catch( Throwable t ) {
                             logger.warn("Failed to de-provision test snapshot " + entry.getValue() + " post-test: " + t.getMessage());
                         }
                     }
@@ -182,7 +189,7 @@ public class ComputeResources {
             VolumeSupport volumeSupport = computeServices.getVolumeSupport();
 
             if( volumeSupport != null ) {
-                for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
+                for( Map.Entry<String, String> entry : testVolumes.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
                             Volume volume = volumeSupport.getVolume(entry.getValue());
@@ -190,15 +197,16 @@ public class ComputeResources {
                             if( volume != null ) {
                                 volumeSupport.detach(entry.getValue(), true);
                             }
-                        }
-                        catch( Throwable ignore ) {
+                        } catch( Throwable ignore ) {
                             // IGNORE
                         }
                     }
                 }
-                try { Thread.sleep(60000L); }
-                catch( InterruptedException ignore ) { }
-                for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
+                try {
+                    Thread.sleep(60000L);
+                } catch( InterruptedException ignore ) {
+                }
+                for( Map.Entry<String, String> entry : testVolumes.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
                             Volume volume = volumeSupport.getVolume(entry.getValue());
@@ -210,15 +218,13 @@ public class ComputeResources {
                             else {
                                 count++;
                             }
-                        }
-                        catch( Throwable t ) {
+                        } catch( Throwable t ) {
                             logger.warn("Failed to de-provision test volume " + entry.getValue() + ": " + t.getMessage());
                         }
                     }
                 }
             }
         }
-        provider.close();
         return count;
     }
 
@@ -250,15 +256,14 @@ public class ComputeResources {
                         return id;
                     }
                 }
-            }
-            catch( Throwable ignore ) {
+            } catch( Throwable ignore ) {
                 // ignore
             }
         }
         return null;
     }
 
-    public @Nullable String getTestDataCenterId(boolean stateless) {
+    public @Nullable String getTestDataCenterId( boolean stateless ) {
         if( testDataCenterId != null ) {
             return testDataCenterId;
         }
@@ -278,8 +283,7 @@ public class ComputeResources {
                 if( defaultDC != null ) {
                     return defaultDC.getProviderDataCenterId();
                 }
-            }
-            catch( Throwable ignore ) {
+            } catch( Throwable ignore ) {
                 // ignore
             }
         }
@@ -298,8 +302,7 @@ public class ComputeResources {
                             testDataCenterId = vm.getProviderDataCenterId();
                             return testDataCenterId;
                         }
-                    }
-                    catch( Throwable ignore ) {
+                    } catch( Throwable ignore ) {
                         // ignore me
                     }
                 }
@@ -308,12 +311,12 @@ public class ComputeResources {
         return null;
     }
 
-    public @Nullable String getTestImageId(@Nonnull String label, boolean provisionIfNull) {
+    public @Nullable String getTestImageId( @Nonnull String label, boolean provisionIfNull ) {
         String id = testMachineImages.get(label);
 
         if( id == null ) {
             if( label.equals(DaseinTestManager.STATELESS) ) {
-                for( Map.Entry<String,String> entry : testMachineImages.entrySet() ) {
+                for( Map.Entry<String, String> entry : testMachineImages.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
                         id = entry.getValue();
                         if( id != null ) {
@@ -332,8 +335,7 @@ public class ComputeResources {
                     if( support != null ) {
                         try {
                             return provisionImage(support, label, "dsnimg", null);
-                        }
-                        catch( Throwable ignore ) {
+                        } catch( Throwable ignore ) {
                             return null;
                         }
                     }
@@ -343,9 +345,9 @@ public class ComputeResources {
         return id;
     }
 
-    public @Nullable String getTestSnapshotId(@Nonnull String label, boolean provisionIfNull) {
+    public @Nullable String getTestSnapshotId( @Nonnull String label, boolean provisionIfNull ) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
-            for( Map.Entry<String,String> entry : testSnapshots.entrySet() ) {
+            for( Map.Entry<String, String> entry : testSnapshots.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
@@ -371,19 +373,22 @@ public class ComputeResources {
 
             if( support != null ) {
                 try {
-                    return provisionSnapshot(support, label, "dsnsnap" + (System.currentTimeMillis()%10000), null);
-                }
-                catch( Throwable ignore ) {
+                    return provisionSnapshot(support, label, "dsnsnap" + ( System.currentTimeMillis() % 10000 ), null);
+                } catch( Throwable ignore ) {
                     return null;
                 }
             }
         }
         return null;
     }
-
+    
     public @Nullable String getTestVmId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        return getTestVmId(label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    }
+
+    public @Nullable String getTestVmId( @Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId ) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
-            for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
+            for( Map.Entry<String, String> entry : testVMs.entrySet() ) {
                 if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
@@ -394,8 +399,7 @@ public class ComputeResources {
                             if( vm != null && !VmState.TERMINATED.equals(vm.getCurrentState()) ) {
                                 return id;
                             }
-                        }
-                        catch( Throwable ignore ) {
+                        } catch( Throwable ignore ) {
                             // ignore
                         }
                     }
@@ -415,16 +419,152 @@ public class ComputeResources {
 
             if( support != null ) {
                 try {
-                    VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
+                    VirtualMachine vm = ( id == null ? null : support.getVirtualMachine(id) );
 
-                    if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState())) && provisionIfNull ) {
-                        id = provisionVM(support, label, "Dasein Test " + label, "dsnvm", preferredDataCenterId);
+                    if( ( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) ) && provisionIfNull ) {
+                        id = provisionVM(support, label, "testvm-" + label, vmName, preferredDataCenterId);
                         vm = support.getVirtualMachine(id);
                     }
                     if( vm != null && desiredState != null ) {
                         setState(support, vm, desiredState);
                     }
                     return id;
+                } catch( Throwable t ) {
+                    try {
+                        if( support.isSubscribed() ) {
+                            logger.warn("Unable to provision test virtual machine under label " + label + ": " + t.getMessage());
+                        }
+                    } catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    public @Nullable String getTestVLANVmId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        if( label.equals(DaseinTestManager.STATELESS) ) {
+            for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
+                if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
+                    String id = entry.getValue();
+
+                    if( id != null ) {
+                        try {
+                            @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(id);
+
+                            if( vm != null && !VmState.TERMINATED.equals(vm.getCurrentState()) && vm.getProviderVlanId() != null ) {
+                                if( vlanId == null ) {
+                                    return id;
+                                }
+                                else if( vm.getProviderVlanId().equalsIgnoreCase(vlanId) ) {
+                                    return id;
+                                }
+                            }
+                        }
+                        catch( Throwable ignore ) {
+                            // ignore
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+        String id = testVMs.get(label);
+
+        if( id == null && !provisionIfNull ) {
+            return null;
+        }
+        ComputeServices services = provider.getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+            if( support != null ) {
+                try {
+                    VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
+                    if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) || vm.getProviderVlanId() == null || !vm.getProviderVlanId().equalsIgnoreCase(vlanId)) && provisionIfNull ) {
+                        String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
+                        if( testImageId == null ) {
+                            throw new CloudException("No test image exists for provisioning a virtual machine");
+                        }
+                        long now = System.currentTimeMillis();
+                        String name = "dasein-test-" + label + " " + now;
+                        String host = "dsnvm" + (now%10000);
+                        VMLaunchOptions vmOpts = VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics();
+                        NetworkResources network = DaseinTestManager.getNetworkResources();
+                        if( vlanId != null ) {
+                            NetworkServices ns = provider.getNetworkServices();
+                            VLANSupport vs = ns.getVlanSupport();
+                            VLAN v = vs.getVlan(vlanId);
+                            Iterable<Subnet> subnets = vs.listSubnets(vlanId);
+                            if( subnets.iterator().hasNext() ) {
+                                Subnet sub = subnets.iterator().next();
+                                vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
+                            } else {
+                                Subnet sub = vs.createSubnet(SubnetCreateOptions.getInstance(vlanId, "192.168.50.0/24", "dsnsub", "dasein test create vm for vlan"));
+                                vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId());
+                            }
+                        } else {
+                            if( network != null ) {
+                                String networkId = network.getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+
+                                if( networkId == null ) {
+                                    networkId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                                }
+
+                                // wait for network to be ready
+                                try {
+                                    Thread.sleep(10000L);
+                                }
+                                catch( InterruptedException ignore ) {
+                                }
+
+                                if( networkId != null ) {
+
+                                    String subnetId = network.getTestSubnetId(DaseinTestManager.STATEFUL, true, networkId, preferredDataCenterId);
+
+                                    if( subnetId == null ) {
+                                        subnetId = network.getTestSubnetId(DaseinTestManager.STATELESS, true, networkId, preferredDataCenterId);
+                                    }
+                                    if( subnetId != null ) {
+
+                                        // wait for subnet to be ready
+                                        try { Thread.sleep(10000L); }
+                                        catch( InterruptedException ignore ) { }
+
+                                        @SuppressWarnings("ConstantConditions") Subnet subnet = provider.getNetworkServices().getVlanSupport().getSubnet(subnetId);
+
+                                        if( subnet != null ) {
+                                            String dcId = subnet.getProviderDataCenterId();
+
+                                            if( dcId == null ) {
+                                                for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+                                                    if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                                        dcId = dc.getProviderDataCenterId();
+                                                    }
+                                                }
+                                            }
+                                            vmOpts.inSubnet(null, dcId, vlanId, subnetId);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        id = provisionVM(support, label, vmOpts, preferredDataCenterId);
+                        vm = support.getVirtualMachine(id);
+                    }
+                    if( vm != null && desiredState != null ) {
+                        setState(support, vm, desiredState);
+                    }
+                    if( vlanId != null && vm.getProviderVlanId().equalsIgnoreCase(vlanId) && id != null ) {
+                        return id;
+                    }
+                    else if( vlanId == null && id != null ) {
+                        return id;
+                    }
+                    else {
+                        return null;
+                    }
                 }
                 catch( Throwable t ) {
                     try {
@@ -441,148 +581,13 @@ public class ComputeResources {
         return null;
     }
 
-    public @Nullable String getTestVLANVmId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
-      if( label.equals(DaseinTestManager.STATELESS) ) {
-        for( Map.Entry<String,String> entry : testVMs.entrySet() ) {
-          if( !entry.getKey().startsWith(DaseinTestManager.REMOVED) ) {
-            String id = entry.getValue();
-
-            if( id != null ) {
-              try {
-                @SuppressWarnings("ConstantConditions") VirtualMachine vm = provider.getComputeServices().getVirtualMachineSupport().getVirtualMachine(id);
-
-                if( vm != null && !VmState.TERMINATED.equals(vm.getCurrentState()) && vm.getProviderVlanId() != null ) {
-                  if( vlanId == null ) {
-                    return id;
-                  }
-                  else if( vm.getProviderVlanId().equalsIgnoreCase(vlanId) ) {
-                    return id;
-                  }
-                }
-              }
-              catch( Throwable ignore ) {
-                // ignore
-              }
-            }
-          }
-        }
-        return null;
-      }
-      String id = testVMs.get(label);
-
-      if( id == null && !provisionIfNull ) {
-        return null;
-      }
-      ComputeServices services = provider.getComputeServices();
-
-      if( services != null ) {
-        VirtualMachineSupport support = services.getVirtualMachineSupport();
-        if( support != null ) {
-          try {
-            VirtualMachine vm = (id == null ? null : support.getVirtualMachine(id));
-            if( (vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) || vm.getProviderVlanId() == null || !vm.getProviderVlanId().equalsIgnoreCase(vlanId)) && provisionIfNull ) {
-              String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
-              if( testImageId == null ) {
-                throw new CloudException("No test image exists for provisioning a virtual machine");
-              }
-              long now = System.currentTimeMillis();
-              String name = "Dasein Test " + label + " " + now;
-              String host = "dsnvm" + (now%10000);
-              VMLaunchOptions vmOpts = VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics();
-              NetworkResources network = DaseinTestManager.getNetworkResources();
-              if( vlanId != null ) {
-                NetworkServices ns = provider.getNetworkServices();
-                VLANSupport vs = ns.getVlanSupport();
-                VLAN v = vs.getVlan( vlanId );
-                Iterable<Subnet> subnets = vs.listSubnets( vlanId );
-                if( subnets.iterator().hasNext() ) {
-                  Subnet sub = subnets.iterator().next();
-                  vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId() );
-                } else {
-                  Subnet sub = vs.createSubnet(SubnetCreateOptions.getInstance(vlanId, "192.168.50.0/24", "dsnsub", "dasein test create vm for vlan"));
-                  vmOpts.inSubnet( null, v.getProviderDataCenterId(), sub.getProviderVlanId(), sub.getProviderSubnetId() );
-                }
-              } else {
-                if( network != null ) {
-                  String networkId = network.getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
-
-                  if( networkId == null ) {
-                    networkId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
-                  }
-
-                  // wait for network to be ready
-                  try { Thread.sleep(10000L); }
-                  catch( InterruptedException ignore ) { }
-
-                  if( networkId != null ) {
-
-                    String subnetId = network.getTestSubnetId(DaseinTestManager.STATEFUL, true, networkId, preferredDataCenterId);
-
-                    if( subnetId == null ) {
-                      subnetId = network.getTestSubnetId(DaseinTestManager.STATELESS, true, networkId, preferredDataCenterId);
-                    }
-                    if( subnetId != null ) {
-
-                      // wait for subnet to be ready
-                      try { Thread.sleep(10000L); }
-                      catch( InterruptedException ignore ) { }
-
-                      @SuppressWarnings("ConstantConditions") Subnet subnet = provider.getNetworkServices().getVlanSupport().getSubnet(subnetId);
-
-                      if( subnet != null ) {
-                        String dcId = subnet.getProviderDataCenterId();
-
-                        if( dcId == null ) {
-                          for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                            if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
-                              dcId = dc.getProviderDataCenterId();
-                            }
-                          }
-                        }
-                        vmOpts.inSubnet(null, dcId, vlanId, subnetId);
-                      }
-                    }
-                  }
-                }
-              }
-              id = provisionVM(support, label, vmOpts, preferredDataCenterId);
-              vm = support.getVirtualMachine(id);
-            }
-            if( vm != null && desiredState != null ) {
-              setState(support, vm, desiredState);
-            }
-            if( vlanId != null && vm.getProviderVlanId().equalsIgnoreCase( vlanId ) && id != null ) {
-              return id;
-            }
-            else if( vlanId == null && id != null ) {
-              return id;
-            }
-            else {
-              return null;
-            }
-          }
-          catch( Throwable t ) {
-            try {
-              if( support.isSubscribed() ) {
-                logger.warn("Unable to provision test virtual machine under label " + label + ": " + t.getMessage());
-              }
-            }
-            catch( Throwable ignore ) {
-              // ignore
-            }
-          }
-        }
-      }
-      return null;
-    }
-
     public @Nullable String getTestVMProductId() {
         return testVMProductId;
     }
 
-    public @Nullable String getTestVolumeId(@Nonnull String label, boolean provisionIfNull, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) {
+    public @Nullable String getTestVolumeId( @Nonnull String label, boolean provisionIfNull, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId ) {
         if( label.equals(DaseinTestManager.STATELESS) ) {
-            for( Map.Entry<String,String> entry : testVolumes.entrySet() ) {
+            for( Map.Entry<String, String> entry : testVolumes.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
                     String id = entry.getValue();
 
@@ -606,9 +611,8 @@ public class ComputeResources {
 
                 if( support != null ) {
                     try {
-                        return provisionVolume(support, label, "dsnvol" + (System.currentTimeMillis()%10000), desiredFormat, preferredDataCenterId);
-                    }
-                    catch( Throwable ignore ) {
+                        return provisionVolume(support, label, "dsnvol" + ( System.currentTimeMillis() % 10000 ), desiredFormat, preferredDataCenterId);
+                    } catch( Throwable ignore ) {
                         return null;
                     }
                 }
@@ -622,10 +626,16 @@ public class ComputeResources {
     }
 
     public void init() {
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch (Throwable ignore) {
+            // ignore
+        }
         ComputeServices computeServices = provider.getComputeServices();
+        String dataCenterId = System.getProperty("test.dataCenter");
 
         if( computeServices != null ) {
-            HashMap<Architecture,VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
+            Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
 
             if( vmSupport != null ) {
@@ -634,7 +644,8 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            for( VirtualMachineProduct product : vmSupport.listProducts(architecture) ) {
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDatacenterId(dataCenterId);
+                            for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
                                 if( defaultProduct == null ) {
                                     defaultProduct = product;
                                 }
@@ -648,20 +659,18 @@ public class ComputeResources {
                                         defaultProduct = product;
                                     }
                                     else if( defaultProduct.getCpuCount() > product.getCpuCount() ) {
-                                        if( (defaultProduct.getRamSize().intValue()*2) > product.getRamSize().intValue() ) {
+                                        if( ( defaultProduct.getRamSize().intValue() * 2 ) > product.getRamSize().intValue() ) {
                                             defaultProduct = product;
                                         }
                                     }
                                 }
                             }
-                        }
-                        catch( Throwable ignore ) {
+                        } catch( Throwable ignore ) {
                             // ignore
                         }
                         productMap.put(architecture, defaultProduct);
                     }
-                }
-                catch( Throwable ignore ) {
+                } catch( Throwable ignore ) {
                     // ignore
                 }
             }
@@ -678,15 +687,15 @@ public class ComputeResources {
                             break;
                         }
                     }
-                }
-                catch( Throwable ignore ) {
+                } catch( Throwable ignore ) {
                     // ignore
                 }
-                for( Architecture architecture : new Architecture[] { Architecture.I64, Architecture.POWER, Architecture.I32, Architecture.SPARC } ) {
+                for( Architecture architecture : new Architecture[]{Architecture.I64, Architecture.POWER, Architecture.I32, Architecture.SPARC} ) {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
                     if( currentProduct != null ) {
-                        for( Platform platform : new Platform[] { Platform.UBUNTU, Platform.CENT_OS, Platform.WINDOWS, Platform.RHEL } ) {
+                        // Let WINDOWS come first for a greater chance of StatelessVMTests#getVMPassword to work
+                        for( Platform platform : new Platform[]{Platform.WINDOWS, Platform.UBUNTU, Platform.CENT_OS, Platform.RHEL} ) {
                             ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
 
                             try {
@@ -700,8 +709,7 @@ public class ComputeResources {
                                         }
                                     }
                                 }
-                            }
-                            catch( Throwable ignore ) {
+                            } catch( Throwable ignore ) {
                                 // ignore
                             }
                             if( testVMProductId != null ) {
@@ -719,8 +727,7 @@ public class ComputeResources {
                                         }
                                     }
                                 }
-                            }
-                            catch( Throwable ignore ) {
+                            } catch( Throwable ignore ) {
                                 // ignore
                             }
                         }
@@ -759,21 +766,19 @@ public class ComputeResources {
                     if( defaultProduct != null ) {
                         testVolumeProductId = defaultProduct.getProviderProductId();
                     }
-                }
-                catch( Throwable ignore ) {
+                } catch( Throwable ignore ) {
                     // ignore me
                 }
             }
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
                     }
-                }
-                catch( Throwable ignore ) {
+                } catch( Throwable ignore ) {
                     // ignore
                 }
             }
@@ -782,7 +787,7 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null ) {
+                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
@@ -794,15 +799,14 @@ public class ComputeResources {
                     if( defaultVolume != null ) {
                         testVolumes.put(DaseinTestManager.STATELESS, defaultVolume.getProviderVolumeId());
                     }
-                }
-                catch( Throwable ignore ) {
+                } catch( Throwable ignore ) {
                     // ignore
                 }
             }
         }
     }
 
-    public @Nonnull String provisionImage(@Nonnull MachineImageSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String vmId) throws CloudException, InternalException {
+    public @Nonnull String provisionImage( @Nonnull MachineImageSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String vmId ) throws CloudException, InternalException {
         VirtualMachineSupport vmSupport = null;
 
         ComputeServices services = provider.getComputeServices();
@@ -828,9 +832,9 @@ public class ComputeResources {
         MachineImage image = support.getImage(imageId);
 
         if( image == null || support.getCapabilities().supportsImageCapture(image.getType()) ) {
-            String id = ImageCreateOptions.getInstance(vm, namePrefix + (System.currentTimeMillis()%10000), "Test machine image with label " + label).build(provider);
+            String id = ImageCreateOptions.getInstance(vm, namePrefix + ( System.currentTimeMillis() % 10000 ), "Test machine image with label " + label).build(provider);
 
-            synchronized( testMachineImages ) {
+            synchronized ( testMachineImages ) {
                 while( testMachineImages.containsKey(label) ) {
                     label = label + random.nextInt(9);
                 }
@@ -840,12 +844,12 @@ public class ComputeResources {
         }
         else if( !support.getCapabilities().identifyLocalBundlingRequirement().equals(Requirement.REQUIRED) ) {
             Iterator<MachineImageFormat> formats = support.getCapabilities().listSupportedFormatsForBundling().iterator();
-            MachineImageFormat format = (formats.hasNext() ? formats.next() : null);
+            MachineImageFormat format = ( formats.hasNext() ? formats.next() : null );
 
             if( format != null ) {
-                String id = support.bundleVirtualMachine(vmId, format, "dsnimg" + (System.currentTimeMillis()%100000), "dsnimg");
+                String id = support.bundleVirtualMachine(vmId, format, "dsnimg" + ( System.currentTimeMillis() % 100000 ), "dsnimg");
 
-                synchronized( testMachineImages ) {
+                synchronized ( testMachineImages ) {
                     while( testMachineImages.containsKey(label) ) {
                         label = label + random.nextInt(9);
                     }
@@ -857,11 +861,11 @@ public class ComputeResources {
         throw new CloudException("No mechanism exists for provisioning images from a virtual machine");
     }
 
-    public @Nonnull String provisionSnapshot(@SuppressWarnings("UnusedParameters") @Nonnull SnapshotSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String volumeId) throws CloudException, InternalException {
+    public @Nonnull String provisionSnapshot( @SuppressWarnings("UnusedParameters") @Nonnull SnapshotSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String volumeId ) throws CloudException, InternalException {
         SnapshotCreateOptions options;
 
         if( volumeId == null ) {
-            volumeId = getTestVolumeId(DaseinTestManager.STATEFUL + (System.currentTimeMillis()%1000), true, null, null);
+            volumeId = getTestVolumeId(DaseinTestManager.STATEFUL + ( System.currentTimeMillis() % 1000 ), true, null, null);
             if( volumeId == null ) {
                 throw new CloudException("No volume from which to create a snapshot");
             }
@@ -872,13 +876,17 @@ public class ComputeResources {
             Volume volume = vs.getVolume(volumeId);
 
             if( volume != null ) {
-                long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+                long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
 
                 while( timeout > System.currentTimeMillis() ) {
-                    try { Thread.sleep(15000L); }
-                    catch( InterruptedException ignore ) { }
-                    try { volume = vs.getVolume(volumeId); }
-                    catch( Throwable ignore ) { }
+                    try {
+                        Thread.sleep(15000L);
+                    } catch( InterruptedException ignore ) {
+                    }
+                    try {
+                        volume = vs.getVolume(volumeId);
+                    } catch( Throwable ignore ) {
+                    }
                     if( volume == null || volume.getCurrentState().equals(VolumeState.AVAILABLE) || volume.getCurrentState().equals(VolumeState.DELETED) ) {
                         break;
                     }
@@ -895,8 +903,7 @@ public class ComputeResources {
                             try {
                                 vs.attach(volumeId, vmId, deviceId);
                                 break;
-                            }
-                            catch( Throwable ignore ) {
+                            } catch( Throwable ignore ) {
                                 // ignore
                             }
                         }
@@ -904,13 +911,13 @@ public class ComputeResources {
                 }
             }
         }
-        options = SnapshotCreateOptions.getInstanceForCreate(volumeId, namePrefix + (System.currentTimeMillis()%10000), "Dasein Snapshot Test " + label);
+        options = SnapshotCreateOptions.getInstanceForCreate(volumeId, namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Snapshot Test " + label);
         String id = options.build(provider);
 
         if( id == null ) {
             throw new CloudException("Unable to create a snapshot");
         }
-        synchronized( testSnapshots ) {
+        synchronized ( testSnapshots ) {
             while( testSnapshots.containsKey(label) ) {
                 label = label + random.nextInt(9);
             }
@@ -920,7 +927,7 @@ public class ComputeResources {
 
     }
 
-    public @Nonnull Iterable<String> provisionManyVMs(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull VMLaunchOptions options, @Nullable String preferredDataCenter, int count) throws CloudException, InternalException {
+    public @Nonnull Iterable<String> provisionManyVMs( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull VMLaunchOptions options, @Nullable String preferredDataCenter, int count ) throws CloudException, InternalException {
 
         if( preferredDataCenter != null ) {
             options.inDataCenter(preferredDataCenter);
@@ -960,7 +967,7 @@ public class ComputeResources {
 
                                 if( dcId == null ) {
                                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                        if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
                                             dcId = dc.getProviderDataCenterId();
                                         }
                                     }
@@ -976,8 +983,10 @@ public class ComputeResources {
 
                                 if( dcId == null ) {
                                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                        if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
                                             dcId = dc.getProviderDataCenterId();
+                                            if (dcId.equals(preferredDataCenter)) // Go with preferred one, else go with last one.
+                                                break;
                                         }
                                     }
                                 }
@@ -985,8 +994,7 @@ public class ComputeResources {
                             }
                         }
                     }
-                }
-                catch( NullPointerException ignore ) {
+                } catch( NullPointerException ignore ) {
                     // ignore the fiasco
                 }
             }
@@ -1017,7 +1025,7 @@ public class ComputeResources {
         Iterable<String> ids = options.buildMany(provider, count);
 
         for( String id : ids ) {
-            synchronized( testVMs ) {
+            synchronized ( testVMs ) {
                 while( testVMs.containsKey(label) ) {
                     label = label + random.nextInt(9);
                 }
@@ -1027,7 +1035,7 @@ public class ComputeResources {
         return ids;
     }
 
-    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull VMLaunchOptions options, @Nullable String preferredDataCenter) throws CloudException, InternalException {
+    public @Nonnull String provisionVM( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull VMLaunchOptions options, @Nullable String preferredDataCenter ) throws CloudException, InternalException {
 
         if( preferredDataCenter != null ) {
             options.inDataCenter(preferredDataCenter);
@@ -1042,7 +1050,7 @@ public class ComputeResources {
                 String keypairId = identity.getTestKeypairId(DaseinTestManager.STATEFUL, true);
 
                 if( keypairId != null ) {
-                    options.withBoostrapKey(keypairId);
+                    options.withBootstrapKey(keypairId);
                 }
             }
         }
@@ -1067,7 +1075,7 @@ public class ComputeResources {
 
                                 if( dcId == null ) {
                                     for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                        if( ( dc.isActive() && dc.isAvailable() ) || dcId == null ) {
                                             dcId = dc.getProviderDataCenterId();
                                         }
                                     }
@@ -1082,18 +1090,21 @@ public class ComputeResources {
                                 String dcId = vlan.getProviderDataCenterId();
 
                                 if( dcId == null ) {
-                                    for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
-                                        if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
-                                            dcId = dc.getProviderDataCenterId();
+                                    if( preferredDataCenter != null ) // If we have a preferredDataCenter, lets run with it!
+                                        dcId = preferredDataCenter;
+                                    else
+                                        // so lets just go through all the dataCenters and pick the last one we find. why?
+                                        for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+                                            if( (dc.isActive() && dc.isAvailable()) || dcId == null ) {
+                                                dcId = dc.getProviderDataCenterId();
+                                            }
                                         }
-                                    }
                                 }
                                 options.inVlan(null, dcId, networkId);
                             }
                         }
                     }
-                }
-                catch( NullPointerException ignore ) {
+                } catch( NullPointerException ignore ) {
                     // ignore the fiasco
                 }
             }
@@ -1119,10 +1130,9 @@ public class ComputeResources {
             options.withRootVolumeProduct(testVolumeProductId);
         }
         options.withMetaData("dsntestcase", "true");
-
         String id = options.build(provider);
 
-        synchronized( testVMs ) {
+        synchronized ( testVMs ) {
             while( testVMs.containsKey(label) ) {
                 label = label + random.nextInt(9);
             }
@@ -1134,40 +1144,41 @@ public class ComputeResources {
     /**
      * Provisions a virtual machine and returns the ID of the new virtual machine. This method tracks the newly provisioned
      * virtual machine and will tear it down at the end of the test suite.
-     * @param support the virtual machine support object used to provisionKeypair the VM
-     * @param label the label to store the VM under for re-use
-     * @param namePrefix a prefix for the friendly name of the VM
-     * @param hostPrefix a prefix for the host name of the VM
+     *
+     * @param support             the virtual machine support object used to provisionKeypair the VM
+     * @param label               the label to store the VM under for re-use
+     * @param namePrefix          a prefix for the friendly name of the VM
+     * @param hostPrefix          a prefix for the host name of the VM
      * @param preferredDataCenter the data center, if any is preferred, in which the VM should be provisioned
      * @return the ID for the new VM
-     * @throws CloudException an error occurred with the cloud provider in provisioning the VM
+     * @throws CloudException    an error occurred with the cloud provider in provisioning the VM
      * @throws InternalException an error occurred within Dasein Cloud provisioning the VM
      */
-    public @Nonnull String provisionVM(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter) throws CloudException, InternalException {
+    public @Nonnull String provisionVM( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter ) throws CloudException, InternalException {
         String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
         if( testImageId == null ) {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
-        String host = hostPrefix + (now%10000);
+        String name = namePrefix + "-" + now;
+        String host = hostPrefix + ( now % 10000 );
 
         return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter);
     }
 
-    public @Nonnull Iterable<String> provisionManyVMs(@Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter, int count) throws CloudException, InternalException {
+    public @Nonnull Iterable<String> provisionManyVMs( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter, int count ) throws CloudException, InternalException {
         String testImageId = getTestImageId(DaseinTestManager.STATELESS, false);
         if( testImageId == null ) {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
         String name = namePrefix + " " + now;
-        String host = hostPrefix + (now%10000);
+        String host = hostPrefix + ( now % 10000 );
 
         return provisionManyVMs(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter, count);
     }
 
-    public @Nonnull String provisionVolume(@Nonnull VolumeSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId) throws CloudException, InternalException {
+    public @Nonnull String provisionVolume( @Nonnull VolumeSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable VolumeFormat desiredFormat, @Nullable String preferredDataCenterId ) throws CloudException, InternalException {
         VolumeCreateOptions options;
 
         if( desiredFormat == null ) {
@@ -1207,7 +1218,7 @@ public class ComputeResources {
                 size = support.getCapabilities().getMinimumVolumeSize();
             }
             if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
-                options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
+                options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + ( System.currentTimeMillis() % 1000 ), "Dasein Cloud Integration Tests Volume Tests", 0);
             }
             else {
                 NetworkResources network = DaseinTestManager.getNetworkResources();
@@ -1217,16 +1228,16 @@ public class ComputeResources {
                     testVlanId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
                 }
                 if( testVlanId != null ) {
-                    options = VolumeCreateOptions.getNetworkInstance(testVolumeProductId, testVlanId, size, namePrefix + (System.currentTimeMillis()%10000), "Dasein Cloud Integration Tests Volume Tests", 0);
+                    options = VolumeCreateOptions.getNetworkInstance(testVolumeProductId, testVlanId, size, namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Cloud Integration Tests Volume Tests", 0);
                 }
                 else {
-                    options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests", 0);
+                    options = VolumeCreateOptions.getInstance(testVolumeProductId, size, namePrefix + ( System.currentTimeMillis() % 1000 ), "Dasein Cloud Integration Tests Volume Tests", 0);
                 }
             }
         }
         else {
             if( desiredFormat.equals(VolumeFormat.BLOCK) ) {
-                options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%10000), "Dasein Test Integration tests volume");
+                options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Test Integration tests volume");
             }
             else {
                 NetworkResources network = DaseinTestManager.getNetworkResources();
@@ -1236,10 +1247,10 @@ public class ComputeResources {
                     testVlanId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
                 }
                 if( testVlanId != null ) {
-                    options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis() % 10000), "Dasein Cloud Integration Tests Volume Tests");
+                    options = VolumeCreateOptions.getNetworkInstance(testVlanId, support.getCapabilities().getMinimumVolumeSize(), namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Cloud Integration Tests Volume Tests");
                 }
                 else {
-                    options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + (System.currentTimeMillis()%1000), "Dasein Cloud Integration Tests Volume Tests");
+                    options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), namePrefix + ( System.currentTimeMillis() % 1000 ), "Dasein Cloud Integration Tests Volume Tests");
                 }
             }
         }
@@ -1257,7 +1268,7 @@ public class ComputeResources {
         if( volume != null && testDataCenterId == null ) {
             testDataCenterId = volume.getProviderDataCenterId();
         }
-        synchronized( testVolumes ) {
+        synchronized ( testVolumes ) {
             while( testVolumes.containsKey(label) ) {
                 label = label + random.nextInt(9);
             }
@@ -1267,7 +1278,7 @@ public class ComputeResources {
 
     }
 
-    private boolean setState(@Nonnull VirtualMachineSupport support, @Nonnull VirtualMachine vm, @Nonnull VmState state) {
+    private boolean setState( @Nonnull VirtualMachineSupport support, @Nonnull VirtualMachine vm, @Nonnull VmState state ) {
         VmState currentState = vm.getCurrentState();
 
         if( state.equals(currentState) ) {
@@ -1278,15 +1289,17 @@ public class ComputeResources {
         }
         String id = vm.getProviderVirtualMachineId();
 
-        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
 
 
         while( timeout > System.currentTimeMillis() ) {
             if( !currentState.equals(VmState.PENDING) && !currentState.equals(VmState.PAUSING) && !currentState.equals(VmState.REBOOTING) && !currentState.equals(VmState.STOPPING) && !currentState.equals(VmState.SUSPENDING) ) {
                 break;
             }
-            try { Thread.sleep(15000L); }
-            catch( InterruptedException ignore ) { }
+            try {
+                Thread.sleep(15000L);
+            } catch( InterruptedException ignore ) {
+            }
             try {
                 VirtualMachine v = support.getVirtualMachine(id);
 
@@ -1295,8 +1308,7 @@ public class ComputeResources {
                 }
                 vm = v;
                 currentState = vm.getCurrentState();
-            }
-            catch( Throwable ignore ) {
+            } catch( Throwable ignore ) {
                 // ignore
             }
         }
@@ -1321,7 +1333,7 @@ public class ComputeResources {
                 }
             }
             else if( state.equals(VmState.STOPPED) ) {
-                if( currentState.equals(VmState.RUNNING) || setState(support, vm, VmState.RUNNING)) {
+                if( currentState.equals(VmState.RUNNING) || setState(support, vm, VmState.RUNNING) ) {
                     support.stop(id, true);
                 }
                 else {
@@ -1329,26 +1341,27 @@ public class ComputeResources {
                 }
             }
             else if( state.equals(VmState.SUSPENDED) ) {
-                if( currentState.equals(VmState.RUNNING) || setState(support, vm, VmState.RUNNING)) {
+                if( currentState.equals(VmState.RUNNING) || setState(support, vm, VmState.RUNNING) ) {
                     support.suspend(id);
                 }
                 else {
                     return false;
                 }
             }
-        }
-        catch( Throwable ignore ) {
+        } catch( Throwable ignore ) {
             return false;
         }
-        timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+        timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
 
 
         while( timeout > System.currentTimeMillis() ) {
             if( state.equals(currentState) ) {
                 return true;
             }
-            try { Thread.sleep(15000L); }
-            catch( InterruptedException ignore ) { }
+            try {
+                Thread.sleep(15000L);
+            } catch( InterruptedException ignore ) {
+            }
             try {
                 VirtualMachine v = support.getVirtualMachine(id);
 
@@ -1357,8 +1370,7 @@ public class ComputeResources {
                 }
                 vm = v;
                 currentState = vm.getCurrentState();
-            }
-            catch( Throwable ignore ) {
+            } catch( Throwable ignore ) {
                 // ignore
             }
         }

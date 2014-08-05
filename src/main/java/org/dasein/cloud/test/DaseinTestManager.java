@@ -37,8 +37,6 @@ import org.dasein.cloud.test.platform.PlatformResources;
 import org.dasein.cloud.test.storage.StorageResources;
 import org.dasein.cloud.util.APITrace;
 import org.dasein.util.CalendarWrapper;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -95,7 +93,7 @@ public class DaseinTestManager {
         */
 
         try{
-            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "";
+            String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "";
 
             prop = overrideAccount == null ? System.getProperty("accountNumber") : overrideAccount;
             if( prop != null ) {
@@ -122,7 +120,6 @@ public class DaseinTestManager {
 
             ContextRequirements requirements = cloud.buildProvider().getContextRequirements();
             List<ContextRequirements.Field> fields = requirements.getConfigurableValues();
-
             List<ProviderContext.Value> values = new ArrayList<ProviderContext.Value>(fields.size());
 
             for(ContextRequirements.Field f : fields ) {
@@ -169,7 +166,16 @@ public class DaseinTestManager {
                 }
                 else {
                     String value = System.getProperty(f.name);
-                    values.add(ProviderContext.Value.parseValue(f, value));
+                    if( value != null && value.trim().length() > 0 ) {
+                        values.add(ProviderContext.Value.parseValue(f, value));
+                    } else if( f.required ) {
+                        String error = String.format("%s field is missing, but declared as REQUIRED. " +
+                                        "Check the Maven profile and pom.xml.",
+                                f.name);
+                        Logger logger = Logger.getLogger(DaseinTestManager.class);
+                        logger.fatal(error);
+                        throw new RuntimeException(error);
+                    }
                 }
             }
 
@@ -317,12 +323,15 @@ public class DaseinTestManager {
         logger.info("BEGIN Test Initialization ------------------------------------------------------------------------------");
         try {
             testStart = System.currentTimeMillis();
-            storageResources = new StorageResources(constructProvider());
-            platformResources = new PlatformResources(constructProvider());
-            networkResources = new NetworkResources(constructProvider());
-            identityResources = new IdentityResources(constructProvider());
-            ciResources = new CIResources(constructProvider());
-            computeResources = new ComputeResources(constructProvider());
+
+            CloudProvider cloudProvider = constructProvider();
+            storageResources = new StorageResources(cloudProvider);
+            platformResources = new PlatformResources(cloudProvider);
+            networkResources = new NetworkResources(cloudProvider);
+            identityResources = new IdentityResources(cloudProvider);
+            ciResources = new CIResources(cloudProvider);
+            computeResources = new ComputeResources(cloudProvider);
+
             computeResources.init();
 
             String prop = System.getProperty("dasein.inclusions");
@@ -485,12 +494,18 @@ public class DaseinTestManager {
     private CloudProvider           provider;
     private long                    startTimestamp;
     private String                  suite;
+    private String                  userName = "";
 
     public DaseinTestManager(@Nonnull Class<?> testClass) {
         logger = Logger.getLogger(testClass);
         suite = testClass.getSimpleName();
         provider = constructProvider();
         changePrefix();
+        
+        String prop = System.getProperty("userName");
+        if( prop != null ) {
+            userName = prop;
+        }
     }
 
     public void begin(@Nonnull String name) {
@@ -632,12 +647,16 @@ public class DaseinTestManager {
         return (identityResources == null ? null : identityResources.getTestKeypairId(label, provisionIfNull));
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull, boolean withHealthCheck) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, withHealthCheck));
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull, boolean withHealthCheck) {
+        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, lbNamePrefix, provisionIfNull, withHealthCheck));
     }
 
-    public @Nullable String getTestLoadBalancerId(@Nonnull String label, boolean provisionIfNull) {
-        return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, provisionIfNull, false));
+    public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull) {
+    	return (networkResources == null ? null : networkResources.getTestLoadBalancerId(label, lbNamePrefix, provisionIfNull, false));
+    }
+
+    public @Nullable String getTestSSLCertificateName(@Nonnull String label, boolean provisionIfNull) {
+        return (networkResources == null ? null : networkResources.getTestSSLCertificateName(label, provisionIfNull));
     }
 
     public @Nullable String getTestNetworkFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String inVlanId) {
@@ -730,10 +749,14 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+    	return getTestVMId(label, getUserName() + "-dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    }
+    
+    public @Nullable String getTestVMId(@Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
         if( computeResources == null ) {
             return null;
         }
-        return computeResources.getTestVmId(label, desiredState, provisionIfNull, preferredDataCenterId);
+        return computeResources.getTestVmId(label, vmName, desiredState, provisionIfNull, preferredDataCenterId);
     }
 
     public @Nullable String getTestVLANVMId(@Nonnull String label, @Nullable VmState desiredState, @Nullable String vlanId, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
@@ -867,5 +890,9 @@ public class DaseinTestManager {
 
     public void warn(@Nonnull String message) {
         logger.warn(prefix + "WARNING: " + message);
+    }
+    
+    public String getUserName() {
+    	return userName;
     }
 }

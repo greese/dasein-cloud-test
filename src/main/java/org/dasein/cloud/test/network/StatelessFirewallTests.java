@@ -189,7 +189,7 @@ public class StatelessFirewallTests {
                 tm.out("Supported Permissions (VLAN)", support.getCapabilities().listSupportedPermissions(true));
                 tm.out("Supported Source Types (General)", support.getCapabilities().listSupportedSourceTypes(false));
                 tm.out("Supported Source Types (VLAN)", support.getCapabilities().listSupportedSourceTypes(true));
-                tm.out("Supported Destination Types (General)", support.listSupportedDestinationTypes(false));
+                tm.out("Supported Destination Types (General)", support.getCapabilities().listSupportedDestinationTypes(false));
                 tm.out("Supported Destination Types (VLAN)", support.getCapabilities().listSupportedDestinationTypes(true));
 
                 FirewallConstraints constraints = support.getCapabilities().getFirewallConstraintsForCloud();

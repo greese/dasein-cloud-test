@@ -218,7 +218,6 @@ public class PlatformResources {
         catch( Throwable ignore ) {
             // ignore
         }
-        provider.close();
         return count;
     }
 

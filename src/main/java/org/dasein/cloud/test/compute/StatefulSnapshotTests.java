@@ -23,27 +23,14 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
-import org.dasein.cloud.compute.ComputeServices;
-import org.dasein.cloud.compute.Snapshot;
-import org.dasein.cloud.compute.SnapshotCreateOptions;
-import org.dasein.cloud.compute.SnapshotFilterOptions;
-import org.dasein.cloud.compute.SnapshotState;
-import org.dasein.cloud.compute.SnapshotSupport;
-import org.dasein.cloud.compute.VirtualMachine;
-import org.dasein.cloud.compute.VmState;
-import org.dasein.cloud.compute.VolumeSupport;
+import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
+import org.junit.*;
 import org.junit.rules.TestName;
-
-import java.util.Calendar;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -79,6 +66,9 @@ public class StatefulSnapshotTests {
     private String testSnapshotId;
     private String testSourceRegion;
     private String testVolumeId;
+	private String testDataCenterId;
+    private String testVmId;
+    private String snapshotId;
 
     static private int postfix = 1;
 
@@ -88,6 +78,17 @@ public class StatefulSnapshotTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        try {
+        	testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
+        try {
+	        if (testDataCenterId == null)
+	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+	    } catch (Throwable ignore) {
+			// ignore
+		}
         ComputeServices services = tm.getProvider().getComputeServices();
         SnapshotSupport support = null;
 
@@ -96,12 +97,12 @@ public class StatefulSnapshotTests {
         }
 
         if( name.getMethodName().equals("createSnapshot") ) {
-            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, null);
+            testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
             if( testVolumeId != null ) {
                 if( support != null ) {
                     try {
                         if( support.getCapabilities().identifyAttachmentRequirement().equals(Requirement.REQUIRED) ) {
-                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, null);
+                            String vmId = tm.getTestVMId(DaseinTestManager.STATEFUL + (postfix++), VmState.RUNNING, true, testDataCenterId);
 
                             if( vmId != null ) {
                                 @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(vmId);
@@ -651,6 +652,9 @@ public class StatefulSnapshotTests {
 
                 tm.out("Before", support.isPublic(testSnapshotId));
                 support.removePublicShare(testSnapshotId);
+                // race condition here - provider sometime takes time to update
+                try { Thread.sleep(5000L); }
+                catch( InterruptedException ignore ) { }
                 boolean shared = support.isPublic(testSnapshotId);
                 tm.out("After", shared);
                 assertFalse("Snapshot remains public", shared);
@@ -723,4 +727,52 @@ public class StatefulSnapshotTests {
             return;
         }
     }
+
+/*
+    @Test
+    public void mountVolumeFromSnapshot() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("Compute services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        SnapshotSupport support = services.getSnapshotSupport();
+
+        VolumeSupport VolumeSupport = services.getVolumeSupport();
+
+        if( support == null ) {
+            tm.ok("Snapshots are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATEFUL, true, null, testDataCenterId);
+        testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
+
+        VolumeSupport.attach(testVolumeId, testVmId, "sdb");
+
+        System.out.println("PUT A BREAKPOINT HERE TO PARTITION, FORMAT DISK, AND TOUCH A TEST FILE ON IT. --Havent worked out how to automate this yet");
+        if( testVolumeId != null ) {
+            SnapshotCreateOptions options = SnapshotCreateOptions.getInstanceForCreate(testVolumeId, tm.getUserName() + "dsnsnap" + (System.currentTimeMillis()%10000), "Test Dasein Cloud Snapshot");
+
+            provisionedSnapshotId = support.createSnapshot(options);
+
+            String newVolume = null;
+            if( support.isSubscribed() ) {
+                try {
+                    VolumeCreateOptions volumeOptions = VolumeCreateOptions.getInstanceForSnapshot(provisionedSnapshotId, new Storage<Gigabyte>(1, Storage.GIGABYTE), "snap-vol-" + (System.currentTimeMillis()%10000), "mountVolumeFromSnapshot test").inDataCenter(testDataCenterId);
+                    newVolume = volumeOptions.build(tm.getProvider());
+                    VolumeSupport.attach(newVolume, testVmId, "sdc");
+                    System.out.println("PUT ANOTHER BREAKPOINT HERE TO LOOK ON VM THAT PARTITION SDC1 EXISTS AND CONTAINS YOUR TEST FILE");
+                } catch (Exception ex) {
+                    // ignore
+                } finally {
+                    VolumeSupport.detach(newVolume);
+                    VolumeSupport.remove(newVolume);
+                    services.getSnapshotSupport().remove(provisionedSnapshotId);
+                }
+            }
+        }
+    }
+*/
 }
