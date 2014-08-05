@@ -447,7 +447,7 @@ public class ComputeResources {
                     VirtualMachine vm = ( id == null ? null : support.getVirtualMachine(id) );
 
                     if( ( vm == null || VmState.TERMINATED.equals(vm.getCurrentState()) ) && provisionIfNull ) {
-                        id = provisionVM(support, label, "Dasein Test " + label, vmName, preferredDataCenterId);
+                        id = provisionVM(support, label, "testvm-" + label, vmName, preferredDataCenterId);
                         vm = support.getVirtualMachine(id);
                     }
                     if( vm != null && desiredState != null ) {
@@ -513,7 +513,7 @@ public class ComputeResources {
                             throw new CloudException("No test image exists for provisioning a virtual machine");
                         }
                         long now = System.currentTimeMillis();
-                        String name = "Dasein Test " + label + " " + now;
+                        String name = "dasein-test-" + label + " " + now;
                         String host = "dsnvm" + (now%10000);
                         VMLaunchOptions vmOpts = VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics();
                         NetworkResources network = DaseinTestManager.getNetworkResources();
@@ -1184,7 +1184,7 @@ public class ComputeResources {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
+        String name = namePrefix + "-" + now;
         String host = hostPrefix + ( now % 10000 );
 
         return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter);

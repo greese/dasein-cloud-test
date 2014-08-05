@@ -67,6 +67,7 @@ public class StatefulVLANTests {
     private String testInternetGatewayId;
     private String testRoutingTableId;
     private String testVLANVMId;
+    private String testDataCenterId;
     private String[] cidrs = new String[]{"192.168.20.0/28", "192.168.40.0/28", "192.168.60.0/28", "192.168.80.0/28", "192.168.100.0/28"};
 
     public StatefulVLANTests() {
@@ -75,6 +76,11 @@ public class StatefulVLANTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
         assumeTrue(!tm.isTestSkipped());
         NetworkServices services = null;
         VLANSupport support = null;
@@ -172,7 +178,7 @@ public class StatefulVLANTests {
             if( testVLANId != null ) {
                 testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, false, testVLANId, null);
                 if( testSubnetId == null ) {
-                    testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, null);
+                    testSubnetId = tm.getTestSubnetId(DaseinTestManager.STATEFUL, true, testVLANId, testDataCenterId);
                     // wait...
                     try {
                         Thread.sleep(5000L);
@@ -625,12 +631,13 @@ public class StatefulVLANTests {
         if( testSubnetId != null ) {
             tm.out("Subnet Id", testSubnetId);
             @SuppressWarnings( "ConstantConditions" ) Subnet subnet = tm.getProvider().getNetworkServices().getVlanSupport().getSubnet(testSubnetId);
-
             assertNotNull("Subnet went away before test could be executed", subnet);
             String dataCenterId = subnet.getProviderDataCenterId();
-
+            if (testDataCenterId != null)
+                dataCenterId = testDataCenterId;
+            else
             if( dataCenterId == null ) {
-                for( DataCenter dc : dcServices.listDataCenters(tm.getContext().getRegionId()) ) {
+                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
                     dataCenterId = dc.getProviderDataCenterId();
                 }
             }
@@ -639,13 +646,15 @@ public class StatefulVLANTests {
             options.inSubnet(null, dataCenterId, testVLANId, testSubnetId);
         }
         else if( testVLANId != null ) {
-            @SuppressWarnings( "ConstantConditions" ) VLAN vlan = vlanSupport.getVlan(testVLANId);
+            @SuppressWarnings("ConstantConditions") VLAN vlan = tm.getProvider().getNetworkServices().getVlanSupport().getVlan(testVLANId);
 
             assertNotNull("VLAN went away before test could be executed", vlan);
             String dataCenterId = vlan.getProviderDataCenterId();
-
+            if (testDataCenterId != null)
+                dataCenterId = testDataCenterId;
+            else
             if( dataCenterId == null ) {
-                for( DataCenter dc : dcServices.listDataCenters(tm.getContext().getRegionId()) ) {
+                for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
                     dataCenterId = dc.getProviderDataCenterId();
                 }
             }
@@ -654,13 +663,12 @@ public class StatefulVLANTests {
             options.inVlan(null, dataCenterId, testVLANId);
         }
         else {
-            if( !vlanSupport.getCapabilities().allowsNewVlanCreation() ) {
+            if (!tm.getProvider().getNetworkServices().getVlanSupport().getCapabilities().allowsNewVlanCreation()) {
                 tm.ok("No test VLAN was identified due to a lack of support for creating VLANs");
             }
             else if( !vmSupport.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE) ) {
                 fail("No test VLAN or subnet in which to launch a VM");
-            }
-            else {
+            } else {
                 tm.ok("Launching into VLANs is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             }
             return;

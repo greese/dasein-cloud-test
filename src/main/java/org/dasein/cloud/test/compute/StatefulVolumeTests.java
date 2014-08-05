@@ -410,6 +410,8 @@ public class StatefulVolumeTests {
                 if( options == null ) {
                     options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                 }
+                if (testDataCenterId != null)
+                    options.setDataCenterId(testDataCenterId);
 
                 if( supported ) {
                     provisionedVolume = options.build(tm.getProvider());
@@ -481,7 +483,8 @@ public class StatefulVolumeTests {
                     if( options == null ) {
                         options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
                     }
-
+                    if (testDataCenterId != null)
+                        options.setDataCenterId(testDataCenterId);
                     if( supported ) {
                         provisionedVolume = options.build(tm.getProvider());
 
@@ -561,7 +564,9 @@ public class StatefulVolumeTests {
                     options = VolumeCreateOptions.getInstanceForSnapshot(productId, testSnapshotId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
                 }
                 if( options == null ) {
-                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                    options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, new Storage<Gigabyte>(10, Storage.GIGABYTE), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+                    if (testDataCenterId != null)
+                        options.setDataCenterId(testDataCenterId);
                 }
 
                 if( support.isSubscribed() && supported ) {
@@ -833,7 +838,6 @@ public class StatefulVolumeTests {
             tm.ok("No compute services in this cloud");
         }
     }
-
 
     @Test
     public void removeVolume() throws CloudException, InternalException {

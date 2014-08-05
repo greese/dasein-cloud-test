@@ -22,6 +22,7 @@ package org.dasein.cloud.test.platform;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.platform.Database;
+import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseState;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.platform.RelationalDatabaseSupport;
@@ -83,6 +84,32 @@ public class StatefulRDBMSTests {
     @After
     public void after() {
         tm.end();
+    }
+
+    /* test writing in progress, Roger */
+    @Test 
+    public void getDefaultVersions() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
+        for (DatabaseEngine engine : engines) {
+            //System.out.println("ENGINE = " + engine);
+            Iterable<String> versions = support.getSupportedVersions(engine);
+            for (String version : versions) {
+                //System.out.println("VERSION = " + version);
+            }
+        }
+
     }
 
     @Test
