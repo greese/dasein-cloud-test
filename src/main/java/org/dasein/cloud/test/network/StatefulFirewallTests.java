@@ -37,6 +37,7 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -929,4 +930,32 @@ public class StatefulFirewallTests {
             assertEquals("The firewall IDs do not match the test firewall", testFirewallId, fwIds[0]);
         }
     }
+
+    @Test
+    public void createVLANFirewallAndAddAndRemoveIcmpRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+            String result = null;
+            try {
+                result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("failed to generate a vlan ICMP rule", result);
+            } catch (Exception ex) {
+                fail("authorize returned exception " + ex);
+            }
+
+            Collection<FirewallRule> rules = support.getRules("fw-" + testVLANId);
+
+            for (FirewallRule rule : rules) {
+                tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
+            }
+            try {
+                support.revoke(result);
+            } catch (Exception ex) {
+                fail("revoke returned exception " + ex);
+            }
+        }
+    }
+
 }
