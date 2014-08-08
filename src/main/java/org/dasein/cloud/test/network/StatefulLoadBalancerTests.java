@@ -37,6 +37,7 @@ import java.util.Iterator;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.VisibleScope;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.HealthCheckOptions;
@@ -107,7 +108,7 @@ public class StatefulLoadBalancerTests {
             // ignore
         }
         if( name.getMethodName().equals("removeLoadBalancer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, false);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
@@ -153,7 +154,7 @@ public class StatefulLoadBalancerTests {
                     for( String dataCenterId : ids )
                         if( testDataCenterId.equals(dataCenterId) )
                             found = true;
-                    if( !found )
+                    if( !found && !VisibleScope.ACCOUNT_GLOBAL.equals(net.getLoadBalancerSupport().getCapabilities().getLoadBalancerVisibleScope()))
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
                     testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
@@ -288,7 +289,7 @@ public class StatefulLoadBalancerTests {
                             testVirtualMachineId = ids.iterator().next();
                         }
                         else {
-                            testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "_" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
+                            testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
                             if( testVirtualMachineId != null ) {
                                 support.addServers(testLoadBalancerId, testVirtualMachineId);
                             }
