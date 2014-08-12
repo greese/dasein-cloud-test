@@ -276,7 +276,7 @@ public class StatelessVMTests {
                 assertNotNull("Product RAM size must not be null", prd.getRamSize());
                 assertTrue("Product RAM size must be greater than 0", prd.getRamSize().intValue() > 0);
                 assertNotNull("Product root volume size may not be null", prd.getRootVolumeSize());
-                assertTrue("Product root volume size must be greater than 0", prd.getRootVolumeSize().intValue() > 0);
+                //assertTrue("Product root volume size must be greater than 0", prd.getRootVolumeSize().intValue() > 0); // GCE root volume size is user configurable
                 assertTrue("Product hourly rate may not be negative", prd.getStandardHourlyRate() >= 0.00f);
             }
             else {
