@@ -19,10 +19,7 @@
 
 package org.dasein.cloud.test.compute;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -52,6 +49,7 @@ import org.dasein.util.uom.storage.Storage;
  *
  * @author George Reese
  * @version 2013.04
+ * @version 2014.08 limited architectures to those supported in the cloud
  * @since 2013.02
  */
 public class ComputeResources {
@@ -632,15 +630,25 @@ public class ComputeResources {
             // ignore
         }
         ComputeServices computeServices = provider.getComputeServices();
+
+        // initialise available architectures
+        Iterable<Architecture> architectures = Collections.emptyList();
+        if( computeServices != null && computeServices.getVirtualMachineSupport() != null ) {
+            try {
+                architectures = computeServices.getVirtualMachineSupport().getCapabilities().listSupportedArchitectures();
+            } catch( InternalException e ) {
+            } catch( CloudException e ) {
+            }
+        }
+
         String dataCenterId = System.getProperty("test.dataCenter");
 
         if( computeServices != null ) {
             Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
-
             if( vmSupport != null ) {
                 try {
-                    for( Architecture architecture : Architecture.values() ) {
+                    for( Architecture architecture : architectures ) {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
@@ -690,7 +698,8 @@ public class ComputeResources {
                 } catch( Throwable ignore ) {
                     // ignore
                 }
-                for( Architecture architecture : new Architecture[]{Architecture.I64, Architecture.POWER, Architecture.I32, Architecture.SPARC} ) {
+
+                for( Architecture architecture : architectures ) {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
                     if( currentProduct != null ) {
