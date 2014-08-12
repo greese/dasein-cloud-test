@@ -563,13 +563,17 @@ public class PlatformResources {
         return id;
     }
 
-    public @Nonnull String provisionRDBMS(@Nonnull RelationalDatabaseSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
+    public static @Nonnull String randomPassword() {
         String password = "a" + random.nextInt(100000000);
         String id;
 
         while( password.length() < 20 ) {
             password = password + random.nextInt(10);
         }
+        return password;
+    }
+
+    public static @Nonnull DatabaseProduct getCheapestProduct(@Nonnull RelationalDatabaseSupport support, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
         DatabaseProduct product = null;
 
         if( engine != null ) {
@@ -591,9 +595,14 @@ public class PlatformResources {
         if( product == null ) {
             throw new CloudException("No database product could be identified");
         }
-        String version = support.getDefaultVersion(product.getEngine());
 
-        id = support.createFromScratch(namePrefix + (System.currentTimeMillis()%10000), product, version, "dasein", password, 3000);
+        return product;
+    }
+
+    public @Nonnull String provisionRDBMS(@Nonnull RelationalDatabaseSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
+        String version = support.getDefaultVersion(engine);
+
+        String id = support.createFromScratch(namePrefix + (System.currentTimeMillis()%10000), getCheapestProduct(support, engine), version, "dasein", randomPassword(), 3000);
         if( id == null ) {
             throw new CloudException("No database was generated");
         }
