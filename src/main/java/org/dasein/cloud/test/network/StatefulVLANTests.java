@@ -120,7 +120,7 @@ public class StatefulVLANTests {
                 tm.out("Exception while getting vlan for " + name.getMethodName());
             }
         }
-        if( name.getMethodName().equals("removeVLAN") || name.getMethodName().equals("removeSubnet") ||
+        if( name.getMethodName().equals("removeVLAN") || name.getMethodName().equals("removeVLANwithFirewallRule") || name.getMethodName().equals("removeSubnet") ||
                 name.getMethodName().equals("removeRoutingTable")
                 ) {
             testVLANId = getVLANId(support, name.getMethodName(), DaseinTestManager.REMOVED, true);
@@ -479,6 +479,50 @@ public class StatefulVLANTests {
             if( support != null ) {
                 if( testVLANId != null ) {
                     VLAN vlan = support.getVlan(testVLANId);
+
+                    tm.out("Before", vlan);
+                    assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
+                    tm.out("State", vlan.getCurrentState());
+                    support.removeVlan(testVLANId);
+                    try {
+                        Thread.sleep(5000L);
+                    } catch( InterruptedException ignore ) {
+                    }
+                    vlan = support.getVlan(testVLANId);
+                    tm.out("After", vlan);
+                    tm.out("State", ( vlan == null ? "DELETED" : vlan.getCurrentState() ));
+                    assertNull("The VLAN remains available", vlan);
+                } else {
+                    if( !support.getCapabilities().allowsNewVlanCreation() ) {
+                        tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
+                    } else if( support.isSubscribed() ) {
+                        fail("No test VLAN for deletion test");
+                    } else {
+                        tm.ok("VLAN service is not subscribed so this test is not entirely valid");
+                    }
+                }
+            } else {
+                tm.ok("No VLAN support in this cloud");
+            }
+        } else {
+            tm.ok("No network services in this cloud");
+        }
+    }
+
+    @Test
+    public void removeVLANwithFirewallRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            VLANSupport support = services.getVlanSupport();
+            FirewallSupport firewallSupport = services.getFirewallSupport();
+
+            if( support != null ) {
+                if( testVLANId != null ) {
+                    VLAN vlan = support.getVlan(testVLANId);
+
+
+                    firewallSupport.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, 0, 0);
 
                     tm.out("Before", vlan);
                     assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
