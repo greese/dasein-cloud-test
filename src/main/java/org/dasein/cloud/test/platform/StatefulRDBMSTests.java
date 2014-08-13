@@ -19,13 +19,10 @@
 
 package org.dasein.cloud.test.platform;
 
+import junit.framework.Assert;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.platform.Database;
-import org.dasein.cloud.platform.DatabaseEngine;
-import org.dasein.cloud.platform.DatabaseState;
-import org.dasein.cloud.platform.PlatformServices;
-import org.dasein.cloud.platform.RelationalDatabaseSupport;
+import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -38,6 +35,7 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nullable;
 
+import static junit.framework.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -140,7 +138,46 @@ public class StatefulRDBMSTests {
     }
 
     @Test
+    public void createOracleDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
+        DatabaseEngine oracleEngine = null;
+        for( DatabaseEngine engine : engines ) {
+            // can only use ORACLE_SE1 as it's the only one with the license included
+            if( engine == DatabaseEngine.ORACLE_SE1 ) {
+                oracleEngine = engine;
+                break;
+            }
+        }
+        if( oracleEngine == null ) {
+            tm.ok("Oracle doesn't seem to be supported by " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        String id = support.createFromScratch("dsnora" + (System.currentTimeMillis()%10000), PlatformResources.getCheapestProduct(support, oracleEngine), null, "dasein", PlatformResources.randomPassword(), 3000);
+        Database database = support.getDatabase(id);
+        Assert.assertNotNull("Oracle database has not been created", database);
+        assertEquals("Oracle instance name is not set/returned correctly", "ORCL", database.getName());
+
+        removeDatabase(id);
+    }
+
+
+    @Test
     public void removeDatabase() throws CloudException, InternalException {
+        removeDatabase(testDatabaseId);
+    }
+
+    private void removeDatabase(String id) throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
         if( services == null ) {
@@ -153,9 +190,9 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        if( testDatabaseId != null ) {
+        if( id != null ) {
             long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
-            Database db = support.getDatabase(testDatabaseId);
+            Database db = support.getDatabase(id);
 
             while( timeout > System.currentTimeMillis() ) {
                 if( canRemove(db) ) {
@@ -169,8 +206,8 @@ public class StatefulRDBMSTests {
             assertNotNull("The test database is not found", db);
             tm.out("Before", db.getCurrentState());
 
-            support.removeDatabase(testDatabaseId);
-            db = support.getDatabase(testDatabaseId);
+            support.removeDatabase(id);
+            db = support.getDatabase(id);
             DatabaseState s = (db == null ? DatabaseState.DELETED : db.getCurrentState());
             tm.out("After", s);
             assertTrue("Database state must be one of DELETING or DELETED (or no database found)", s.equals(DatabaseState.DELETED) || s.equals(DatabaseState.DELETING));
