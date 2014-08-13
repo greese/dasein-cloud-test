@@ -23,19 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.platform.CDNSupport;
-import org.dasein.cloud.platform.Database;
-import org.dasein.cloud.platform.DatabaseEngine;
-import org.dasein.cloud.platform.DatabaseProduct;
-import org.dasein.cloud.platform.DatabaseState;
-import org.dasein.cloud.platform.Distribution;
-import org.dasein.cloud.platform.MQCreateOptions;
-import org.dasein.cloud.platform.MQSupport;
-import org.dasein.cloud.platform.MessageQueue;
-import org.dasein.cloud.platform.PlatformServices;
-import org.dasein.cloud.platform.PushNotificationSupport;
-import org.dasein.cloud.platform.RelationalDatabaseSupport;
-import org.dasein.cloud.platform.Topic;
+import org.dasein.cloud.platform.*;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.storage.StorageResources;
@@ -578,6 +566,10 @@ public class PlatformResources {
 
         if( engine != null ) {
             for( DatabaseProduct p : support.getDatabaseProducts(engine) ) {
+                if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
+                    // can't use in tests
+                    continue;
+                }
                 if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
                     product = p;
                 }
@@ -586,6 +578,10 @@ public class PlatformResources {
         else {
             for( DatabaseEngine e : support.getDatabaseEngines() ) {
                 for( DatabaseProduct p : support.getDatabaseProducts(e) ) {
+                    if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
+                        // can't use in tests
+                        continue;
+                    }
                     if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
                         product = p;
                     }
