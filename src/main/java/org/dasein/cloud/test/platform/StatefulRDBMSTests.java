@@ -153,9 +153,8 @@ public class StatefulRDBMSTests {
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
         DatabaseEngine oracleEngine = null;
         for( DatabaseEngine engine : engines ) {
-            if( engine == DatabaseEngine.ORACLE_SE
-                    || engine == DatabaseEngine.ORACLE_SE1
-                    || engine == DatabaseEngine.ORACLE_EE ) {
+            // can only use ORACLE_SE1 as it's the only one with the license included
+            if( engine == DatabaseEngine.ORACLE_SE1 ) {
                 oracleEngine = engine;
                 break;
             }
@@ -207,8 +206,8 @@ public class StatefulRDBMSTests {
             assertNotNull("The test database is not found", db);
             tm.out("Before", db.getCurrentState());
 
-            support.removeDatabase(testDatabaseId);
-            db = support.getDatabase(testDatabaseId);
+            support.removeDatabase(id);
+            db = support.getDatabase(id);
             DatabaseState s = (db == null ? DatabaseState.DELETED : db.getCurrentState());
             tm.out("After", s);
             assertTrue("Database state must be one of DELETING or DELETED (or no database found)", s.equals(DatabaseState.DELETED) || s.equals(DatabaseState.DELETING));
