@@ -80,7 +80,7 @@ public class StatefulRDBMSTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equals("removeDatabase") ) {
-            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.REMOVED, true, DatabaseEngine.MYSQL);
+            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.REMOVED, true, null);
         }
     }
 
@@ -120,7 +120,9 @@ public class StatefulRDBMSTests {
 
     }
 
-    /* test writing in progress, Roger */
+    /* test writing in progress, Roger 
+     * should likely be a stateless...
+     */
     @Test 
     public void listSnapshots() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -138,6 +140,10 @@ public class StatefulRDBMSTests {
 
         Iterable<DatabaseSnapshot> snapshotList = support.listSnapshots("roger-unwin");
 
+        System.out.println("INSPECT snapshotList");
+        
+        snapshotList = support.listSnapshots(null);
+        
         System.out.println("INSPECT snapshotList");
 
     }
