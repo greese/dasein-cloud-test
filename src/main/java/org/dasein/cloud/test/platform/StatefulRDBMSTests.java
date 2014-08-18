@@ -121,7 +121,29 @@ public class StatefulRDBMSTests {
     }
 
     /* test writing in progress, Roger 
-     * should likely be a stateless...
+     * Needs to move to stateless tests...
+     */
+    @Test 
+    public void restartDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        support.restart("roger-unwin", true);
+        // well this restarts it, but how to get a log or something to show it worked?
+    }
+    
+    /* test writing in progress, Roger 
+     * Needs to move to stateless tests or modified to live here...
      */
     @Test 
     public void listSnapshots() throws CloudException, InternalException {
@@ -139,15 +161,18 @@ public class StatefulRDBMSTests {
         }
 
         Iterable<DatabaseSnapshot> snapshotList = support.listSnapshots("roger-unwin");
+        for (DatabaseSnapshot snap : snapshotList) {
+            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
+            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
+        }
 
-        System.out.println("INSPECT snapshotList");
-        
         snapshotList = support.listSnapshots(null);
-        
-        System.out.println("INSPECT snapshotList");
-
+        for (DatabaseSnapshot snap : snapshotList) {
+            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
+            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
+        }
     }
-    
+
     @Test
     public void createDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
