@@ -1171,8 +1171,11 @@ public class ComputeResources {
         long now = System.currentTimeMillis();
         String name = namePrefix + "-" + now;
         String host = hostPrefix + ( now % 10000 );
-
-        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter);
+        Map<String, Object> metadata = new HashMap<String, Object>();
+        metadata.put("dsnNullTag", null);
+        metadata.put("dsnEmptyTag", "");
+        metadata.put("dsnExtraTag", "extra");
+        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics().withMetaData(metadata), preferredDataCenter);
     }
 
     public @Nonnull Iterable<String> provisionManyVMs( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter, int count ) throws CloudException, InternalException {
