@@ -23,9 +23,9 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.*;
-import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
-import org.dasein.cloud.dc.ResourcePool;
+import org.dasein.cloud.dc.Folder;
+import org.dasein.cloud.dc.FolderType;
 import org.dasein.cloud.dc.StoragePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -551,7 +551,7 @@ public class StatefulVMTests {
                                         Map<String, String> tags = vm.getTags();
                                         for( Map.Entry<String, String> entry : tags.entrySet() ) {
                                             if (entry.getKey().startsWith("datastore")) {
-                                                tm.out("In storage pool " + entry.getValue());
+                                                tm.out("In storage pool", entry.getValue());
                                                 if (entry.getValue().equals(testStoragePoolId)) {
                                                     foundStoragePool = true;
                                                 }
@@ -589,6 +589,118 @@ public class StatefulVMTests {
             }
             else {
                 tm.ok("Storage pools not supported in this cloud");
+            }
+        }
+        else{
+            tm.ok("No datacenter services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVMWithVMFolder() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
+        if (dcServices != null) {
+            if (dcServices.getCapabilities().supportsFolders()) {
+                Iterable<Folder> folders = dcServices.listVMFolders();
+                if (folders.iterator().hasNext()) {
+                    String testVMFolderId = "";
+                    for (Folder folder : folders) {
+                        if (FolderType.VM.equals(folder.getType())) {
+                            testVMFolderId = folder.getId();
+                            break;
+                        }
+                    }
+                    if (!testVMFolderId.equals("")) {
+                        ComputeServices services = tm.getProvider().getComputeServices();
+
+                        if( services != null ) {
+                            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+                            if( support != null ) {
+                                if( support.isSubscribed() ) {
+                                    ComputeResources compute = DaseinTestManager.getComputeResources();
+                                    if( compute != null ) {
+                                        String productId = tm.getTestVMProductId();
+
+                                        assertNotNull("Unable to identify a VM product for test launch", productId);
+                                        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+                                        assertNotNull("Unable to identify a test image for test launch", imageId);
+                                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnFolder" + ( System.currentTimeMillis() % 10000 ), "Dasein VM Folder Launch " + System.currentTimeMillis(), "Test launch for a VM in a folder");
+                                        options.inDataCenter(testDataCenterId);
+                                        options.withVMFolderId(testVMFolderId);
+                                        String id = compute.provisionVM(support, "vmFolderLaunch", options, options.getDataCenterId());
+
+                                        tm.out("Launched", id);
+                                        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+                                        VirtualMachine vm = support.getVirtualMachine(id);
+                                        assertNotNull("Could not find the newly created virtual machine", vm);
+
+                                        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
+
+                                        while( timeout > System.currentTimeMillis() ) {
+                                            if( vm == null ) {
+                                                break;
+                                            }
+                                            Map<String, String> tags = vm.getTags();
+                                            if (tags.containsKey("vmFolder")) {
+                                                break;
+                                            }
+                                            try {
+                                                Thread.sleep(15000L);
+                                            } catch( InterruptedException ignore ) {
+                                            }
+                                            try {
+                                                vm = support.getVirtualMachine(id);
+                                            } catch( Throwable ignore ) {
+                                            }
+                                        }
+
+                                        boolean foundFolder = false;
+                                        Map<String, String> tags = vm.getTags();
+                                        for( Map.Entry<String, String> entry : tags.entrySet() ) {
+                                            if (entry.getKey().equals("vmFolder")) {
+                                                tm.out("In folder", entry.getValue());
+                                                if (entry.getValue().equals(testVMFolderId)) {
+                                                    foundFolder = true;
+                                                }
+                                            }
+                                        }
+                                        assertNotNull("Launched VM does not exist", vm);
+                                        assertTrue("Expected folder not found "+testVMFolderId, foundFolder);
+                                    }
+                                }
+                                else {
+                                    try {
+                                        //noinspection ConstantConditions
+                                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                                        fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+                                    } catch( CloudException ok ) {
+                                        tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                                    }
+                                }
+                            }
+                            else {
+                                tm.ok("No virtual machine support in this cloud");
+                            }
+                        }
+                        else {
+                            tm.ok("No compute services in this cloud");
+                        }
+                    }
+                    else {
+                        fail("Couldn't find valid folder");
+                    }
+                }
+                else {
+                    fail("No test folder was found");
+                }
+            }
+            else {
+                tm.ok("Folders not supported in this cloud");
             }
         }
         else{
