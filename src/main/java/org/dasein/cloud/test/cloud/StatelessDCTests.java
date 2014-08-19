@@ -23,8 +23,10 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
+import org.dasein.cloud.dc.Folder;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.dc.ResourcePool;
+import org.dasein.cloud.dc.StoragePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -37,6 +39,7 @@ import org.junit.rules.TestName;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
@@ -67,6 +70,8 @@ public class StatelessDCTests {
 
     private String testDataCenterId;
     private String testResourcePoolId;
+    private String testStoragePoolId;
+    private String testFolderId;
 
     public StatelessDCTests() { }
 
@@ -83,11 +88,31 @@ public class StatelessDCTests {
                 }
             }
 
-            if (name.getMethodName().contains("Pool") && services.getCapabilities().supportsResourcePools()) {
-                if (testDataCenterId != null) {
+            if (name.getMethodName().contains("Pool") && testDataCenterId != null) {
+                if (services.getCapabilities().supportsResourcePools()) {
                     for ( ResourcePool rp : services.listResourcePools(testDataCenterId)) {
                         if (testResourcePoolId == null) {
                             testResourcePoolId = rp.getProvideResourcePoolId();
+                            break;
+                        }
+                    }
+                }
+                if (services.getCapabilities().supportsStoragePools()) {
+                    for ( StoragePool storagePool : services.listStoragePools()) {
+                        if (testStoragePoolId == null) {
+                            testStoragePoolId = storagePool.getStoragePoolId();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (name.getMethodName().contains("Folder")) {
+                if (services.getCapabilities().supportsFolders()) {
+                    for (Folder folder : services.listVMFolders()) {
+                        if (testFolderId == null) {
+                            testFolderId = folder.getId();
+                            break;
                         }
                     }
                 }
@@ -314,7 +339,7 @@ public class StatelessDCTests {
         }
         else {
             if (services.getCapabilities().supportsResourcePools()) {
-                fail("No test resource pool exists and thus no test for getResourcePool could be run");
+                fail("No test resource pool exists and thus no test for resourcePoolContent could be run");
             }
             else {
                 tm.ok("Resource pools not supported in "+tm.getProvider().getCloudName());
@@ -349,4 +374,195 @@ public class StatelessDCTests {
         }
     }
     //End resource pool tests
+
+    //Storage pool tests
+    @Test
+    public void getBogusStoragePool() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsStoragePools()) {
+            StoragePool storagePool = services.getStoragePool(UUID.randomUUID().toString());
+            tm.out("Bogus Storage pool", storagePool);
+            assertNull("Dummy storage pool must be null, but one was found", storagePool);
+        }
+        else {
+            tm.ok("Storage pools not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void getStoragePool() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        if (testStoragePoolId != null) {
+            StoragePool storagePool = services.getStoragePool(testStoragePoolId);
+
+            tm.out("Storage Pool", storagePool+" ["+storagePool.getStoragePoolId()+"]");
+            assertNotNull("Failed to find the test storage pool", storagePool);
+        }
+        else {
+            if (services.getCapabilities().supportsStoragePools()) {
+                fail("No test storage pool exists and thus no test for getStoragePool could be run");
+            }
+            else {
+                tm.ok("Storage pools not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void storagePoolContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (testStoragePoolId != null) {
+            StoragePool storagePool = services.getStoragePool(testStoragePoolId);
+
+            assertNotNull("Failed to find the test storage pool", storagePool);
+            tm.out("Storage Pool ID", storagePool.getStoragePoolId());
+            tm.out("Name", storagePool.getStoragePoolName());
+            tm.out("Data center ID", storagePool.getDataCenterId());
+            tm.out("Region ID", storagePool.getRegionId());
+            tm.out("Affinity group", storagePool.getAffinityGroupId());
+            tm.out("Capacity", storagePool.getCapacity());
+            tm.out("Provisioned", storagePool.getProvisioned());
+            tm.out("Free space", storagePool.getFreeSpace());
+            assertNotNull("Storage Pool ID must not be null", storagePool.getStoragePoolId());
+            assertNotNull("Storage Pool name must not be null", storagePool.getStoragePoolName());
+        }
+        else {
+            if (services.getCapabilities().supportsStoragePools()) {
+                fail("No test storage pool exists and thus no test for storagePoolContent could be run");
+            }
+            else {
+                tm.ok("Storage pools not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void listStoragePools() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsStoragePools() ) {
+            Iterable<StoragePool> storagePools = services.listStoragePools();
+            boolean found = false;
+            int count = 0;
+
+            assertNotNull("Null set of storage pools returned from listStoragePools()", storagePools);
+            for( StoragePool storagePool : storagePools ) {
+                count++;
+                tm.out("Storage Pool", storagePool+" ["+storagePool.getStoragePoolId()+"]");
+                if( storagePool.getStoragePoolId().equals(testStoragePoolId) ) {
+                    found = true;
+                }
+            }
+            tm.out("Total Storage Pool Count", count);
+            assertTrue("There must be at least one Storage Pool in this datacenter", count > 0);
+            assertTrue("Did not find the test Storage Pool ID among returned Storage Pools", found);
+        }
+        else {
+            tm.ok("Storage pools not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+    //End storage pool tests
+
+    //VM folder tests
+    @Test
+    public void getBogusVMFolder() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsFolders()) {
+            Folder folder = services.getVMFolder(UUID.randomUUID().toString());
+            tm.out("Bogus VM folder", folder);
+            assertNull("Dummy VM folder must be null, but one was found", folder);
+        }
+        else {
+            tm.ok("Folders not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void getVMFolder() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+        if (testFolderId != null) {
+            Folder folder = services.getVMFolder(testFolderId);
+
+            tm.out("VMFolder", folder+" ["+folder.getId()+"]");
+            assertNotNull("Failed to find the test folder", folder);
+        }
+        else {
+            if (services.getCapabilities().supportsFolders()) {
+                fail("No test folder exists and thus no test for getVMFolder could be run");
+            }
+            else {
+                tm.ok("Folders not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void vmFolderContent() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (testFolderId != null) {
+            Folder folder = services.getVMFolder(testFolderId);
+
+            assertNotNull("Failed to find the test folder", folder);
+            tm.out("VM folder ID", folder.getId());
+            tm.out("Name", folder.getName());
+            tm.out("Type", folder.getType());
+            tm.out("Parent", folder.getParent().getName());
+
+            List<Folder> children = folder.getChildren();
+            for (Folder child : children) {
+                tm.out("Child folder", child.getName());
+            }
+            assertNotNull("VM folder ID must not be null", folder.getId());
+            assertNotNull("VM folder name must not be null", folder.getName());
+            assertNotNull("Type must not be null", folder.getType());
+            assertNotNull("Parent must not be null", folder.getParent());
+        }
+        else {
+            if (services.getCapabilities().supportsFolders()) {
+                fail("No test folder exists and thus no test for vmFolderContent could be run");
+            }
+            else {
+                tm.ok("Folders not supported in "+tm.getProvider().getCloudName());
+            }
+        }
+    }
+
+    @Test
+    public void listVMFolders() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        DataCenterServices services = tm.getProvider().getDataCenterServices();
+
+        if (services.getCapabilities().supportsFolders() ) {
+            Iterable<Folder> folders = services.listVMFolders();
+            boolean found = false;
+            int count = 0;
+
+            assertNotNull("Null set of folders returned from listVMFolders()", folders);
+            for( Folder folder : folders ) {
+                count++;
+                tm.out("VM folder", folder+" ["+folder.getId()+"]");
+                if( folder.getId().equals(testFolderId) ) {
+                    found = true;
+                }
+            }
+            tm.out("Total VM folder Count", count);
+            assertTrue("There must be at least one VM folder", count > 0);
+            assertTrue("Did not find the test folder ID among returned folders", found);
+        }
+        else {
+            tm.ok("Folders not supported in "+tm.getProvider().getCloudName());
+        }
+    }
+    //End VM folder tests
 }
