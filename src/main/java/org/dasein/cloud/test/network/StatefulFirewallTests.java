@@ -20,6 +20,8 @@
 package org.dasein.cloud.test.network;
 
 import junit.framework.Assert;
+import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
@@ -30,8 +32,6 @@ import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.*;
-import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.compute.ComputeResources;
 import org.junit.*;
 import org.junit.rules.TestName;
 
@@ -80,7 +80,7 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
         else if( name.getMethodName().equals("launchVM") ) {
@@ -949,13 +949,14 @@ public class StatefulFirewallTests {
 
             for (FirewallRule rule : rules) {
                 tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
+                try {
+                    support.revoke(rule.getProviderRuleId());
+                } catch (Exception ex) {
+                    fail("revoke returned  exception " + ex);
+                }
             }
-            try {
-                support.revoke(result);
-            } catch (Exception ex) {
-                fail("revoke returned exception " + ex);
-            }
+            rules = support.getRules("fw-" + testVLANId);
+            assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
         }
     }
-
 }
