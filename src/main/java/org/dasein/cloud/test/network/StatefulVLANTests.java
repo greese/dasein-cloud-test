@@ -802,41 +802,6 @@ public class StatefulVLANTests {
     }
 
     @Test
-    public void listInternetGateway() throws CloudException, InternalException {
-        NetworkServices services = tm.getProvider().getNetworkServices();
-        if( services != null ) {
-            VLANSupport support = services.getVlanSupport();
-            if( support != null ) {
-                if( testVLANId != null ) {
-                    if( support.getCapabilities().supportsInternetGatewayCreation() ) {
-                        Collection<InternetGateway> igCollection = support.listInternetGateways(testVLANId);
-                        assertTrue("List internet gateways returned an empty collection", igCollection.size() > 0);
-                    } else {
-                        try {
-                            support.listInternetGateways(testVLANId);
-                            fail("Internet gateway list completed even though Internet Gateway is not supported");
-                        } catch( OperationNotSupportedException expected ) {
-                            tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
-                        }
-                    }
-                } else {
-                    if( !support.getCapabilities().allowsNewVlanCreation() ) {
-                        tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
-                    } else if( support.isSubscribed() ) {
-                        fail("No test VLAN for " + name.getMethodName() + " test");
-                    } else {
-                        tm.ok("VLAN service is not subscribed so this test may not be entirely valid");
-                    }
-                }
-            } else {
-                tm.ok("No VLAN support in this cloud");
-            }
-        } else {
-            tm.ok("No network services in this cloud");
-        }
-    }
-
-    @Test
     public void removeInternetGateway() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
         if( services != null ) {
