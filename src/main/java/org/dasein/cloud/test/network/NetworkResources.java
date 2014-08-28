@@ -1264,24 +1264,31 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        if( vlanId == null ) {
-                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
-                            if( vlanId == null ) {
-                                vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                        if (!support.getCapabilities().getSubnetSupport().equals(Requirement.NONE)) {
+                            try {
                                 if( vlanId == null ) {
-                                    return null;
+                                    vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+                                    if( vlanId == null ) {
+                                        vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                                        if( vlanId == null ) {
+                                            return null;
+                                        }
+                                    }
                                 }
+                                id = provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
+                                // wait for subnet to be ready for describe
+                                try {
+                                    Thread.sleep(1000L);
+                                } catch( InterruptedException ignore ) {
+                                }
+                                return id;
+                            } catch( Throwable t ) {
+                                logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
                             }
                         }
-                        id = provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
-                        // wait for subnet to be ready for describe
-                        try {
-                            Thread.sleep(1000L);
-                        } catch( InterruptedException ignore ) {
-                        }
-                        return id;
-                    } catch( Throwable t ) {
-                        logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
+                    }
+                    catch (Throwable ignore) {
+                        return null;
                     }
                 }
             }
@@ -1314,23 +1321,30 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        if( vlanId == null ) {
-                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
-                            if( vlanId == null ) {
-                                vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                        if (support.getCapabilities().supportsInternetGatewayCreation()) {
+                            try {
                                 if( vlanId == null ) {
-                                    return null;
+                                    vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+                                    if( vlanId == null ) {
+                                        vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                                        if( vlanId == null ) {
+                                            return null;
+                                        }
+                                    }
+                                } else {
+                                    String internetGatewayId = support.getAttachedInternetGatewayId(vlanId);
+                                    if( internetGatewayId != null ) {
+                                        return internetGatewayId;
+                                    }
                                 }
-                            }
-                        } else {
-                            String internetGatewayId = support.getAttachedInternetGatewayId(vlanId);
-                            if( internetGatewayId != null ) {
-                                return internetGatewayId;
+                                return provisionInternetGateway(support, label, vlanId);
+                            } catch( Throwable t ) {
+                                logger.warn("Failed to provision test internet gateway for " + vlanId + ": " + t.getMessage());
                             }
                         }
-                        return provisionInternetGateway(support, label, vlanId);
-                    } catch( Throwable t ) {
-                        logger.warn("Failed to provision test internet gateway for " + vlanId + ": " + t.getMessage());
+                    }
+                    catch (Throwable ignore) {
+                        return null;
                     }
                 }
             }
@@ -1366,8 +1380,15 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        return provisionVLAN(support, label, "dsnnet", preferredDataCenterId);
-                    } catch( Throwable ignore ) {
+                        if (support.getCapabilities().allowsNewVlanCreation()) {
+                            try {
+                                return provisionVLAN(support, label, "dsnnet", preferredDataCenterId);
+                            } catch( Throwable ignore ) {
+                                return null;
+                            }
+                        }
+                    }
+                    catch (Throwable ignore) {
                         return null;
                     }
                 }
