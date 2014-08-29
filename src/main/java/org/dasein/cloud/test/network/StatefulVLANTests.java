@@ -745,7 +745,9 @@ public class StatefulVLANTests {
         }
         assertNotNull("Launched VM does not exist", vm);
         tm.out("In VLAN", vm.getProviderVlanId());
-        tm.out("In Subnet", vm.getProviderSubnetId());
+        if (!vlanSupport.getCapabilities().getSubnetSupport().equals(Requirement.NONE)) {
+            tm.out("In Subnet", vm.getProviderSubnetId());
+        }
         assertEquals("The subnet for the launched VM does not match the target subnet", testSubnetId, vm.getProviderSubnetId());
         assertEquals("The VLAN for the launched VM does not match the target VLAN", testVLANId, vm.getProviderVlanId());
     }
