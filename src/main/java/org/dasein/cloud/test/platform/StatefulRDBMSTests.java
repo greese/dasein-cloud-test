@@ -163,12 +163,13 @@ public class StatefulRDBMSTests {
             tm.ok("Oracle doesn't seem to be supported by " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        String id = support.createFromScratch("dsnora" + (System.currentTimeMillis()%10000), PlatformResources.getCheapestProduct(support, oracleEngine), null, "dasein", PlatformResources.randomPassword(), 3000);
+        String dbName = "dsnora" + (System.currentTimeMillis()%10000);
+        String expectedDbName = dbName.toUpperCase().substring(0, 8);
+        String id = support.createFromScratch(dbName, PlatformResources.getCheapestProduct(support, oracleEngine), null, "dasein", PlatformResources.randomPassword(), 3000);
         Database database = support.getDatabase(id);
-        Assert.assertNotNull("Oracle database has not been created", database);
-        assertEquals("Oracle instance name is not set/returned correctly", "ORCL", database.getName());
-
         removeDatabase(id);
+        Assert.assertNotNull("Oracle database has not been created", database);
+        assertEquals("Oracle instance name is not set/returned correctly", expectedDbName, database.getName());
     }
 
 
