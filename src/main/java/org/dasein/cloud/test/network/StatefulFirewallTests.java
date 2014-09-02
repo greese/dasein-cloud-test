@@ -80,7 +80,8 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") ) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
+            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") || name.getMethodName().equals("verifyDuplicateRejection")) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
         else if( name.getMethodName().equals("launchVM") ) {
@@ -493,7 +494,64 @@ public class StatefulFirewallTests {
     }
 
     @Test
-     public void createVLANFirewall() throws CloudException, InternalException {
+    public void verifyDuplicateRejection() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+            String result = null;
+            try {
+                System.out.println("NOW Creating initial ICMP rule");
+                result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("failed to generate a vlan ICMP rule", result);
+                System.out.println("NOW TESTING A DUPLICATE");
+                try {
+                    result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                    fail("should have generated a duplicate rule exception.");
+                }catch ( CloudException ex) {
+                    assertTrue("Duplicate rule was not rejected!", ex.getMessage().equals("Duplicate rule already exists"));
+                }
+                /*
+                System.out.println("NOW Creating initial TCP rule");
+                RuleTarget sourceEndpoint = null;
+                RuleTarget destinationEndpoint = null;
+                try {
+                    sourceEndpoint = getRandomEndpoint(RuleTargetType.VM);
+                    destinationEndpoint = getRandomEndpoint(RuleTargetType.VM);
+                } catch (Exception e) {
+                    System.out.println(e);
+                }
+                result = support.authorize("fw-" + testVLANId, Direction.INGRESS , Permission.ALLOW, sourceEndpoint, Protocol.TCP, destinationEndpoint, 80, 800, 0);
+                assertNotNull("failed to generate a vlan ICMP rule", result);
+                System.out.println("NOW TESTING A DUPLICATE");
+                try {
+                    result = support.authorize("fw-" + testVLANId, Direction.INGRESS , Permission.ALLOW, sourceEndpoint, Protocol.TCP, destinationEndpoint, 80, 800, 0);
+                    fail("should have generated a duplicate rule exception.");
+                }catch ( CloudException ex) {
+                    assertTrue("Duplicate rule was not rejected!", ex.getMessage().equals("Duplicate rule already exists"));
+                }
+                */
+            } catch (Exception ex) {
+                fail("authorize returned exception " + ex);
+            }
+
+            Collection<FirewallRule> rules = support.getRules("fw-" + testVLANId);
+
+            for (FirewallRule rule : rules) {
+                tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
+                try {
+                    support.revoke(rule.getProviderRuleId());
+                } catch (Exception ex) {
+                    fail("revoke returned  exception " + ex);
+                }
+            }
+            rules = support.getRules("fw-" + testVLANId);
+            assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
+        }
+    }
+
+    @Test
+    public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services != null ) {
