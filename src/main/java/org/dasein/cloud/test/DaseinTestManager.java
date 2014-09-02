@@ -512,8 +512,8 @@ public class DaseinTestManager {
         suite = testClass.getSimpleName();
         provider = constructProvider();
         changePrefix();
-        
-        String prop = System.getProperty("userName");
+
+        String prop = System.getProperty("user.name");
         if( prop != null ) {
             userName = prop;
         }
@@ -760,7 +760,7 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
-    	return getTestVMId(label, getUserName() + "-dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    	return getTestVMId(getUserName() + "-" + label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
     }
     
     public @Nullable String getTestVMId(@Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {

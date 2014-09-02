@@ -239,7 +239,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "dasein-test-launch", tm.getUserName() + "dsnlaunch", testDataCenterId);
+                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "dasein-test-launch-" + tm.getUserName(), "dsnlaunch", testDataCenterId);
 
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
@@ -274,7 +274,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "dasein-test-launch", tm.getUserName() + "dsnlaunch", testDataCenterId, 2);
+                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "dasein-test-launch-" + tm.getUserName(), "dsnlaunch", testDataCenterId, 2);
                     int count = 0;
 
                     for( String id : ids ) {

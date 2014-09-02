@@ -1366,7 +1366,7 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        return provisionVLAN(support, label, "dsnnet", preferredDataCenterId);
+                        return provisionVLAN(support, "dsnnet", label, preferredDataCenterId);
                     } catch( Throwable ignore ) {
                         return null;
                     }
