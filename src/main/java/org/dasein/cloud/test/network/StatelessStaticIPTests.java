@@ -115,13 +115,13 @@ public class StatelessStaticIPTests {
         if( name.getMethodName().contains("IPv6") ) {
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6, false, null);
             if( testIpAddress == null ) {
-                tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6, true, null);
+                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV6, true, null);
             }
         }
         else {
             testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4, false, null);
             if( testIpAddress == null ) {
-                tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4, true, null);
+                testIpAddress = tm.getTestStaticIpId(DaseinTestManager.STATELESS, false, IPVersion.IPV4, true, null);
             }
         }
     }

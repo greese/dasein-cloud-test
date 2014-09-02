@@ -458,6 +458,9 @@ public class StatelessVLANTests {
             if( !support.isSubscribed() ) {
               tm.ok("No test VLAN/Subnet was identified for tests due to a lack of subscription to VLAN support");
             }
+            else if (support.getCapabilities().getSubnetSupport().equals(Requirement.NONE)) {
+              tm.ok("No test subnet was identified for tests due to a lack of support for subnets");
+            }
             else {
               fail("No test Subnet was found for running the stateless test: " + name.getMethodName());
             }

@@ -272,6 +272,9 @@ public class StatefulStaticIPTests {
                         VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
 
                         testVlanId = vm.getProviderVlanId();
+                        if (testVlanId != null) {
+                            inVlan = true;
+                        }
                         testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL + testVlanId, true, version, true, testVlanId);
                     }
                     catch( Throwable ignore ) {
