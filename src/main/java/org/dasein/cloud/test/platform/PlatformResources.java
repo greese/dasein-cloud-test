@@ -565,7 +565,7 @@ public class PlatformResources {
         DatabaseProduct product = null;
 
         if( engine != null ) {
-            for( DatabaseProduct p : support.getDatabaseProducts(engine) ) {
+            for( DatabaseProduct p : support.listDatabaseProducts(engine) ) {
                 if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
                     // can't use in tests
                     continue;
@@ -577,7 +577,7 @@ public class PlatformResources {
         }
         else {
             for( DatabaseEngine e : support.getDatabaseEngines() ) {
-                for( DatabaseProduct p : support.getDatabaseProducts(e) ) {
+                for( DatabaseProduct p : support.listDatabaseProducts(e) ) {
                     if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
                         // can't use in tests
                         continue;

@@ -1067,7 +1067,7 @@ public class ComputeResources {
             NetworkResources network = DaseinTestManager.getNetworkResources();
 
             if( network != null ) {
-                String networkId = network.getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenter);
+                String networkId = network.getTestVLANId(label, true, preferredDataCenter);
 
                 if( networkId == null ) {
                     networkId = network.getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenter);
