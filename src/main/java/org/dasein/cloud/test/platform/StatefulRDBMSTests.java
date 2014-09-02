@@ -19,7 +19,12 @@
 
 package org.dasein.cloud.test.platform;
 
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
 import junit.framework.Assert;
+
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.platform.*;
@@ -99,15 +104,73 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
+
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
+        Set<DatabaseEngine> engineSet = new HashSet<DatabaseEngine>(Arrays.asList(DatabaseEngine.values()));
         for (DatabaseEngine engine : engines) {
-            //System.out.println("ENGINE = " + engine);
+            assertTrue("Database engine " + engine + " is not known.", engineSet.contains(engine));
+
             Iterable<String> versions = support.getSupportedVersions(engine);
-            for (String version : versions) {
-                //System.out.println("VERSION = " + version);
-            }
+            int versionCount = 0;
+            for (String version : versions) 
+                versionCount++;
+
+            assertTrue("at least one version of a database engine is required, yet none were found." , (versionCount > 0));
         }
 
+    }
+
+    /* test writing in progress, Roger 
+     * Needs to move to stateless tests...
+     */
+    @Test 
+    public void restartDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        support.restart("roger-unwin", true);
+        // well this restarts it, but how to get a log or something to show it worked?
+    }
+    
+    /* test writing in progress, Roger 
+     * Needs to move to stateless tests or modified to live here...
+     */
+    @Test 
+    public void listSnapshots() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        Iterable<DatabaseSnapshot> snapshotList = support.listSnapshots("roger-unwin");
+        for (DatabaseSnapshot snap : snapshotList) {
+            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
+            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
+        }
+
+        snapshotList = support.listSnapshots(null);
+        for (DatabaseSnapshot snap : snapshotList) {
+            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
+            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
+        }
     }
 
     @Test
@@ -131,6 +194,42 @@ public class StatefulRDBMSTests {
 
             tm.out("New Database", id);
             assertNotNull("No database was created by this test", id);
+            Assert.assertNotNull("database has not been created", support.getDatabase(id));
+        }
+        else {
+            fail("No platform resources were initialized for the test run");
+        }
+    }
+
+    @Test
+    public void createDatabaseMultiple() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        PlatformResources p = DaseinTestManager.getPlatformResources();
+
+        if( p != null ) {
+            Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
+            for (DatabaseEngine dbEngine : engines) {
+                tm.out("testing " + dbEngine.name());
+                String id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", dbEngine);
+
+                    // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
+
+                tm.out("New Database", id);
+                assertNotNull("No database was created by this test", id);
+                Database database = support.getDatabase(id);
+                Assert.assertNotNull("database has not been created", database);
+            }
         }
         else {
             fail("No platform resources were initialized for the test run");
