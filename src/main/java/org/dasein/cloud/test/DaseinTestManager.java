@@ -512,8 +512,8 @@ public class DaseinTestManager {
         suite = testClass.getSimpleName();
         provider = constructProvider();
         changePrefix();
-        
-        String prop = System.getProperty("userName");
+
+        String prop = System.getProperty("user.name");
         if( prop != null ) {
             userName = prop;
         }
