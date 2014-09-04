@@ -1649,7 +1649,27 @@ public class NetworkResources {
                 if( address == null ) {
                     for( IPVersion version : ipSupport.getCapabilities().listSupportedIPVersions() ) {
                         if( ipSupport.getCapabilities().isRequestable(version) ) {
-                            address = ipSupport.getIpAddress(ipSupport.request(version));
+                            String addressId = null;
+                            try {
+                                addressId = ipSupport.request(version);
+                            } catch (Exception e) {
+                                if( ipSupport.getCapabilities().identifyVlanForVlanIPRequirement() == Requirement.REQUIRED ) {
+                                    VLANSupport vlanSupport = services.getVlanSupport();
+                                    if( vlanSupport != null ) {
+                                        VLAN vlan = null;
+                                        for( VLAN v : vlanSupport.listVlans()) {
+                                            vlan = v; break;
+                                        }
+                                        if( vlan != null ) {
+                                            addressId = ipSupport.requestForVLAN(version, vlan.getProviderVlanId());
+                                        }
+                                    }
+                                }
+                                else {
+                                    addressId = ipSupport.requestForVLAN(version);
+                                }
+                            }
+                            address = ipSupport.getIpAddress(addressId);
                             if( address != null ) {
                                 break;
                             }
