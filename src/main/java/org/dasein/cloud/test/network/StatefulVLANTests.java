@@ -97,8 +97,7 @@ public class StatefulVLANTests {
         if( name.getMethodName().equals("provisionSubnet") || name.getMethodName().equals("provisionRoutingTable") ||
                 name.getMethodName().equals("launchVM") || name.getMethodName().equals("connectInternetGateway") ||
                 name.getMethodName().equals("removeInternetGateway") || name.getMethodName().equals("addRouteToVM") ||
-                name.getMethodName().equals("addRouteToNetworkInterface") || name.getMethodName().equals("addRouteToGateway") ||
-                name.getMethodName().equals("listInternetGateway")
+                name.getMethodName().equals("addRouteToNetworkInterface") || name.getMethodName().equals("addRouteToGateway")
                 ) {
             testVLANId = getVLANId(support, name.getMethodName(), null, null);
             // in the event it is new...
@@ -197,24 +196,6 @@ public class StatefulVLANTests {
                 } catch( Throwable t ) {
                     tm.out("Before: Issue during initialization for " + name.getMethodName() + " because " + t.getMessage());
                 }
-            }
-        }
-        if( name.getMethodName().equals("listInternetGateway") ) {
-            testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATEFUL, true, testVLANId, null);
-            if( testInternetGatewayId == null ) {
-                testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATEFUL, false, testVLANId, null);
-            }
-            if( testInternetGatewayId == null ) {
-                testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, false, testVLANId, null);
-            }
-            if( testInternetGatewayId == null ) {
-                testInternetGatewayId = tm.getTestInternetGatewayId(DaseinTestManager.STATELESS, true, testVLANId, null);
-            }
-            // sleep was necessary to achieve accurate result with list
-            // list would return 0 objects because of "provider lag"
-            try {
-                Thread.sleep(5000L);
-            } catch( InterruptedException ignore ) {
             }
         }
         if( name.getMethodName().equals("removeInternetGateway") || name.getMethodName().equals("addRouteToGateway") ) {
