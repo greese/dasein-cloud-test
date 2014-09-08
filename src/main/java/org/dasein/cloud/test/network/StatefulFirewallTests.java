@@ -91,13 +91,21 @@ public class StatefulFirewallTests {
 
             try {
                 support = (services == null ? null : services.getVirtualMachineSupport());
-                boolean vlan = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
+                boolean vlanForVMProv = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
 
-                if( vlan ) {
+                if( vlanForVMProv ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
                     if( testVLANId == null ) {
                         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
                     }
+                }
+                NetworkServices networkServices = tm.getProvider().getNetworkServices();
+                FirewallSupport firewallSupport;
+                firewallSupport = (networkServices == null ? null : networkServices.getFirewallSupport());
+                boolean vlanForFirewall = (firewallSupport != null && !firewallSupport.getCapabilities().requiresVLAN().equals(Requirement.NONE));
+
+
+                if (vlanForFirewall) {
                     testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
                 }
                 else {
@@ -904,7 +912,7 @@ public class StatefulFirewallTests {
             String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
 
             assertNotNull("Unable to identify a test image for test launch", imageId);
-            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnfw" + (System.currentTimeMillis()%10000), "Dasein Firewall Launch " + System.currentTimeMillis(), "Test launch for a VM in a firewall");
 
             if( testFirewallId != null ) {
                 options.behindFirewalls(testFirewallId);
