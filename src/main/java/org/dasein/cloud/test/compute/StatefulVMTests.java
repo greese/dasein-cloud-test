@@ -22,6 +22,7 @@ package org.dasein.cloud.test.compute;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.*;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
@@ -29,6 +30,8 @@ import org.dasein.cloud.dc.ResourcePool;
 import org.dasein.cloud.dc.StoragePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -709,7 +712,19 @@ public class StatefulVMTests {
                             if (products.iterator().hasNext()) {
                                 modifiedProductId = products.iterator().next().getProviderProductId();
                             }
-                            support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
+                            if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
+                                VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
+                                Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
+                                String description = "testVolumeAdd";
+                                VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
+                                volumes[0] = vol;
+                                VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
+                                support.alterVirtualMachine(testVmId, options);
+                            }
+                            else {
+                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            }
                             try {
                                 Thread.sleep(5000L);
                             } catch (InterruptedException ignore) {
