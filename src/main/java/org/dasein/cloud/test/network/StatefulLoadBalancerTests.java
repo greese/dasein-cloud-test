@@ -1060,11 +1060,11 @@ public class StatefulLoadBalancerTests {
         loadBalancerList = support.listLoadBalancers();
         for (LoadBalancer lb : loadBalancerList) {
             lbCount2++;
-            if (lb.getName().equals(id1)) {
-                LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getName());
+            if (lb.getProviderLoadBalancerId().equals(id1)) {
+                LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getProviderLoadBalancerId());
                 assertHealthCheck(id1, support, lbhc); 
                 lb1_found = true;
-            } else if (lb.getName().equals(id2)) {
+            } else if (lb.getProviderLoadBalancerId().equals(id2)) {
                 lb2_found = true;
             }
         }
