@@ -79,7 +79,8 @@ public class StatefulRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if( name.getMethodName().equals("removeDatabase") ) {
+        if (( name.getMethodName().equals("removeDatabase")) || 
+            ( name.getMethodName().equals("listAccess"))) {
             testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.REMOVED, true, null);
         }
     }
@@ -201,6 +202,35 @@ public class StatefulRDBMSTests {
         }
     }
 
+    @Test
+    public void listAccess() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        Iterable<String> access = support.listAccess(testDatabaseId);
+        int count = 0;
+        for (String element: access)
+            count++;
+        assertTrue("Count was not zero", (count == 0));
+        support.addAccess(testDatabaseId, "72.197.190.94");
+        support.addAccess(testDatabaseId, "72.197.190.0/24");
+        support.addAccess(testDatabaseId, "qa-project-2");
+        count = 0;
+        for (String element: access)
+            count++;
+        assertTrue("Count was not zero", (count == 3));
+        //support.revokeAccess(providerDatabaseId, sourceCide);
+
+    }
+    
     @Test
     public void createDatabaseMultiple() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
