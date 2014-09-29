@@ -88,7 +88,7 @@ public class StatefulVMTests {
                 return v;
             }
             try {
-                Thread.sleep(15000L);
+                Thread.sleep(60000L);
             } catch( InterruptedException ignore ) {
             }
             try {
@@ -769,10 +769,17 @@ public class StatefulVMTests {
                     if( vm != null ) {
                         if( support.getCapabilities().canStop(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
-                            support.stop(testVmId, true);
-                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            support.stop(testVmId, false);
+                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 10L ));
                             VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
+                            if( !VmState.STOPPED.equals(currentState) ) {
+                                tm.out("VM hasn't stopped, forcing");
+                                support.stop(testVmId, true);
+                                vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 10L ));
+                                currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
+                                tm.out("After force stop", currentState);
+                            }
                             assertEquals("Current state does not match the target state", VmState.STOPPED, currentState);
                         }
                         else {
