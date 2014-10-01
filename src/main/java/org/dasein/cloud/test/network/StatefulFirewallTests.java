@@ -406,7 +406,7 @@ public class StatefulFirewallTests {
 
                 if( net != null ) {
                     if( support.getCapabilities().supportsFirewallCreation(false) ) {
-                        String id = net.provisionFirewall("provisionKeypair", null);
+                        String id = net.provisionFirewall("provisionFirewall", null);
 
                         tm.out("New Firewall", id);
                         assertNotNull("No firewall was created by this test", id);
@@ -448,7 +448,7 @@ public class StatefulFirewallTests {
                     int p = port++;
 
                     if( support.getCapabilities().supportsFirewallCreation(false) ) {
-                        String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+                        String id = net.provisionFirewall("provisionFirewall", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
                         tm.out("New Firewall", id);
                         assertNotNull("No firewall was created by this test", id);

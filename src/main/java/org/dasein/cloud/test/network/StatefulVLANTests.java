@@ -321,7 +321,7 @@ public class StatefulVLANTests {
                             VLAN vlan = support.getVlan(testVLANId);
 
                             assertNotNull("The test VLAN does not exist", vlan);
-                            String id = resources.provisionSubnet(support, "provisionKeypair", testVLANId, "dsnsub", vlan.getProviderDataCenterId());
+                            String id = resources.provisionSubnet(support, "provisionSubnet", testVLANId, "dsnsub", vlan.getProviderDataCenterId());
                             tm.out("New Subnet", id);
                             try {
                                 Thread.sleep(1500L);
@@ -330,7 +330,7 @@ public class StatefulVLANTests {
                             assertNotNull("Could not find the subnet in the cloud after provisioning", support.getSubnet(id));
                         } else {
                             try {
-                                resources.provisionSubnet(support, "provisionKeypair", testVLANId, "dsnsubfail", null);
+                                resources.provisionSubnet(support, "provisionSubnet", testVLANId, "dsnsubfail", null);
                                 fail("Subnet provisioning completed even though it isn't supported");
                             } catch( OperationNotSupportedException expected ) {
                                 tm.ok("Caught OperationNotSupportedException for " + name.getMethodName() + " as expected");
@@ -370,7 +370,7 @@ public class StatefulVLANTests {
 
                 if( resources != null ) {
                     if( supported ) {
-                        String id = resources.provisionVLAN(support, "provisionKeypair", "dnsvlan", null);
+                        String id = resources.provisionVLAN(support, "provisionVlan", "dnsvlan", null);
                         tm.out("New VLAN", id);
                         try {
                             Thread.sleep(1500L);
@@ -413,7 +413,7 @@ public class StatefulVLANTests {
                         if( supported ) {
                             VLAN vlan = support.getVlan(testVLANId);
                             assertNotNull("The test VLAN does not exist", vlan);
-                            String id = resources.provisionRoutingTable(support, vlan.getProviderVlanId(), "provisionKeypair", "dnsrtb");
+                            String id = resources.provisionRoutingTable(support, vlan.getProviderVlanId(), "provisionRoutingTable", "dnsrtb");
                             tm.out("New Routing Table", id);
                             testRoutingTableId = id;
                             try {
@@ -423,7 +423,7 @@ public class StatefulVLANTests {
                             assertNotNull("Could not find the new Routing Table in the cloud after creation", support.getRoutingTable(id));
                         } else if( support.isSubscribed() ) {
                             try {
-                                String id = resources.provisionRoutingTable(support, testVLANId, "provisionKeypair", "dnsrtb");
+                                String id = resources.provisionRoutingTable(support, testVLANId, "provisionRoutingTable", "dnsrtb");
                                 fail("Route Table provisioning completed even though it isn't supported");
                             } catch( OperationNotSupportedException expected ) {
                                 tm.ok("Caught OperationNotSupportedException for " + name.getMethodName() + " as expected");
@@ -704,7 +704,7 @@ public class StatefulVLANTests {
                         if( support.getCapabilities().supportsInternetGatewayCreation() ) {
                             tm.out("Before", connected);
                             assertFalse("The VLAN is already connected via an internet gateway and thus this test cannot run", connected);
-                            resources.provisionInternetGateway(support, "provisionKeypair", testVLANId);
+                            resources.provisionInternetGateway(support, "provisionInternetGateway", testVLANId);
                             try {
                                 Thread.sleep(5000L);
                             } catch( InterruptedException ignore ) {
@@ -714,7 +714,7 @@ public class StatefulVLANTests {
                             assertTrue("The VLAN is not connected via an Internet Gateway", connected);
                         } else {
                             try {
-                                resources.provisionInternetGateway(support, "provisionKeypair", testVLANId);
+                                resources.provisionInternetGateway(support, "provisionInternetGateway", testVLANId);
                                 fail("Internet gateway creation completed even though it is not supported");
                             } catch( OperationNotSupportedException expected ) {
                                 tm.ok("Caught OperationNotSupportedException as expected for " + name.getMethodName());
