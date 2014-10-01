@@ -190,7 +190,7 @@ public class StatefulRDBMSTests {
         PlatformResources p = DaseinTestManager.getPlatformResources();
 
         if( p != null ) {
-            String id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", null);
+            String id = p.provisionRDBMS(support, "provisionRdbms", "dsnrdbms", null);
 
             tm.out("New Database", id);
             assertNotNull("No database was created by this test", id);
@@ -221,7 +221,7 @@ public class StatefulRDBMSTests {
             Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
             for (DatabaseEngine dbEngine : engines) {
                 tm.out("testing " + dbEngine.name());
-                String id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", dbEngine);
+                String id = p.provisionRDBMS(support, "provisionRdbms", "dsnrdbms", dbEngine);
 
                     // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
 

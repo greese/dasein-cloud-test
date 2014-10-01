@@ -167,7 +167,7 @@ public class StatefulImageTests {
                     tm.getProvider().getComputeServices().getImageSupport().remove(provisionedImage);
                 }
                 catch( Throwable t ) {
-                    tm.warn("Unable to de-provisionKeypair image " + provisionedImage + ": " + t.getMessage());
+                    tm.warn("Unable to de-provision image " + provisionedImage + ": " + t.getMessage());
                 }
             }
             testVMId = null;
