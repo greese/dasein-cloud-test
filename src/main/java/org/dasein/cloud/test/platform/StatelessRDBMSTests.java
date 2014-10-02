@@ -487,8 +487,8 @@ public class StatelessRDBMSTests {
                 DatabaseBackup snapshot = support.getBackup(snap.getProviderBackupId());
                 assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderBackupId().equals(snapshot.getProviderBackupId()));
     
-                String backupId = null;
-                support.removeBackup(backupId);
+                //if (support.getCapabilities().isSupportsDeleteBackup())
+                //    support.removeBackup(snap.getProviderBackupId());
             }
         } else
             tm.ok("Database does not support backups.");
