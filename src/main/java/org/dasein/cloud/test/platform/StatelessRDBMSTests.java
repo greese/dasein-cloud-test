@@ -23,6 +23,7 @@ import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.platform.Database;
+import org.dasein.cloud.platform.DatabaseBackup;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.PlatformServices;
@@ -446,5 +447,51 @@ public class StatelessRDBMSTests {
             assertTrue("Status and database lists do not match for " + entry.getKey(), s != null && d != null && s && d);
         }
         tm.out("Matches");
+    }
+    
+    /** 
+     * TEST: listBackups
+     * Created by Roger Unwin: Wed Oct  1 17:08
+     * @author Roger Unwin
+     * 
+     * NOTE: requires a database be present named "stateless-test-database"
+     * 
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test 
+    public void listBackups() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        if (support.getCapabilities().isSuppotsDatabaseBackups()) {
+            Iterable<DatabaseBackup> backupList = support.listBackups("stateless-test-database");
+            for (DatabaseBackup snap : backupList) {
+                
+                DatabaseBackup snapshot = support.getBackup(snap.getProviderBackupId());
+                assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderBackupId().equals(snapshot.getProviderBackupId()));
+            }
+    
+            backupList = support.listBackups(null);
+            for (DatabaseBackup snap : backupList) {
+                DatabaseBackup snapshot = support.getBackup(snap.getProviderBackupId());
+                assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderBackupId().equals(snapshot.getProviderBackupId()));
+    
+                String backupId = null;
+                support.removeBackup(backupId);
+            }
+        } else
+            tm.ok("Database does not support backups.");
+        
     }
 }

@@ -143,37 +143,71 @@ public class StatefulRDBMSTests {
         // well this restarts it, but how to get a log or something to show it worked?
     }
     
-    /* test writing in progress, Roger 
-     * Needs to move to stateless tests or modified to live here...
+
+
+    /** 
+     * TEST: deleteBackup
+     * Created by Roger Unwin: Wed Oct  1 17:08
+     * @author Roger Unwin
+     * 
+     * Notes: GCE does not support deleting backups. 
+     * Left that for the first person to run this whose database supports backups...
+     * 
+     * @throws CloudException
+     * @throws InternalException
      */
     @Test 
-    public void listSnapshots() throws CloudException, InternalException {
+    public void deleteBackup() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
-
         if( services == null ) {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
 
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
         if( support == null ) {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-
-        Iterable<DatabaseSnapshot> snapshotList = support.listSnapshots("roger-unwin");
-        for (DatabaseSnapshot snap : snapshotList) {
-            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
-            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
-        }
-
-        snapshotList = support.listSnapshots(null);
-        for (DatabaseSnapshot snap : snapshotList) {
-            DatabaseSnapshot snapshot = support.getSnapshot(snap.getProviderSnapshotId());
-            assertTrue("DatabaseSnapshot returned did not match database snapshot id requested ", snap.getProviderSnapshotId().equals(snapshot.getProviderSnapshotId()));
-        }
+        
+        if (true == support.getCapabilities().isSupportsDeleteBackup()) {
+            fail("Please implement deleteBackup test.");
+        } else
+            tm.ok("Platform does not support deleting of individual database backups.");
     }
+    
+    /** 
+     * TEST: createBackup
+     * Created by Roger Unwin: Wed Oct  1 17:08
+     * @author Roger Unwin
+     * 
+     * Notes: GCE does not support manually creating backups. 
+     * Left that for the first person to run this whose database supports backups...
+     * 
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test 
+    public void createBackup() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
 
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        if (true == support.getCapabilities().isSuppotsDemandBackups()) {
+            fail("Please implement createBackup test.");
+        } else
+            tm.ok("Platform does not support manually creating of individual database backups.");
+    }
+    
+    
     @Test
     public void createDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -265,6 +299,7 @@ public class StatefulRDBMSTests {
             fail("No platform resources were initialized for the test run");
         }
     }
+
 
     @Test
     public void createOracleDatabase() throws CloudException, InternalException {
