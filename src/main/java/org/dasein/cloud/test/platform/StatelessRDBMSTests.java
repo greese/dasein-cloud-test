@@ -494,4 +494,34 @@ public class StatelessRDBMSTests {
             tm.ok("Database does not support backups.");
         
     }
+
+    /** 
+     * TEST: restartDatabase
+     * Created by Roger Unwin
+     * @author Roger Unwin
+     * 
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test 
+    public void restartDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        try {
+            support.restart("stateless-test-database", true);
+            tm.ok("restart passed");
+        } catch (Exception e) {
+            fail("restartDatabase failed.");
+        }
+    }
 }

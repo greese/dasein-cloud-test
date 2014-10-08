@@ -121,30 +121,6 @@ public class StatefulRDBMSTests {
 
     }
 
-    /* test writing in progress, Roger 
-     * Needs to move to stateless tests...
-     */
-    @Test 
-    public void restartDatabase() throws CloudException, InternalException {
-        PlatformServices services = tm.getProvider().getPlatformServices();
-
-        if( services == null ) {
-            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
-
-        if( support == null ) {
-            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
-            return;
-        }
-        
-        support.restart("roger-unwin", true);
-        // well this restarts it, but how to get a log or something to show it worked?
-    }
-    
-
-
     /** 
      * TEST: deleteBackup
      * Created by Roger Unwin: Wed Oct  1 17:08
@@ -249,22 +225,34 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
+
         Iterable<String> access = support.listAccess(testDatabaseId);
         int count = 0;
         for (String element: access)
             count++;
         assertTrue("Count was not zero", (count == 0));
+
+        support.addAccess(testDatabaseId, "qa-project-2");
         support.addAccess(testDatabaseId, "72.197.190.94");
         support.addAccess(testDatabaseId, "72.197.190.0/24");
-        support.addAccess(testDatabaseId, "qa-project-2");
+
         count = 0;
+        access = support.listAccess(testDatabaseId);
         for (String element: access)
             count++;
-        assertTrue("Count was not zero", (count == 3));
-        //support.revokeAccess(providerDatabaseId, sourceCide);
+        assertTrue("Count was not three", (count == 3));
 
+        support.revokeAccess(testDatabaseId, "qa-project-2");
+        support.revokeAccess(testDatabaseId, "72.197.190.94");
+        support.revokeAccess(testDatabaseId, "72.197.190.0/24");
+
+        count = 0;
+        access = support.listAccess(testDatabaseId);
+        for (String element: access)
+            count++;
+        assertTrue("Count was not zero", (count == 0));
     }
-    
+
     @Test
     public void createDatabaseMultiple() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
