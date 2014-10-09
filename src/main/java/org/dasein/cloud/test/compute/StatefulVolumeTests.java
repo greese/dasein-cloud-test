@@ -24,6 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
@@ -128,7 +129,7 @@ public class StatefulVolumeTests {
                         testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, testDataCenterId);
                     }
                     catch( Throwable t ) {
-                        tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provision volume for filter test: " + t.getMessage());
                     }
                 }
             }
@@ -413,7 +414,7 @@ public class StatefulVolumeTests {
                 if (testDataCenterId != null)
                     options.setDataCenterId(testDataCenterId);
 
-                if( supported ) {
+                if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
                     provisionedVolume = options.build(tm.getProvider());
 
                     tm.out("New Block Volume", provisionedVolume);
@@ -672,7 +673,7 @@ public class StatefulVolumeTests {
                         }
                     }
                     else {
-                        tm.ok("Attaching is not allowed");
+                        tm.ok("Attaching is not allowed for state "+vmState);
                     }
                 }
                 else {
@@ -707,22 +708,30 @@ public class StatefulVolumeTests {
 
                     tm.out("Attachment Before", volume.getProviderVirtualMachineId());
                     assertNotNull("Volume must be attached to something before attempting to detach it", volume.getProviderVirtualMachineId());
-                    support.detach(testVolumeId, true);
+                    // check that detaching is supported in the current state
+                    String vmId = volume.getProviderVirtualMachineId();
+                    VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(vmId);
+                    if (support.getCapabilities().canDetach(vm.getCurrentState())) {
+                        support.detach(testVolumeId, true);
 
-                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
 
-                    while( timeout > System.currentTimeMillis() ) {
-                        volume = support.getVolume(testVolumeId);
+                        while( timeout > System.currentTimeMillis() ) {
+                            volume = support.getVolume(testVolumeId);
 
-                        assertNotNull("Volume disappeared during detachment", volume);
-                        tm.out("---> Attachment", volume.getProviderVirtualMachineId());
-                        if( volume.getProviderVirtualMachineId() == null ) {
-                            return;
+                            assertNotNull("Volume disappeared during detachment", volume);
+                            tm.out("---> Attachment", volume.getProviderVirtualMachineId());
+                            if( volume.getProviderVirtualMachineId() == null ) {
+                                return;
+                            }
+                            try { Thread.sleep(30000L); }
+                            catch( InterruptedException e ) { }
                         }
-                        try { Thread.sleep(30000L); }
-                        catch( InterruptedException e ) { }
+                        fail("System timed out verifying attachment");
                     }
-                    fail("System timed out verifying attachment");
+                    else {
+                        tm.ok("Detaching volume in state "+vm.getCurrentState()+" not supported");
+                    }
                 }
                 else {
                     if( support.isSubscribed() ) {
@@ -831,6 +840,9 @@ public class StatefulVolumeTests {
                     }
                     catch( CloudException expected ) {
                         tm.ok("Caught a CloudException: " + expected.getMessage());
+                    }
+                    catch ( OperationNotSupportedException ignore) {
+                        tm.ok("Caught an OperationNotSupportException: " + ignore.getMessage());
                     }
                 }
                 else {

@@ -142,7 +142,7 @@ public class StatefulVMTests {
                         //noinspection ConstantConditions
                         testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", testDataCenterId);
                     } catch( Throwable t ) {
-                        tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
                     }
                 }
             }
