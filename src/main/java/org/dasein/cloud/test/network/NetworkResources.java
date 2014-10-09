@@ -1666,7 +1666,14 @@ public class NetworkResources {
         	// not sure if options need tweeking
             options = LoadBalancerCreateOptions.getInstance(name, description);
         }
-
+/*
+        // Enable this bit to test with multiple listeners on a LB
+        for (int x=101;x<= 111;x++)
+            options.havingListeners(LbListener.getInstance(x, x));
+        for (int x=501;x<= 511;x++) {
+            options.havingListeners(LbListener.getInstance(LbAlgorithm.LEAST_CONN, "cookie" , LbProtocol.HTTPS, x, x));
+        }
+*/
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             final int publicPort = 1024 + random.nextInt(10000);
             final int privatePort = 1024 + random.nextInt(10000);

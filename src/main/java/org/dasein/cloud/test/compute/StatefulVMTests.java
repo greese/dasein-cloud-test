@@ -236,7 +236,6 @@ public class StatefulVMTests {
     public void launch() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
-
         if( services != null ) {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
