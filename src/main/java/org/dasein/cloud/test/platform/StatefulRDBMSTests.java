@@ -127,7 +127,7 @@ public class StatefulRDBMSTests {
         PlatformResources p = DaseinTestManager.getPlatformResources();
 
         if( p != null ) {
-            String id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", null);
+            String id = p.provisionRDBMS(support, "provisionRdbms", "dsnrdbms", null);
 
             tm.out("New Database", id);
             assertNotNull("No database was created by this test", id);
