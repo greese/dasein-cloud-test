@@ -487,10 +487,13 @@ public class StatelessRDBMSTests {
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals("stateless-test-database"));
 
                 /*
-                 * deserves its own test.
+                 * deserves its own test. 
+                 */
                 if (support.getCapabilities().isSuppotsDatabaseBackups())
                     support.restoreBackup(backup);
-                 */
+                 /*
+                  * 
+                  */
                 //if (support.getCapabilities().isSupportsDeleteBackup())
                 //    support.removeBackup(snap.getProviderBackupId());
             }
