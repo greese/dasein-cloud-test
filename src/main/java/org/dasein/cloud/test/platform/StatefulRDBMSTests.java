@@ -177,7 +177,7 @@ public class StatefulRDBMSTests {
             return;
         }
         
-        if (true == support.getCapabilities().isSuppotsDemandBackups()) {
+        if (true == support.getCapabilities().isSupportsDemandBackups()) {
             fail("Please implement createBackup test.");
         } else
             tm.ok("Platform does not support manually creating of individual database backups.");

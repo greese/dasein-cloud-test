@@ -452,7 +452,6 @@ public class StatelessRDBMSTests {
     
     /** 
      * TEST: listBackups
-     * Created by Roger Unwin: Wed Oct  1 17:08
      * @author Roger Unwin
      * 
      * NOTE: requires a database be present named "stateless-test-database"
@@ -475,7 +474,7 @@ public class StatelessRDBMSTests {
             return;
         }
 
-        if (support.getCapabilities().isSuppotsDatabaseBackups()) {
+        if (support.getCapabilities().isSupportsDatabaseBackups()) {
             Iterable<DatabaseBackup> backupList = support.listBackups("stateless-test-database");
             for (DatabaseBackup backup : backupList) {
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals("stateless-test-database"));
@@ -488,10 +487,8 @@ public class StatelessRDBMSTests {
 
                 /*
                  * deserves its own test. 
-                 */
                 if (support.getCapabilities().isSuppotsDatabaseBackups())
                     support.restoreBackup(backup);
-                 /*
                   * 
                   */
                 //if (support.getCapabilities().isSupportsDeleteBackup())
@@ -504,7 +501,6 @@ public class StatelessRDBMSTests {
 
     /** 
      * TEST: restartDatabase
-     * Created by Roger Unwin
      * @author Roger Unwin
      * 
      * @throws CloudException
