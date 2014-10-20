@@ -140,7 +140,7 @@ public class StatefulVMTests {
                 if( support != null ) {
                     try {
                         //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", testDataCenterId);
+                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "dasein-filter-test", "dsnfilter", testDataCenterId);
                     } catch( Throwable t ) {
                         tm.warn("Failed to provision VM for filter test: " + t.getMessage());
                     }
