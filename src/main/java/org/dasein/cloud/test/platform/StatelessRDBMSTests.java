@@ -25,6 +25,7 @@ import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.platform.Database;
 import org.dasein.cloud.platform.DatabaseBackup;
+import org.dasein.cloud.platform.DatabaseBackupState;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.PlatformServices;
@@ -449,7 +450,40 @@ public class StatelessRDBMSTests {
         }
         tm.out("Matches");
     }
-    
+
+    @Test 
+    public void restoreBackup() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        if (support.getCapabilities().isSupportsDatabaseBackups()) {
+            Iterable<DatabaseBackup> backupList = support.listBackups("stateless-test-database");
+            for (DatabaseBackup backup : backupList) {
+                if (support.getCapabilities().isSupportsDatabaseBackups()) {
+                    if (DatabaseBackupState.AVAILABLE == backup.getCurrentState()) {
+                        try {
+                            support.restoreBackup(backup);
+                        } catch (Exception e) {
+                            fail(e.getMessage());
+                        }
+                        tm.ok("Database backup restored");
+                        break;
+                    }
+                }
+            }
+        } else
+            tm.ok("Database does not support backups.");
+    }
+
     /** 
      * TEST: listBackups
      * @author Roger Unwin
@@ -485,12 +519,6 @@ public class StatelessRDBMSTests {
 
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals("stateless-test-database"));
 
-                /*
-                 * deserves its own test. 
-                if (support.getCapabilities().isSuppotsDatabaseBackups())
-                    support.restoreBackup(backup);
-                  * 
-                  */
                 //if (support.getCapabilities().isSupportsDeleteBackup())
                 //    support.removeBackup(snap.getProviderBackupId());
             }
