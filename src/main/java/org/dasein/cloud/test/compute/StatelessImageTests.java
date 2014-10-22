@@ -707,7 +707,7 @@ public class StatelessImageTests {
     }
 
     @Test
-    public void findTestUbuntuOrWindowsOrRHELInPrivateLibrary() throws CloudException, InternalException {
+    public void findTestLinuxOrWindowsInPrivateLibrary() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
@@ -736,6 +736,22 @@ public class StatelessImageTests {
                 }
                 for( MachineImage image : images ) {
                     assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not Ubuntu", Platform.UBUNTU, image.getPlatform());
+                }
+
+                images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.CENT_OS));
+                int centos = 0;
+
+                assertNotNull("listImages() must return a non-null list of images even if the image class is not supported", images);
+                for( MachineImage image : images ) {
+                    centos++;
+                    tm.out("CentOS Image", image);
+                }
+                tm.out("Total CentOS Image Count", centos);
+                if( !supported ) {
+                    assertTrue("Because machine images are not supported, the list of images should be empty", centos == 0);
+                }
+                for( MachineImage image : images ) {
+                    assertEquals("The platform for the image " + image.getProviderMachineImageId() + " is not CentOS", Platform.CENT_OS, image.getPlatform());
                 }
 
                 images = support.listImages(ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(Platform.RHEL));

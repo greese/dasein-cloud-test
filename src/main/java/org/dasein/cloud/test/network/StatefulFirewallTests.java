@@ -69,11 +69,12 @@ public class StatefulFirewallTests {
     @Rule
     public final TestName name = new TestName();
 
-    private String  testFirewallId;
-    private String  testRuleId;
-    private String  testVLANId;
+    private String testFirewallId;
+    private String testRuleId;
+    private String testVLANId;
 
-    public StatefulFirewallTests() { }
+    public StatefulFirewallTests() {
+    }
 
     @Before
     public void before() {

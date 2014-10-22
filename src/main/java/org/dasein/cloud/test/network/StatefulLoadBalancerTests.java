@@ -370,24 +370,30 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        NetworkResources network = DaseinTestManager.getNetworkResources();
 
-        if( network == null ) {
-            fail("Failed to initialize network capabilities for tests");
+        if( support.getCapabilities().supportsMonitoring() ) {
+            NetworkResources network = DaseinTestManager.getNetworkResources();
+
+            if( network == null ) {
+                fail("Failed to initialize network capabilities for tests");
+            }
+
+            // Need to see whats the health check NEEDS to be created in here...
+            String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, false, true);
+
+            tm.out("New Load Balancer", id);
+            assertNotNull("The newly created load balancer ID was null", id);
+
+            LoadBalancer lb = support.getLoadBalancer(id);
+            assertNotNull(String.format("Load Balancer %s failed to create.", id));
+
+            // lb.getProviderLBHealthCheckId() is null. why?
+            LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
+            assertHealthCheck(id, support, lbhc);
         }
-        
-        // Need to see whats the health check NEEDS to be created in here...
-        String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, false, true);
-
-        tm.out("New Load Balancer", id);
-        assertNotNull("The newly created load balancer ID was null", id);
-
-        LoadBalancer lb = support.getLoadBalancer(id);
-        assertNotNull(String.format("Load Balancer %s failed to create.", id));
-
-        // lb.getProviderLBHealthCheckId() is null. why?
-        LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
-        assertHealthCheck(id, support, lbhc); 
+        else {
+            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        }
     }
 
     /**
@@ -409,41 +415,48 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        NetworkResources network = DaseinTestManager.getNetworkResources();
 
-        if( network == null ) {
-            fail("Failed to initialize network capabilities for tests");
+        if( support.getCapabilities().supportsMonitoring() ) {
+            NetworkResources network = DaseinTestManager.getNetworkResources();
+
+            if( network == null ) {
+                fail("Failed to initialize network capabilities for tests");
+            }
+
+            HealthCheckOptions hcOpt = HealthCheckOptions.getInstance(null, null, null, null, LoadBalancerHealthCheck.HCProtocol.TCP, 9876, null, 10, 9, 5, 5);
+
+            String lbId = null;
+            String lbhcId;
+            if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
+                lbId = network.provisionLoadBalancer("provision", "dsnmodhctest", false, false, true);
+
+                tm.out("New Load Balancer", lbId);
+                assertNotNull("The newly created load balancer ID was null", lbId);
+
+                LoadBalancer lb = support.getLoadBalancer(lbId);
+                assertNotNull(String.format("Load Balancer %s failed to create.", lbId));
+                hcOpt.withProviderLoadBalancerId(lbId);
+                lbhcId = lb.getProviderLBHealthCheckId();
+            }
+            else {
+                LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(null, null, null, LoadBalancerHealthCheck.HCProtocol.HTTP, 8090, null, 20, 15, 2, 2);
+                lbhcId = lbhc.getProviderLBHealthCheckId();
+            }
+
+            LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lbhcId, lbId);
+            assertHealthCheck(lbId, support, lbhc);
+            LoadBalancerHealthCheck lbhcModified = support.modifyHealthCheck(lbhcId, hcOpt);
+
+            // check correct values are returned - modified as requested
+            assertCompareOptionsWithLBHC(hcOpt, lbhcModified);
+
+            // get it again to make sure there was no cheating
+            lbhcModified = support.getLoadBalancerHealthCheck(lbhcId, lbId);
+            assertCompareOptionsWithLBHC(hcOpt, lbhcModified);
         }
-
-        HealthCheckOptions hcOpt = HealthCheckOptions.getInstance(null, null, null, null, LoadBalancerHealthCheck.HCProtocol.TCP, 9876, null, 10, 9, 5, 5);
-
-        String lbId = null;
-        String lbhcId = null;
-        if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
-            lbId = network.provisionLoadBalancer("provision", "dsnmodhctest", false, false, true);
-
-            tm.out("New Load Balancer", lbId);
-            assertNotNull("The newly created load balancer ID was null", lbId);
-
-            LoadBalancer lb = support.getLoadBalancer(lbId);
-            assertNotNull(String.format("Load Balancer %s failed to create.", lbId));
-            hcOpt.withProviderLoadBalancerId(lbId);
-            lbhcId = lb.getProviderLBHealthCheckId();
-        } else {
-            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(null, null, null, LoadBalancerHealthCheck.HCProtocol.HTTP, 8090, null, 20, 15, 2, 2);
-            lbhcId = lbhc.getProviderLBHealthCheckId();
+        else {
+            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
         }
-
-        LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lbhcId, lbId);
-        assertHealthCheck(lbId, support, lbhc);
-        LoadBalancerHealthCheck lbhcModified = support.modifyHealthCheck(lbhcId, hcOpt);
-
-        // check correct values are returned - modified as requested
-        assertCompareOptionsWithLBHC(hcOpt, lbhcModified);
-
-        // get it again to make sure there was no cheating
-        lbhcModified = support.getLoadBalancerHealthCheck(lbhcId, lbId);
-        assertCompareOptionsWithLBHC(hcOpt, lbhcModified);
     }
 
     private void assertCompareOptionsWithLBHC( HealthCheckOptions requested, LoadBalancerHealthCheck actual) {
@@ -938,26 +951,31 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        //TODO: Clean these values up
-        LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3, 2, 2));
+        if( support.getCapabilities().supportsMonitoring() ) {
+            //TODO: Clean these values up
+            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3, 2, 2));
 
-        if( support.getCapabilities().healthCheckRequiresLoadBalancer() ){
-            if( testLoadBalancerId != null ){
-                assertNotNull("Could not create a healthcheck for loadbalancer", lbhc);
-            }
-            else {
-                if( support.isSubscribed() ) {
-                    fail("No test load balancer for " + name.getMethodName());
+            if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
+                if( testLoadBalancerId != null ) {
+                    assertNotNull("Could not create a healthcheck for loadbalancer", lbhc);
                 }
                 else {
-                    tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
+                    if( support.isSubscribed() ) {
+                        fail("No test load balancer for " + name.getMethodName());
+                    }
+                    else {
+                        tm.ok("Load balancer support is not subscribed so this test is not entirely valid");
+                    }
                 }
             }
+            else {
+                assertNotNull("Could not create a standalone healthcheck", lbhc);
+            }
+            support.removeLoadBalancerHealthCheck("foobar");
         }
         else {
-            assertNotNull("Could not create a standalone healthcheck", lbhc);
+            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
         }
-        support.removeLoadBalancerHealthCheck("foobar");
     }
 
     @Test
@@ -1048,10 +1066,12 @@ public class StatefulLoadBalancerTests {
             lbCount1++;
         }
 
-        String id1 = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest1", false, false, true);
+        boolean supportsHealthChecks = support.getCapabilities().supportsMonitoring();
+
+        String id1 = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest1", false, false, supportsHealthChecks);
         tm.out("New Load Balancer", id1);
         assertNotNull("The newly created load balancer ID was null", id1);
-        String id2 = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest1", false, false, true);
+        String id2 = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest1", false, false, supportsHealthChecks);
         tm.out("New Load Balancer", id2);
         assertNotNull("The newly created load balancer ID was null", id2);
         boolean lb1_found = false;

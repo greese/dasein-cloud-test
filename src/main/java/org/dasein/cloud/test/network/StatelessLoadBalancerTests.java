@@ -601,7 +601,7 @@ public class StatelessLoadBalancerTests {
         LoadBalancerSupport support = services.getLoadBalancerSupport();
 
         if( support == null ) {
-            tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
         Iterable<SSLCertificate> certificates = support.listSSLCertificates();
@@ -641,42 +641,45 @@ public class StatelessLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-     
+
+        if( support.getCapabilities().supportsMonitoring() ) {
         /* Need to create a loadbalancer with a health check for the test to find...? */
 
         
         /* should be created now. */
-        
-        
-        Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(null);
-        int count = 0;
 
-        assertNotNull("The list of LB health checks may not be null", healthChecks);
-        for( LoadBalancerHealthCheck lbhc : healthChecks ) {
-            count++;
-            tm.out("LB Health Check", lbhc);
-        }
-        tm.out("LB Health Check Count", count);
 
-        if( !support.isSubscribed() ) {
-            assertEquals("The LB health check count should be zero since this account is not subscribed to this service", 0, count);
-        }
-        else if( count == 0 ) {
-            tm.warn("This test is likely invalid as no LB health checks were provided in the results for validation");
-        }
-        boolean found = false;
-        for( LoadBalancerHealthCheck lbhc : healthChecks ) {
-            if( NetworkResources.TEST_HC_PATH.equals(lbhc.getPath())
-                    && NetworkResources.TEST_HC_PROTOCOL.equals(lbhc.getProtocol())
-                    && NetworkResources.TEST_HC_PORT == lbhc.getPort() ) {
-                assertHealthCheck(testLoadBalancerId, support, lbhc);
-                found = true;
-                break;
+            Iterable<LoadBalancerHealthCheck> healthChecks = support.listLBHealthChecks(null);
+            int count = 0;
+
+            assertNotNull("The list of LB health checks may not be null", healthChecks);
+            for( LoadBalancerHealthCheck lbhc : healthChecks ) {
+                count++;
+                tm.out("LB Health Check", lbhc);
             }
+            tm.out("LB Health Check Count", count);
+
+            if( !support.isSubscribed() ) {
+                assertEquals("The LB health check count should be zero since this account is not subscribed to this service", 0, count);
+            }
+            else if( count == 0 ) {
+                tm.warn("This test is likely invalid as no LB health checks were provided in the results for validation");
+            }
+            boolean found = false;
+            for( LoadBalancerHealthCheck lbhc : healthChecks ) {
+                if( NetworkResources.TEST_HC_PATH.equals(lbhc.getPath()) && NetworkResources.TEST_HC_PROTOCOL.equals(lbhc.getProtocol()) && NetworkResources.TEST_HC_PORT == lbhc.getPort() ) {
+                    assertHealthCheck(testLoadBalancerId, support, lbhc);
+                    found = true;
+                    break;
+                }
+            }
+
+            // fails here because it never created a loadbalancer to find.
+            assertTrue("Unable to find the test load balancer in the returned list", found);
         }
-        
-        // fails here because it never created a loadbalancer to find.
-        assertTrue("Unable to find the test load balancer in the returned list", found);
+        else {
+            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        }
     }
 
 }
