@@ -760,7 +760,7 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
-    	return getTestVMId(getUserName() + "-" + label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    	return getTestVMId(label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
     }
     
     public @Nullable String getTestVMId(@Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
