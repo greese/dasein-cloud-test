@@ -79,8 +79,7 @@ public class StatefulRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if (( name.getMethodName().equals("removeDatabase")) || 
-            ( name.getMethodName().equals("listAccess"))) {
+        if ( name.getMethodName().equals("listAccess")) {
             testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.REMOVED, true, null);
         }
     }
@@ -212,6 +211,9 @@ public class StatefulRDBMSTests {
         }
     }
 
+    /*
+     * Test will fail if run with other tests due to removeDatabase nuking the test db before it gets to this test. 
+     */
     @Test
     public void listAccess() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -324,10 +326,34 @@ public class StatefulRDBMSTests {
         assertEquals("Oracle instance name is not set/returned correctly", expectedDbName, database.getName());
     }
 
-
     @Test
     public void removeDatabase() throws CloudException, InternalException {
-        removeDatabase(testDatabaseId);
+        String id = null;
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        PlatformResources p = DaseinTestManager.getPlatformResources();
+
+        if( p != null ) {
+            id = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms-remove-test", null);
+
+            tm.out("New Database", id);
+            assertNotNull("No database was created by this test", id);
+            Assert.assertNotNull("database has not been created", support.getDatabase(id));
+        }
+        else {
+            fail("No platform resources were initialized for the test run");
+        }
+        removeDatabase(id);
     }
 
     private void removeDatabase(String id) throws CloudException, InternalException {

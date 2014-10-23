@@ -48,6 +48,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -484,6 +485,29 @@ public class StatelessRDBMSTests {
             tm.ok("Database does not support backups.");
     }
 
+
+    @Test
+    public void createFromLatest() throws CloudException, InternalException {
+        String id = null;
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        Random random = new Random();
+        String copyName = "stateless-test-database-clone" + random.nextInt(9) + random.nextInt(9) + random.nextInt(9);
+
+        support.createFromLatest("stateless-test-database", copyName, "d1", tm.getContext().getRegionId(), 999);
+        System.out.println("GOT HERE, INSPECT");
+    }
+    
     /** 
      * TEST: listBackups
      * @author Roger Unwin
@@ -520,7 +544,7 @@ public class StatelessRDBMSTests {
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals("stateless-test-database"));
 
                 //if (support.getCapabilities().isSupportsDeleteBackup())
-                //    support.removeBackup(snap.getProviderBackupId());
+                //    support.removeBackup(backup); // GCE does not support.
             }
         } else
             tm.ok("Database does not support backups.");
