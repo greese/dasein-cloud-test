@@ -33,6 +33,7 @@ import static org.junit.Assume.assumeTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
@@ -151,11 +152,14 @@ public class StatefulLoadBalancerTests {
                     String[] ids = lb.getProviderDataCenterIds();
 
                     boolean found = false;
-                    for( String dataCenterId : ids )
-                        if( testDataCenterId.equals(dataCenterId) )
+                    for( String dataCenterId : ids ) {
+                        if( testDataCenterId.equals(dataCenterId) ) {
                             found = true;
-                    if( !found )
+                        }
+                    }
+                    if( !found ) {
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
+                    }
                     testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
@@ -177,7 +181,7 @@ public class StatefulLoadBalancerTests {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
-                                    ArrayList<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
+                                    List<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
                                     String[] dcs = lb.getProviderDataCenterIds();
 
                                     regionDataCenters.addAll(tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()));
@@ -278,7 +282,7 @@ public class StatefulLoadBalancerTests {
                     LoadBalancerSupport support = net.getLoadBalancerSupport();
 
                     if( support != null ) {
-                        ArrayList<String> ids = new ArrayList<String>();
+                        List<String> ids = new ArrayList<String>();
 
                         for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
                             if( endpoint.getEndpointType().equals(LbEndpointType.VM) ) {
