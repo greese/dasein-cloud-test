@@ -22,6 +22,7 @@ package org.dasein.cloud.test.network;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VMLaunchOptions;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
@@ -336,6 +337,12 @@ public class StatefulStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( support.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.REQUIRED) && !forVLAN ) {
+            tm.ok("Static IP addresses without VLN are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
         NetworkResources network = DaseinTestManager.getNetworkResources();
 
         assertNotNull("Testing failed to initialize properly as there are no network resources", network);

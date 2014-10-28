@@ -1517,9 +1517,9 @@ public class NetworkResources {
         } else {
             map = ( version.equals(IPVersion.IPV4) ? testIps4VLAN : testIps6VLAN );
         }
-        String id = null;
+        String id;
 
-        if( vlanId == null ) {
+        if( vlanId == null && support.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.NONE) ) {
             id = support.request(version);
         }
         else {
@@ -1649,7 +1649,13 @@ public class NetworkResources {
                 if( address == null ) {
                     for( IPVersion version : ipSupport.getCapabilities().listSupportedIPVersions() ) {
                         if( ipSupport.getCapabilities().isRequestable(version) ) {
-                            address = ipSupport.getIpAddress(ipSupport.request(version));
+                            if( ipSupport.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.NONE)) {
+                                address = ipSupport.getIpAddress(ipSupport.request(version));
+                            }
+                            else {
+                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version,
+                                        getTestVLANId(label, true, null)));
+                            }
                             if( address != null ) {
                                 break;
                             }

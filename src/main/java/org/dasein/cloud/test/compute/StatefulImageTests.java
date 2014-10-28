@@ -635,8 +635,12 @@ public class StatefulImageTests {
                     else {
                         try {
                             provisionedImage = options.build(tm.getProvider());
+                            // past this point every possibility is a failure
+                            assertNull("Image returned as null despite @Nonnull contract in core. Fix it!", provisionedImage);
+                            assertNotNull("captureImage returned an imageId despite the capability claiming it's not supported");
                         }
                         catch( OperationNotSupportedException expected ) {
+                            // this is good
                             tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
                         }
                     }

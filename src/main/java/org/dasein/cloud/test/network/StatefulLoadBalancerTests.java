@@ -1080,8 +1080,10 @@ public class StatefulLoadBalancerTests {
         for (LoadBalancer lb : loadBalancerList) {
             lbCount2++;
             if (lb.getProviderLoadBalancerId().equals(id1)) {
-                LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getProviderLoadBalancerId());
-                assertHealthCheck(id1, support, lbhc); 
+                if( supportsHealthChecks ) {
+                    LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), lb.getProviderLoadBalancerId());
+                    assertHealthCheck(id1, support, lbhc);
+                }
                 lb1_found = true;
             } else if (lb.getProviderLoadBalancerId().equals(id2)) {
                 lb2_found = true;
