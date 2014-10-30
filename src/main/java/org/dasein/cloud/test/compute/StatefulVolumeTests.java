@@ -419,6 +419,13 @@ public class StatefulVolumeTests {
 
                     tm.out("New Block Volume", provisionedVolume);
                 }
+                else if (support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                    options.withVirtualMachineId(testVmId);
+                    provisionedVolume = options.build(tm.getProvider());
+
+                    tm.out("New Block Volume", provisionedVolume);
+                }
                 else {
                     try {
                         provisionedVolume = options.build(tm.getProvider());
