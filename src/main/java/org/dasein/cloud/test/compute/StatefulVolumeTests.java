@@ -419,7 +419,7 @@ public class StatefulVolumeTests {
 
                     tm.out("New Block Volume", provisionedVolume);
                 }
-                else if (support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
                     String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
                     options.withVirtualMachineId(testVmId);
                     provisionedVolume = options.build(tm.getProvider());
@@ -493,7 +493,14 @@ public class StatefulVolumeTests {
                     }
                     if (testDataCenterId != null)
                         options.setDataCenterId(testDataCenterId);
-                    if( supported ) {
+                    if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                        provisionedVolume = options.build(tm.getProvider());
+
+                        tm.out("New NFS Volume", provisionedVolume);
+                    }
+                    else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                        String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                        options.withVirtualMachineId(testVmId);
                         provisionedVolume = options.build(tm.getProvider());
 
                         tm.out("New NFS Volume", provisionedVolume);
@@ -577,7 +584,14 @@ public class StatefulVolumeTests {
                         options.setDataCenterId(testDataCenterId);
                 }
 
-                if( support.isSubscribed() && supported ) {
+                if( support.isSubscribed() && supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    provisionedVolume = options.build(tm.getProvider());
+
+                    tm.out("New Volume from Snapshot", provisionedVolume);
+                }
+                else if (support.isSubscribed() && supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                    options.withVirtualMachineId(testVmId);
                     provisionedVolume = options.build(tm.getProvider());
 
                     tm.out("New Volume from Snapshot", provisionedVolume);

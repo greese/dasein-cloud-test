@@ -163,12 +163,7 @@ public class StatelessVMTests {
                 else {
                     tm.out("SCALE [Creates New VM]", capabilities.isCreatesNewVirtualMachine());
                     tm.out("SCALE [Product Changes]", capabilities.isSupportsProductChanges());
-                    r = capabilities.getAlterVmForNewVolume();
-                    tm.out("SCALE [Alter for New Volume]", r);
-                    requirements.put("Scaling [Alter VM for New Vol]", r);
-                    r = capabilities.getAlterVmForVolumeChange();
-                    tm.out("SCALE [Alter for Change Vol]", r);
-                    requirements.put("Scaling [Alter VM for Change Volume]", r);
+                    tm.out("SCALE [Product Size Changes]", capabilities.isSupportsProductSizeChanges());
                 }
                 Map<VmState, Float> costFactors = new HashMap<VmState, Float>();
 
