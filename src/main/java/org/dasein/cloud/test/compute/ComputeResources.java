@@ -1273,6 +1273,10 @@ public class ComputeResources {
             options.inDataCenter(preferredDataCenterId);
         }
         options.withMetaData("dsntestcase", "true");
+        if (support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+            String testVmId = getTestVmId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+            options.withVirtualMachineId(testVmId);
+        }
         String id = options.build(provider);
 
         Volume volume = support.getVolume(id);

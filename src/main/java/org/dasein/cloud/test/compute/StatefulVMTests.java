@@ -826,28 +826,30 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canAlter(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getProductId());
                             String modifiedProductId = null;
+                            String cpuCount = null;
+                            String memory = null;
                             Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
                             if (products.iterator().hasNext()) {
-                                modifiedProductId = products.iterator().next().getProviderProductId();
+                                VirtualMachineProduct p = products.iterator().next();
+                                modifiedProductId = p.getProviderProductId();
+                                cpuCount = Integer.toString(p.getCpuCount());
+                                memory = Long.toString(p.getRamSize().longValue());
                             }
-                            VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
-                            if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
-                                VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
-                                Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
-                                String description = "testVolumeAdd";
-                                VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
-                                volumes[0] = vol;
-                                VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
-                                support.alterVirtualMachine(testVmId, options);
+                            if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductSizeChanges()) {
+                                vm = support.alterVirtualMachineSize(testVmId, cpuCount, memory);
+                            }
+                            else if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductChanges()) {
+                                vm = support.alterVirtualMachineProduct(testVmId, modifiedProductId);
                             }
                             else {
-                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                                tm.warn("Unable to determine how vm product scaling is handled in "+tm.getProvider().getCloudName());
+                                tm.warn("Test not attempted");
+                                return;
                             }
                             try {
                                 Thread.sleep(5000L);
                             } catch (InterruptedException ignore) {
                             }
-                            vm = support.getVirtualMachine(testVmId);
                             if( vm != null ) {
                                 tm.out("After", vm.getProductId());
                                 assertEquals("Current product id does not match the target product id", modifiedProductId, vm.getProductId());
