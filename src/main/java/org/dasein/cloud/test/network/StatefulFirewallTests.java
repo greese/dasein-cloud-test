@@ -947,26 +947,20 @@ public class StatefulFirewallTests {
 
         if( services != null ) {
             FirewallSupport support = services.getFirewallSupport();
-            String result = null;
             try {
-                result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
-                assertNotNull("failed to generate a vlan ICMP rule", result);
-            } catch (Exception ex) {
-                fail("authorize returned exception " + ex);
+                String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
             }
+            finally {
+                Collection<FirewallRule> rules = support.getRules(testFirewallId);
 
-            Collection<FirewallRule> rules = support.getRules("fw-" + testVLANId);
-
-            for (FirewallRule rule : rules) {
-                tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
-                try {
+                for( FirewallRule rule : rules ) {
+                    tm.out(testFirewallId + " - " + rule.getProtocol());
                     support.revoke(rule.getProviderRuleId());
-                } catch (Exception ex) {
-                    fail("revoke returned  exception " + ex);
                 }
+                rules = support.getRules(testFirewallId);
+                assertTrue("The rules have not been deleted", rules.isEmpty());
             }
-            rules = support.getRules("fw-" + testVLANId);
-            assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
         }
     }
     
