@@ -80,11 +80,12 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
+
         if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
-            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") || name.getMethodName().equals("verifyDuplicateRejection")) {
+            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
-        else if( name.getMethodName().equals("launchVM") ) {
+        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection")) {
             ComputeServices services = tm.getProvider().getComputeServices();
             VirtualMachineSupport support;
 
@@ -492,7 +493,7 @@ public class StatefulFirewallTests {
             tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
         }
     }
-
+/*
     @Test
     public void verifyDuplicateRejection() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -511,26 +512,7 @@ public class StatefulFirewallTests {
                 }catch ( CloudException ex) {
                     assertTrue("Duplicate rule was not rejected!", ex.getMessage().equals("Duplicate rule already exists"));
                 }
-                /*
-                System.out.println("NOW Creating initial TCP rule");
-                RuleTarget sourceEndpoint = null;
-                RuleTarget destinationEndpoint = null;
-                try {
-                    sourceEndpoint = getRandomEndpoint(RuleTargetType.VM);
-                    destinationEndpoint = getRandomEndpoint(RuleTargetType.VM);
-                } catch (Exception e) {
-                    System.out.println(e);
-                }
-                result = support.authorize("fw-" + testVLANId, Direction.INGRESS , Permission.ALLOW, sourceEndpoint, Protocol.TCP, destinationEndpoint, 80, 800, 0);
-                assertNotNull("failed to generate a vlan ICMP rule", result);
-                System.out.println("NOW TESTING A DUPLICATE");
-                try {
-                    result = support.authorize("fw-" + testVLANId, Direction.INGRESS , Permission.ALLOW, sourceEndpoint, Protocol.TCP, destinationEndpoint, 80, 800, 0);
-                    fail("should have generated a duplicate rule exception.");
-                }catch ( CloudException ex) {
-                    assertTrue("Duplicate rule was not rejected!", ex.getMessage().equals("Duplicate rule already exists"));
-                }
-                */
+
             } catch (Exception ex) {
                 fail("authorize returned exception " + ex);
             }
@@ -549,7 +531,7 @@ public class StatefulFirewallTests {
             assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
         }
     }
-
+*/
     @Test
     public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -1015,6 +997,38 @@ public class StatefulFirewallTests {
             }
             rules = support.getRules("fw-" + testVLANId);
             assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
+        }
+    }
+    
+    @Test
+    public void verifyDuplicateRejection() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+            if( support == null ) {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+                return;
+            }
+            try {
+                String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
+                try {
+                    support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                    fail("should have generated a duplicate rule exception.");
+                }catch ( CloudException ex) {
+                    tm.ok("Exception occurred as expected when trying to create a duplicate rule: " + ex.getMessage());
+                }
+            }
+            finally {
+                Collection<FirewallRule> rules = support.getRules(testFirewallId);
+                for( FirewallRule rule : rules ) {
+                    tm.out(testFirewallId + " - " + rule.getProtocol());
+                    support.revoke(rule.getProviderRuleId());
+                }
+                rules = support.getRules(testFirewallId);
+                assertTrue("The rules have not been deleted", rules.isEmpty());
+            }
         }
     }
 }

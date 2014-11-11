@@ -538,10 +538,7 @@ public class PlatformResources {
 
     public @Nonnull String provisionMQ(@Nonnull MQSupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
         MQCreateOptions options = MQCreateOptions.getInstance(namePrefix + (System.currentTimeMillis()%10000), "Test MQ auto-provisioned by Dasein Cloud integration tests");
-        String id;
-
-
-        id = support.createMessageQueue(options);
+        String id = support.createMessageQueue(options);
         synchronized( testQueues ) {
             while( testQueues.containsKey(label) ) {
                 label = label + random.nextInt(9);
@@ -553,7 +550,6 @@ public class PlatformResources {
 
     public static @Nonnull String randomPassword() {
         String password = "a" + random.nextInt(100000000);
-        String id;
 
         while( password.length() < 20 ) {
             password = password + random.nextInt(10);

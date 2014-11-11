@@ -26,7 +26,9 @@ import java.util.Set;
 import junit.framework.Assert;
 
 import org.dasein.cloud.CloudException;
+import org.dasein.cloud.DayOfWeek;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.TimeWindow;
 import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -80,7 +82,7 @@ public class StatefulRDBMSTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         if ( name.getMethodName().equals("listAccess")) {
-            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.REMOVED, true, null);
+            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
         }
     }
 
@@ -256,6 +258,70 @@ public class StatefulRDBMSTests {
     }
 
     @Test
+    public void alterDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        PlatformResources p = DaseinTestManager.getPlatformResources();
+
+        if( p != null ) {
+            Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
+            for (DatabaseEngine dbEngine : engines) {
+                tm.out("testing " + dbEngine.name());
+                String providerDatabaseId = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", dbEngine);
+
+                    // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
+
+
+                tm.out("New Database", providerDatabaseId);
+                assertNotNull("No database was created by this test", providerDatabaseId);
+                String productSize = "d1";
+                int storageInGigabytes = 250;
+                boolean applyImmediately = true;
+                String configurationId = "new-configuration-id";
+                String newAdminUser = "dcm";
+                String newAdminPassword = "notasecret";
+                int newPort = 9876;
+                int snapshotRetentionInDays = 5;
+                TimeWindow preferredMaintenanceWindow = new TimeWindow();
+                preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
+                preferredMaintenanceWindow.setEndHour(5);
+                preferredMaintenanceWindow.setEndMinute(0);
+                preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
+                preferredMaintenanceWindow.setStartHour(3);
+                preferredMaintenanceWindow.setStartMinute(0);
+                TimeWindow preferredBackupWindow = preferredMaintenanceWindow;
+                support.alterDatabase(providerDatabaseId, applyImmediately, productSize, storageInGigabytes, configurationId, newAdminUser, newAdminPassword, newPort, snapshotRetentionInDays, preferredMaintenanceWindow, preferredBackupWindow);
+
+                Database database = support.getDatabase(providerDatabaseId);
+                Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
+                Assert.assertEquals(storageInGigabytes, database.getAllocatedStorageInGb());
+                Assert.assertEquals(configurationId, database.getConfiguration());
+                if (support.getCapabilities().isSupportsMaintenanceWindows()) {
+                    Assert.assertEquals(preferredMaintenanceWindow, database.getMaintenanceWindow());
+                }
+
+                //Assert.assertEquals(newAdminUser, database.getAdminUser());
+                //Assert.assertEquals(newPort, database.getHostPort());
+
+                tm.ok("alterDatabase appears fine");
+            }
+        }
+        else {
+            fail("No platform resources were initialized for the test run");
+        }
+    }
+
+    @Test
     public void createDatabaseMultiple() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
@@ -282,7 +348,7 @@ public class StatefulRDBMSTests {
                 tm.out("New Database", id);
                 assertNotNull("No database was created by this test", id);
                 Database database = support.getDatabase(id);
-                Assert.assertNotNull("database has not been created", database);
+                assertNotNull("database has not been created", database);
             }
         }
         else {
