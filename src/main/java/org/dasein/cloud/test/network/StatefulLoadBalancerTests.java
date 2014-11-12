@@ -41,6 +41,7 @@ import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.HealthCheckOptions;
 import org.dasein.cloud.network.LbEndpointType;
+import org.dasein.cloud.network.LbListener;
 import org.dasein.cloud.network.LoadBalancer;
 import org.dasein.cloud.network.LoadBalancerEndpoint;
 import org.dasein.cloud.network.LoadBalancerHealthCheck;
@@ -354,6 +355,49 @@ public class StatefulLoadBalancerTests {
         LoadBalancer lb = support.getLoadBalancer(id);
 
         assertNotNull("The newly created load balancer is null", lb);
+    }
+
+    @Test
+    public void addRemoveListeners() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services == null ) {
+            tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        LoadBalancerSupport support = services.getLoadBalancerSupport();
+
+        if( support == null ) {
+            tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        NetworkResources network = DaseinTestManager.getNetworkResources();
+
+        if( network == null ) {
+            fail("Failed to initialize network capabilities for tests");
+        }
+        String name = tm.getUserName() + "-dsncrlbtest";
+        String id = network.provisionLoadBalancer("provision", name, false);
+
+        tm.out("New Load Balancer", id);
+        assertNotNull("The newly created load balancer ID was null", id);
+
+        LoadBalancer lb = support.getLoadBalancer(id);
+        support.removeListeners(lb.getName(), lb.getListeners());
+        assertNotNull("The newly created load balancer is null", lb);
+
+        ArrayList<LbListener> listeners = new ArrayList<LbListener>();
+        LbListener l = LbListener.getInstance(80, 80);
+        listeners.add(l);
+        l = LbListener.getInstance(90, 90);
+        listeners.add(l);
+        support.addListeners(id, listeners.<LbListener>toArray(new LbListener[listeners.size()]));
+
+        LbListener[] testListenders = support.getLoadBalancer(id).getListeners();
+
+        assertTrue("Expected 2 listeners", (2 == testListenders.length));
+        for (LbListener listener : testListenders)
+            assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 90));
     }
 
     @Test
