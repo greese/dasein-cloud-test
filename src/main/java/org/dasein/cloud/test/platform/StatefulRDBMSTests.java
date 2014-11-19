@@ -147,7 +147,7 @@ public class StatefulRDBMSTests {
             return;
         }
         
-        if (true == support.getCapabilities().isSupportsDeleteBackup()) {
+        if (true == support.getCapabilities().supportsDeleteBackup()) {
             fail("Please implement deleteBackup test.");
         } else
             tm.ok("Platform does not support deleting of individual database backups.");
@@ -178,7 +178,7 @@ public class StatefulRDBMSTests {
             return;
         }
         
-        if (true == support.getCapabilities().isSupportsDemandBackups()) {
+        if (true == support.getCapabilities().supportsDemandBackups()) {
             fail("Please implement createBackup test.");
         } else
             tm.ok("Platform does not support manually creating of individual database backups.");
@@ -306,7 +306,7 @@ public class StatefulRDBMSTests {
                 Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
                 Assert.assertEquals(storageInGigabytes, database.getAllocatedStorageInGb());
                 Assert.assertEquals(configurationId, database.getConfiguration());
-                if (support.getCapabilities().isSupportsMaintenanceWindows()) {
+                if (support.getCapabilities().supportsMaintenanceWindows()) {
                     Assert.assertEquals(preferredMaintenanceWindow, database.getMaintenanceWindow());
                 }
 

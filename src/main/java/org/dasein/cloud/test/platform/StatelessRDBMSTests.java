@@ -119,11 +119,11 @@ public class StatelessRDBMSTests {
         tm.out("Subscribed", support.isSubscribed());
         tm.out("Term for Database", capabilities.getProviderTermForDatabase(Locale.getDefault()));
         tm.out("Term for Database Snapshot", capabilities.getProviderTermForSnapshot(Locale.getDefault()));
-        tm.out("Supports Firewall Rules", capabilities.isSupportsFirewallRules());
-        tm.out("High Availability Support", capabilities.isSupportsHighAvailability());
-        tm.out("Low Availability Support", capabilities.isSupportsLowAvailability());
-        tm.out("Maintenance Window Support", capabilities.isSupportsMaintenanceWindows());
-        tm.out("Supports Snapshots", capabilities.isSupportsSnapshots());
+        tm.out("Supports Firewall Rules", capabilities.supportsFirewallRules());
+        tm.out("High Availability Support", capabilities.supportsHighAvailability());
+        tm.out("Low Availability Support", capabilities.supportsLowAvailability());
+        tm.out("Maintenance Window Support", capabilities.supportsMaintenanceWindows());
+        tm.out("Supports Snapshots", capabilities.supportsSnapshots());
 
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
 
@@ -471,10 +471,10 @@ public class StatelessRDBMSTests {
             return;
         }
 
-        if (support.getCapabilities().isSupportsDatabaseBackups()) {
+        if (support.getCapabilities().supportsDatabaseBackups()) {
             Iterable<DatabaseBackup> backupList = support.listBackups(statelessTestDatabase);
             for (DatabaseBackup backup : backupList) {
-                if (support.getCapabilities().isSupportsDatabaseBackups()) {
+                if (support.getCapabilities().supportsDatabaseBackups()) {
                     if (DatabaseBackupState.AVAILABLE == backup.getCurrentState()) {
                         try {
                             support.restoreBackup(backup);
@@ -547,7 +547,7 @@ public class StatelessRDBMSTests {
             return;
         }
 
-        if (support.getCapabilities().isSupportsDatabaseBackups()) {
+        if (support.getCapabilities().supportsDatabaseBackups()) {
             Iterable<DatabaseBackup> backupList = support.listBackups(statelessTestDatabase);
             for (DatabaseBackup backup : backupList) {
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals(statelessTestDatabase));
@@ -558,7 +558,7 @@ public class StatelessRDBMSTests {
 
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals(statelessTestDatabase));
 
-                //if (support.getCapabilities().isSupportsDeleteBackup())
+                //if (support.getCapabilities().supportsDeleteBackup())
                 //    support.removeBackup(backup); // GCE does not support.
             }
         } else
