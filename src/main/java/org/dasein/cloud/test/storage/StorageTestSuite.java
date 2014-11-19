@@ -20,9 +20,6 @@
 package org.dasein.cloud.test.storage;
 
 import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.platform.StatefulMonitoringTests;
-import org.dasein.cloud.test.platform.StatefulRDBMSTests;
-import org.dasein.cloud.test.platform.StatelessRDBMSTests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;

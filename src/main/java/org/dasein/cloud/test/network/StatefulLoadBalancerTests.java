@@ -398,6 +398,10 @@ public class StatefulLoadBalancerTests {
         assertTrue("Expected 2 listeners", (2 == testListenders.length));
         for (LbListener listener : testListenders)
             assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 90));
+
+        support.removeListeners(lb.getName(), testListenders);
+        testListenders = support.getLoadBalancer(id).getListeners();
+        assertTrue("Expected 0 listeners", (0 == testListenders.length));
     }
 
     @Test
