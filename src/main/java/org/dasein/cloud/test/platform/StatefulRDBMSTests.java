@@ -91,7 +91,6 @@ public class StatefulRDBMSTests {
         tm.end();
     }
 
-    /* test writing in progress, Roger */
     @Test 
     public void getDefaultVersions() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -146,13 +145,13 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        
+
         if (true == support.getCapabilities().supportsDeleteBackup()) {
             fail("Please implement deleteBackup test.");
         } else
             tm.ok("Platform does not support deleting of individual database backups.");
     }
-    
+
     /** 
      * TEST: createBackup
      * Created by Roger Unwin: Wed Oct  1 17:08
@@ -177,14 +176,13 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        
+
         if (true == support.getCapabilities().supportsDemandBackups()) {
             fail("Please implement createBackup test.");
         } else
             tm.ok("Platform does not support manually creating of individual database backups.");
     }
-    
-    
+
     @Test
     public void createDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();

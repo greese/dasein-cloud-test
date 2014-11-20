@@ -138,7 +138,7 @@ public class StatelessRDBMSTests {
         assertNotNull("The provider term for a database may not be null", capabilities.getProviderTermForDatabase(Locale.getDefault()));
         assertNotNull("The provider term for a database snapshot may not be null", capabilities.getProviderTermForSnapshot(Locale.getDefault()));
         for( DatabaseEngine engine : support.getDatabaseEngines() ) {
-            Iterable<DatabaseProduct> products = support.getDatabaseProducts(engine); // broke.
+            Iterable<DatabaseProduct> products = support.listDatabaseProducts(engine);
             Iterable<String> versions = support.getSupportedVersions(engine);
 
             assertNotNull("The list of database products for " + engine + " may not be null, even if not supported", products);
@@ -293,7 +293,6 @@ public class StatelessRDBMSTests {
         assertNotNull("Product is null", db.getProductSize());
         assertNotNull("Region is null", db.getProviderRegionId());
         assertNotNull("Engine is null", db.getEngine());
-        System.out.println(db.getProviderRegionId() + " ?= " + tm.getContext().getRegionId());
         assertTrue("Region must match the current region", tm.getContext().getRegionId().startsWith(db.getProviderRegionId()));
     }
 
@@ -510,12 +509,12 @@ public class StatelessRDBMSTests {
             copyName = "stateless-test-database-clone-";
             for (int x = 0; x< 7; x++)
                 copyName = copyName + random.nextInt(9);
-            support.createFromLatest(statelessTestDatabase, copyName, "D1", "europe-west1-b", 999); // testDataCenterId
+            support.createFromLatest(statelessTestDatabase, copyName, "D1", testDataCenterId, 999);
             Database db = support.getDatabase(copyName);
             assertTrue(db.getProviderDatabaseId().equals(copyName));
             assertTrue(db.getProductSize().equals("D1"));
             if (!tm.getProvider().getProviderName().equals("GCE"))
-                assertTrue("europe-west1-b".startsWith(db.getProviderRegionId())); // testDataCenterId
+                assertTrue(testDataCenterId.startsWith(db.getProviderRegionId())); // testDataCenterId
         } catch (Exception e) {
             fail(e.getMessage());
         } finally {
@@ -535,7 +534,7 @@ public class StatelessRDBMSTests {
     @Test 
     public void listBackups() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
-        ProviderContext ctx = tm.getContext();
+
         if( services == null ) {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
@@ -558,8 +557,8 @@ public class StatelessRDBMSTests {
 
                 assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals(statelessTestDatabase));
 
-                //if (support.getCapabilities().supportsDeleteBackup())
-                //    support.removeBackup(backup); // GCE does not support.
+                if (support.getCapabilities().supportsDeleteBackup())
+                    support.removeBackup(backup); // GCE does not support.
             }
         } else
             tm.ok("Database does not support backups.");
