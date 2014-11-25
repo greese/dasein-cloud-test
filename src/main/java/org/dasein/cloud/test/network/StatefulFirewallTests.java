@@ -20,6 +20,8 @@
 package org.dasein.cloud.test.network;
 
 import junit.framework.Assert;
+import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.compute.ComputeResources;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
@@ -30,13 +32,12 @@ import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VirtualMachineSupport;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.*;
-import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.compute.ComputeResources;
 import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -68,33 +69,44 @@ public class StatefulFirewallTests {
     @Rule
     public final TestName name = new TestName();
 
-    private String  testFirewallId;
-    private String  testRuleId;
-    private String  testVLANId;
+    private String testFirewallId;
+    private String testRuleId;
+    private String testVLANId;
 
-    public StatefulFirewallTests() { }
+    public StatefulFirewallTests() {
+    }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
+
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
+            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
-        else if( name.getMethodName().equals("launchVM") ) {
+        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection")) {
             ComputeServices services = tm.getProvider().getComputeServices();
             VirtualMachineSupport support;
 
             try {
                 support = (services == null ? null : services.getVirtualMachineSupport());
-                boolean vlan = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
+                boolean vlanForVMProv = (support != null && !support.getCapabilities().identifyVlanRequirement().equals(Requirement.NONE));
 
-                if( vlan ) {
+                if( vlanForVMProv ) {
                     testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
                     if( testVLANId == null ) {
                         testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, null);
                     }
+                }
+                NetworkServices networkServices = tm.getProvider().getNetworkServices();
+                FirewallSupport firewallSupport;
+                firewallSupport = (networkServices == null ? null : networkServices.getFirewallSupport());
+                boolean vlanForFirewall = (firewallSupport != null && !firewallSupport.getCapabilities().requiresVLAN().equals(Requirement.NONE));
+
+
+                if (vlanForFirewall) {
                     testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
                 }
                 else {
@@ -378,7 +390,6 @@ public class StatefulFirewallTests {
         boolean found = false;
         for( FirewallRule rule : support.getRules(testFirewallId) ) {
             if( rule.getProviderRuleId().equals(testRuleId) ) {
-                //System.out.println("Rule " + rule + " is still there");
                 found = true;
             }
         }
@@ -398,7 +409,7 @@ public class StatefulFirewallTests {
 
                 if( net != null ) {
                     if( support.getCapabilities().supportsFirewallCreation(false) ) {
-                        String id = net.provisionFirewall("provisionKeypair", null);
+                        String id = net.provisionFirewall("provisionFirewall", null);
 
                         tm.out("New Firewall", id);
                         assertNotNull("No firewall was created by this test", id);
@@ -440,8 +451,7 @@ public class StatefulFirewallTests {
                     int p = port++;
 
                     if( support.getCapabilities().supportsFirewallCreation(false) ) {
-                        if (support.getCapabilities().requiresRulesOnCreation()) {
-                            String id = net.provisionFirewall("provisionKeypair", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
+                        String id = net.provisionFirewall("provisionFirewall", null, net.constructRuleCreateOptions(p, Direction.INGRESS, Permission.ALLOW));
 
                             tm.out("New Firewall", id);
                             assertNotNull("No firewall was created by this test", id);
@@ -497,7 +507,7 @@ public class StatefulFirewallTests {
     }
 
     @Test
-     public void createVLANFirewall() throws CloudException, InternalException {
+    public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
         if( services != null ) {
@@ -868,7 +878,7 @@ public class StatefulFirewallTests {
             String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
 
             assertNotNull("Unable to identify a test image for test launch", imageId);
-            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnnetl" + (System.currentTimeMillis()%10000), "Dasein Network Launch " + System.currentTimeMillis(), "Test launch for a VM in a network");
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnfw" + (System.currentTimeMillis()%10000), "Dasein Firewall Launch " + System.currentTimeMillis(), "Test launch for a VM in a firewall");
 
             if( testFirewallId != null ) {
                 options.behindFirewalls(testFirewallId);
@@ -932,6 +942,67 @@ public class StatefulFirewallTests {
             assertNotNull("The VM firewalls should not be null", fwIds);
             assertEquals("The number of firewalls is incorrect", 1, fwIds.length);
             assertEquals("The firewall IDs do not match the test firewall", testFirewallId, fwIds[0]);
+        }
+    }
+
+    @Test
+    public void createVLANFirewallAndAddAndRemoveIcmpRule() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+            String result = null;
+            try {
+                result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("failed to generate a vlan ICMP rule", result);
+            } catch (Exception ex) {
+                fail("authorize returned exception " + ex);
+            }
+
+            Collection<FirewallRule> rules = support.getRules("fw-" + testVLANId);
+
+            for (FirewallRule rule : rules) {
+                tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
+                try {
+                    support.revoke(rule.getProviderRuleId());
+                } catch (Exception ex) {
+                    fail("revoke returned  exception " + ex);
+                }
+            }
+            rules = support.getRules("fw-" + testVLANId);
+            assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
+        }
+    }
+    
+    @Test
+    public void verifyDuplicateRejection() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+
+        if( services != null ) {
+            FirewallSupport support = services.getFirewallSupport();
+            if( support == null ) {
+                tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+                return;
+            }
+            try {
+                String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
+                try {
+                    support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                    fail("should have generated a duplicate rule exception.");
+                }catch ( CloudException ex) {
+                    tm.ok("Exception occurred as expected when trying to create a duplicate rule: " + ex.getMessage());
+                }
+            }
+            finally {
+                Collection<FirewallRule> rules = support.getRules(testFirewallId);
+                for( FirewallRule rule : rules ) {
+                    tm.out(testFirewallId + " - " + rule.getProtocol());
+                    support.revoke(rule.getProviderRuleId());
+                }
+                rules = support.getRules(testFirewallId);
+                assertTrue("The rules have not been deleted", rules.isEmpty());
+            }
         }
     }
 }

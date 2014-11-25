@@ -22,13 +22,16 @@ package org.dasein.cloud.test.compute;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.*;
-import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.DataCenterServices;
-import org.dasein.cloud.dc.ResourcePool;
+import org.dasein.cloud.dc.Folder;
+import org.dasein.cloud.dc.FolderType;
 import org.dasein.cloud.dc.StoragePool;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
+import org.dasein.util.uom.storage.Gigabyte;
+import org.dasein.util.uom.storage.Storage;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -88,7 +91,7 @@ public class StatefulVMTests {
                 return v;
             }
             try {
-                Thread.sleep(15000L);
+                Thread.sleep(60000L);
             } catch( InterruptedException ignore ) {
             }
             try {
@@ -137,9 +140,9 @@ public class StatefulVMTests {
                 if( support != null ) {
                     try {
                         //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "Dasein Filter Test", "dsnfilter", testDataCenterId);
+                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "dasein-filter-test", "dsnfilter", testDataCenterId);
                     } catch( Throwable t ) {
-                        tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
                     }
                 }
             }
@@ -233,13 +236,12 @@ public class StatefulVMTests {
     public void launch() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
-
         if( services != null ) {
             VirtualMachineSupport support = services.getVirtualMachineSupport();
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "dasein-test-launch", tm.getUserName() + "dsnlaunch", testDataCenterId);
+                    @SuppressWarnings("ConstantConditions") String id = DaseinTestManager.getComputeResources().provisionVM(support, "testLaunch", "dasein-test-launch-" + tm.getUserName(), "dsnlaunch", testDataCenterId);
 
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
@@ -274,7 +276,7 @@ public class StatefulVMTests {
 
             if( support != null ) {
                 if( support.isSubscribed() ) {
-                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "dasein-test-launch", tm.getUserName() + "dsnlaunch", testDataCenterId, 2);
+                    @SuppressWarnings("ConstantConditions") Iterable<String> ids = DaseinTestManager.getComputeResources().provisionManyVMs(support, "testLaunch", "dasein-test-launch-" + tm.getUserName(), "dsnlaunch", testDataCenterId, 2);
                     int count = 0;
 
                     for( String id : ids ) {
@@ -551,7 +553,7 @@ public class StatefulVMTests {
                                         Map<String, String> tags = vm.getTags();
                                         for( Map.Entry<String, String> entry : tags.entrySet() ) {
                                             if (entry.getKey().startsWith("datastore")) {
-                                                tm.out("In storage pool " + entry.getValue());
+                                                tm.out("In storage pool", entry.getValue());
                                                 if (entry.getValue().equals(testStoragePoolId)) {
                                                     foundStoragePool = true;
                                                 }
@@ -589,6 +591,118 @@ public class StatefulVMTests {
             }
             else {
                 tm.ok("Storage pools not supported in this cloud");
+            }
+        }
+        else{
+            tm.ok("No datacenter services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVMWithVMFolder() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
+        if (dcServices != null) {
+            if (dcServices.getCapabilities().supportsFolders()) {
+                Iterable<Folder> folders = dcServices.listVMFolders();
+                if (folders.iterator().hasNext()) {
+                    String testVMFolderId = "";
+                    for (Folder folder : folders) {
+                        if (FolderType.VM.equals(folder.getType())) {
+                            testVMFolderId = folder.getId();
+                            break;
+                        }
+                    }
+                    if (!testVMFolderId.equals("")) {
+                        ComputeServices services = tm.getProvider().getComputeServices();
+
+                        if( services != null ) {
+                            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+                            if( support != null ) {
+                                if( support.isSubscribed() ) {
+                                    ComputeResources compute = DaseinTestManager.getComputeResources();
+                                    if( compute != null ) {
+                                        String productId = tm.getTestVMProductId();
+
+                                        assertNotNull("Unable to identify a VM product for test launch", productId);
+                                        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+                                        assertNotNull("Unable to identify a test image for test launch", imageId);
+                                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnFolder" + ( System.currentTimeMillis() % 10000 ), "Dasein VM Folder Launch " + System.currentTimeMillis(), "Test launch for a VM in a folder");
+                                        options.inDataCenter(testDataCenterId);
+                                        options.withVMFolderId(testVMFolderId);
+                                        String id = compute.provisionVM(support, "vmFolderLaunch", options, options.getDataCenterId());
+
+                                        tm.out("Launched", id);
+                                        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+                                        VirtualMachine vm = support.getVirtualMachine(id);
+                                        assertNotNull("Could not find the newly created virtual machine", vm);
+
+                                        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 5L );
+
+                                        while( timeout > System.currentTimeMillis() ) {
+                                            if( vm == null ) {
+                                                break;
+                                            }
+                                            Map<String, String> tags = vm.getTags();
+                                            if (tags.containsKey("vmFolder")) {
+                                                break;
+                                            }
+                                            try {
+                                                Thread.sleep(15000L);
+                                            } catch( InterruptedException ignore ) {
+                                            }
+                                            try {
+                                                vm = support.getVirtualMachine(id);
+                                            } catch( Throwable ignore ) {
+                                            }
+                                        }
+
+                                        boolean foundFolder = false;
+                                        Map<String, String> tags = vm.getTags();
+                                        for( Map.Entry<String, String> entry : tags.entrySet() ) {
+                                            if (entry.getKey().equals("vmFolder")) {
+                                                tm.out("In folder", entry.getValue());
+                                                if (entry.getValue().equals(testVMFolderId)) {
+                                                    foundFolder = true;
+                                                }
+                                            }
+                                        }
+                                        assertNotNull("Launched VM does not exist", vm);
+                                        assertTrue("Expected folder not found "+testVMFolderId, foundFolder);
+                                    }
+                                }
+                                else {
+                                    try {
+                                        //noinspection ConstantConditions
+                                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                                        fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+                                    } catch( CloudException ok ) {
+                                        tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                                    }
+                                }
+                            }
+                            else {
+                                tm.ok("No virtual machine support in this cloud");
+                            }
+                        }
+                        else {
+                            tm.ok("No compute services in this cloud");
+                        }
+                    }
+                    else {
+                        fail("Couldn't find valid folder");
+                    }
+                }
+                else {
+                    fail("No test folder was found");
+                }
+            }
+            else {
+                tm.ok("Folders not supported in this cloud");
             }
         }
         else{
@@ -657,10 +771,17 @@ public class StatefulVMTests {
                     if( vm != null ) {
                         if( support.getCapabilities().canStop(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getCurrentState());
-                            support.stop(testVmId, true);
-                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                            support.stop(testVmId, false);
+                            vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 10L ));
                             VmState currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
                             tm.out("After", currentState);
+                            if( !VmState.STOPPED.equals(currentState) ) {
+                                tm.out("VM hasn't stopped, forcing");
+                                support.stop(testVmId, true);
+                                vm = awaitState(vm, VmState.STOPPED, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 10L ));
+                                currentState = ( vm == null ? VmState.TERMINATED : vm.getCurrentState() );
+                                tm.out("After force stop", currentState);
+                            }
                             assertEquals("Current state does not match the target state", VmState.STOPPED, currentState);
                         }
                         else {
@@ -705,16 +826,43 @@ public class StatefulVMTests {
                         if( support.getCapabilities().canAlter(vm.getCurrentState()) ) {
                             tm.out("Before", vm.getProductId());
                             String modifiedProductId = null;
+                            String cpuCount = null;
+                            String memory = null;
                             Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
                             if (products.iterator().hasNext()) {
-                                modifiedProductId = products.iterator().next().getProviderProductId();
+                                VirtualMachineProduct p = products.iterator().next();
+                                modifiedProductId = p.getProviderProductId();
+                                cpuCount = Integer.toString(p.getCpuCount());
+                                memory = Long.toString(p.getRamSize().longValue());
                             }
-                            support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductSizeChanges()) {
+                                vm = support.alterVirtualMachineSize(testVmId, cpuCount, memory);
+                            }
+                            else if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductChanges()) {
+                                vm = support.alterVirtualMachineProduct(testVmId, modifiedProductId);
+                            }
+                            else {
+                                tm.warn("Unable to determine how vm product scaling is handled in "+tm.getProvider().getCloudName());
+                                tm.warn("Test not attempted");
+                                return;
+                            }
+                            VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
+                            if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
+                                VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
+                                Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
+                                String description = "testVolumeAdd";
+                                VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
+                                volumes[0] = vol;
+                                VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
+                                support.alterVirtualMachine(testVmId, options);
+                            }
+                            else {
+                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            }
                             try {
                                 Thread.sleep(5000L);
                             } catch (InterruptedException ignore) {
                             }
-                            vm = support.getVirtualMachine(testVmId);
                             if( vm != null ) {
                                 tm.out("After", vm.getProductId());
                                 assertEquals("Current product id does not match the target product id", modifiedProductId, vm.getProductId());

@@ -1264,24 +1264,31 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        if( vlanId == null ) {
-                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
-                            if( vlanId == null ) {
-                                vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                        if (!support.getCapabilities().getSubnetSupport().equals(Requirement.NONE)) {
+                            try {
                                 if( vlanId == null ) {
-                                    return null;
+                                    vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+                                    if( vlanId == null ) {
+                                        vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                                        if( vlanId == null ) {
+                                            return null;
+                                        }
+                                    }
                                 }
+                                id = provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
+                                // wait for subnet to be ready for describe
+                                try {
+                                    Thread.sleep(1000L);
+                                } catch( InterruptedException ignore ) {
+                                }
+                                return id;
+                            } catch( Throwable t ) {
+                                logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
                             }
                         }
-                        id = provisionSubnet(support, label, vlanId, "dsnsub", preferredDataCenterId);
-                        // wait for subnet to be ready for describe
-                        try {
-                            Thread.sleep(1000L);
-                        } catch( InterruptedException ignore ) {
-                        }
-                        return id;
-                    } catch( Throwable t ) {
-                        logger.warn("Failed to provision test subnet for " + vlanId + ": " + t.getMessage());
+                    }
+                    catch (Throwable ignore) {
+                        return null;
                     }
                 }
             }
@@ -1314,23 +1321,30 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        if( vlanId == null ) {
-                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
-                            if( vlanId == null ) {
-                                vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                        if (support.getCapabilities().supportsInternetGatewayCreation()) {
+                            try {
                                 if( vlanId == null ) {
-                                    return null;
+                                    vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, preferredDataCenterId);
+                                    if( vlanId == null ) {
+                                        vlanId = getTestVLANId(DaseinTestManager.STATELESS, false, preferredDataCenterId);
+                                        if( vlanId == null ) {
+                                            return null;
+                                        }
+                                    }
+                                } else {
+                                    String internetGatewayId = support.getAttachedInternetGatewayId(vlanId);
+                                    if( internetGatewayId != null ) {
+                                        return internetGatewayId;
+                                    }
                                 }
-                            }
-                        } else {
-                            String internetGatewayId = support.getAttachedInternetGatewayId(vlanId);
-                            if( internetGatewayId != null ) {
-                                return internetGatewayId;
+                                return provisionInternetGateway(support, label, vlanId);
+                            } catch( Throwable t ) {
+                                logger.warn("Failed to provision test internet gateway for " + vlanId + ": " + t.getMessage());
                             }
                         }
-                        return provisionInternetGateway(support, label, vlanId);
-                    } catch( Throwable t ) {
-                        logger.warn("Failed to provision test internet gateway for " + vlanId + ": " + t.getMessage());
+                    }
+                    catch (Throwable ignore) {
+                        return null;
                     }
                 }
             }
@@ -1366,8 +1380,15 @@ public class NetworkResources {
 
                 if( support != null ) {
                     try {
-                        return provisionVLAN(support, label, "dsnnet", preferredDataCenterId);
-                    } catch( Throwable ignore ) {
+                        if (support.getCapabilities().allowsNewVlanCreation()) {
+                            try {
+                                return provisionVLAN(support, label, "dsnnet", preferredDataCenterId);
+                            } catch( Throwable ignore ) {
+                                return null;
+                            }
+                        }
+                    }
+                    catch (Throwable ignore) {
                         return null;
                     }
                 }
@@ -1496,9 +1517,9 @@ public class NetworkResources {
         } else {
             map = ( version.equals(IPVersion.IPV4) ? testIps4VLAN : testIps6VLAN );
         }
-        String id = null;
+        String id;
 
-        if( vlanId == null ) {
+        if( vlanId == null && support.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.NONE) ) {
             id = support.request(version);
         }
         else {
@@ -1628,7 +1649,13 @@ public class NetworkResources {
                 if( address == null ) {
                     for( IPVersion version : ipSupport.getCapabilities().listSupportedIPVersions() ) {
                         if( ipSupport.getCapabilities().isRequestable(version) ) {
-                            address = ipSupport.getIpAddress(ipSupport.request(version));
+                            if( ipSupport.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.NONE)) {
+                                address = ipSupport.getIpAddress(ipSupport.request(version));
+                            }
+                            else {
+                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version,
+                                        getTestVLANId(label, true, null)));
+                            }
                             if( address != null ) {
                                 break;
                             }
@@ -1645,7 +1672,14 @@ public class NetworkResources {
         	// not sure if options need tweeking
             options = LoadBalancerCreateOptions.getInstance(name, description);
         }
-
+/*
+        // Enable this bit to test with multiple listeners on a LB
+        for (int x=101;x<= 111;x++)
+            options.havingListeners(LbListener.getInstance(x, x));
+        for (int x=501;x<= 511;x++) {
+            options.havingListeners(LbListener.getInstance(LbAlgorithm.LEAST_CONN, "cookie" , LbProtocol.HTTPS, x, x));
+        }
+*/
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             final int publicPort = 1024 + random.nextInt(10000);
             final int privatePort = 1024 + random.nextInt(10000);

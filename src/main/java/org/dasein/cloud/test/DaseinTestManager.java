@@ -41,6 +41,7 @@ import org.dasein.util.CalendarWrapper;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.io.*;
+import java.security.Provider;
 import java.util.*;
 
 /**
@@ -83,14 +84,6 @@ public class DaseinTestManager {
         if( cname == null ) {
             throw new RuntimeException("Invalid class name for provider: " + cname);
         }
-        /*
-        try {
-            provider = (CloudProvider)Class.forName(cname).newInstance();
-        }
-        catch( Exception e ) {
-            throw new RuntimeException("Invalid class name " + cname + " for provider: " + e.getMessage());
-        }
-        */
 
         try{
             String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "";
@@ -123,7 +116,15 @@ public class DaseinTestManager {
             List<ProviderContext.Value> values = new ArrayList<ProviderContext.Value>(fields.size());
 
             for(ContextRequirements.Field f : fields ) {
-                if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
+                if( f.type.equals(ContextRequirements.FieldType.TOKEN) ) {
+                    String token = System.getProperty(f.name);
+                    // use either shared or secret override, doesn't really matter
+                    if( overrideShared != null || overrideSecret != null ) {
+                        token = overrideShared == null ? overrideSecret : overrideShared;
+                    }
+                    values.add(ProviderContext.Value.parseValue(f, token));
+                }
+                else if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
                     String shared = overrideShared == null ? System.getProperty(f.name + "Shared") : overrideShared;
                     String secret = overrideSecret == null ? System.getProperty(f.name + "Secret") : overrideSecret;
                     if( shared != null && secret != null ) {
@@ -501,8 +502,8 @@ public class DaseinTestManager {
         suite = testClass.getSimpleName();
         provider = constructProvider();
         changePrefix();
-        
-        String prop = System.getProperty("userName");
+
+        String prop = System.getProperty("user.name");
         if( prop != null ) {
             userName = prop;
         }
@@ -749,7 +750,7 @@ public class DaseinTestManager {
     }
 
     public @Nullable String getTestVMId(@Nonnull String label, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
-    	return getTestVMId(label, getUserName() + "-dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
+    	return getTestVMId(label, "dsnvm", desiredState, provisionIfNull, preferredDataCenterId);
     }
     
     public @Nullable String getTestVMId(@Nonnull String label, @Nonnull String vmName, @Nullable VmState desiredState, boolean provisionIfNull, @Nullable String preferredDataCenterId) {

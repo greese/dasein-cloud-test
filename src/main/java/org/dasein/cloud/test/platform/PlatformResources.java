@@ -23,19 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.platform.CDNSupport;
-import org.dasein.cloud.platform.Database;
-import org.dasein.cloud.platform.DatabaseEngine;
-import org.dasein.cloud.platform.DatabaseProduct;
-import org.dasein.cloud.platform.DatabaseState;
-import org.dasein.cloud.platform.Distribution;
-import org.dasein.cloud.platform.MQCreateOptions;
-import org.dasein.cloud.platform.MQSupport;
-import org.dasein.cloud.platform.MessageQueue;
-import org.dasein.cloud.platform.PlatformServices;
-import org.dasein.cloud.platform.PushNotificationSupport;
-import org.dasein.cloud.platform.RelationalDatabaseSupport;
-import org.dasein.cloud.platform.Topic;
+import org.dasein.cloud.platform.*;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.test.storage.StorageResources;
@@ -550,10 +538,7 @@ public class PlatformResources {
 
     public @Nonnull String provisionMQ(@Nonnull MQSupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
         MQCreateOptions options = MQCreateOptions.getInstance(namePrefix + (System.currentTimeMillis()%10000), "Test MQ auto-provisioned by Dasein Cloud integration tests");
-        String id;
-
-
-        id = support.createMessageQueue(options);
+        String id = support.createMessageQueue(options);
         synchronized( testQueues ) {
             while( testQueues.containsKey(label) ) {
                 label = label + random.nextInt(9);
@@ -563,17 +548,24 @@ public class PlatformResources {
         return id;
     }
 
-    public @Nonnull String provisionRDBMS(@Nonnull RelationalDatabaseSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
+    public static @Nonnull String randomPassword() {
         String password = "a" + random.nextInt(100000000);
-        String id;
 
         while( password.length() < 20 ) {
             password = password + random.nextInt(10);
         }
+        return password;
+    }
+
+    public static @Nonnull DatabaseProduct getCheapestProduct(@Nonnull RelationalDatabaseSupport support, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
         DatabaseProduct product = null;
 
         if( engine != null ) {
-            for( DatabaseProduct p : support.getDatabaseProducts(engine) ) {
+            for( DatabaseProduct p : support.listDatabaseProducts(engine) ) {
+                if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
+                    // can't use in tests
+                    continue;
+                }
                 if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
                     product = p;
                 }
@@ -581,7 +573,11 @@ public class PlatformResources {
         }
         else {
             for( DatabaseEngine e : support.getDatabaseEngines() ) {
-                for( DatabaseProduct p : support.getDatabaseProducts(e) ) {
+                for( DatabaseProduct p : support.listDatabaseProducts(e) ) {
+                    if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
+                        // can't use in tests
+                        continue;
+                    }
                     if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
                         product = p;
                     }
@@ -591,9 +587,14 @@ public class PlatformResources {
         if( product == null ) {
             throw new CloudException("No database product could be identified");
         }
-        String version = support.getDefaultVersion(product.getEngine());
 
-        id = support.createFromScratch(namePrefix + (System.currentTimeMillis()%10000), product, version, "dasein", password, 3000);
+        return product;
+    }
+
+    public @Nonnull String provisionRDBMS(@Nonnull RelationalDatabaseSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
+        String version = support.getDefaultVersion(engine);
+
+        String id = support.createFromScratch(namePrefix + (System.currentTimeMillis()%10000), getCheapestProduct(support, engine), version, "dasein", randomPassword(), 3000);
         if( id == null ) {
             throw new CloudException("No database was generated");
         }

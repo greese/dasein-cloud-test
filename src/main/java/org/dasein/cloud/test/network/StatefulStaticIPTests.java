@@ -270,6 +270,9 @@ public class StatefulStaticIPTests {
                         VirtualMachine vm = tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine(testVMId);
 
                         testVlanId = vm.getProviderVlanId();
+                        if (testVlanId != null) {
+                            inVlan = true;
+                        }
                         testIpAddressId = tm.getTestStaticIpId(DaseinTestManager.STATEFUL + testVlanId, true, version, true, testVlanId);
                     }
                     catch( Throwable ignore ) {
@@ -331,6 +334,12 @@ public class StatefulStaticIPTests {
             tm.ok("Static IP addresses are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( support.getCapabilities().identifyVlanForIPRequirement().equals(Requirement.REQUIRED) && !forVLAN ) {
+            tm.ok("Static IP addresses without VLN are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
         NetworkResources network = DaseinTestManager.getNetworkResources();
 
         assertNotNull("Testing failed to initialize properly as there are no network resources", network);

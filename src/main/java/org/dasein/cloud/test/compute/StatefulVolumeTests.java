@@ -24,6 +24,7 @@ import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.compute.ComputeServices;
 import org.dasein.cloud.compute.Platform;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.SnapshotSupport;
 import org.dasein.cloud.compute.VirtualMachine;
 import org.dasein.cloud.compute.VmState;
@@ -128,7 +129,7 @@ public class StatefulVolumeTests {
                         testVolumeId = DaseinTestManager.getComputeResources().provisionVolume(support, "filter", "dsnfilter", null, testDataCenterId);
                     }
                     catch( Throwable t ) {
-                        tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                        tm.warn("Failed to provision volume for filter test: " + t.getMessage());
                     }
                 }
             }
@@ -413,7 +414,14 @@ public class StatefulVolumeTests {
                 if (testDataCenterId != null)
                     options.setDataCenterId(testDataCenterId);
 
-                if( supported ) {
+                if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    provisionedVolume = options.build(tm.getProvider());
+
+                    tm.out("New Block Volume", provisionedVolume);
+                }
+                else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                    options.withVirtualMachineId(testVmId);
                     provisionedVolume = options.build(tm.getProvider());
 
                     tm.out("New Block Volume", provisionedVolume);
@@ -485,7 +493,14 @@ public class StatefulVolumeTests {
                     }
                     if (testDataCenterId != null)
                         options.setDataCenterId(testDataCenterId);
-                    if( supported ) {
+                    if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                        provisionedVolume = options.build(tm.getProvider());
+
+                        tm.out("New NFS Volume", provisionedVolume);
+                    }
+                    else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                        String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                        options.withVirtualMachineId(testVmId);
                         provisionedVolume = options.build(tm.getProvider());
 
                         tm.out("New NFS Volume", provisionedVolume);
@@ -569,7 +584,14 @@ public class StatefulVolumeTests {
                         options.setDataCenterId(testDataCenterId);
                 }
 
-                if( support.isSubscribed() && supported ) {
+                if( support.isSubscribed() && supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    provisionedVolume = options.build(tm.getProvider());
+
+                    tm.out("New Volume from Snapshot", provisionedVolume);
+                }
+                else if (support.isSubscribed() && supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
+                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+                    options.withVirtualMachineId(testVmId);
                     provisionedVolume = options.build(tm.getProvider());
 
                     tm.out("New Volume from Snapshot", provisionedVolume);
@@ -605,71 +627,78 @@ public class StatefulVolumeTests {
                     tm.warn("Not subscribed to volume services, test will not run properly");
                     return;
                 }
-                if( testVolumeId != null ) {
-                    Volume volume = support.getVolume(testVolumeId);
+                if (testVMId != null) {
+                    VirtualMachine tmpVm = services.getVirtualMachineSupport().getVirtualMachine(testVMId);
+                    VmState vmState = tmpVm.getCurrentState();
+                    if (support.getCapabilities().canAttach(vmState)) {
+                        if( testVolumeId != null ) {
+                            Volume volume = support.getVolume(testVolumeId);
 
-                    assertNotNull("Test volume is null and so the test cannot be run", volume);
+                            assertNotNull("Test volume is null and so the test cannot be run", volume);
 
-                    tm.out("Attachment Before", volume.getProviderVirtualMachineId());
-                    assertNull("Attachment must be null before running this test", volume.getProviderVirtualMachineId());
-                    if( testVMId != null ) {
-                        @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(testVMId);
+                            tm.out("Attachment Before", volume.getProviderVirtualMachineId());
+                            assertNull("Attachment must be null before running this test", volume.getProviderVirtualMachineId());
+                            @SuppressWarnings("ConstantConditions") VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(testVMId);
 
-                        assertNotNull("Virtual machine for test went away", vm);
+                            assertNotNull("Virtual machine for test went away", vm);
 
-                        boolean attached = false;
+                            boolean attached = false;
 
-                        for( String device : support.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
-                            try {
-                                if( volume.getFormat().equals(VolumeFormat.NFS) ) {
-                                    try {
+                            for( String device : support.getCapabilities().listPossibleDeviceIds(vm.getPlatform()) ) {
+                                try {
+                                    if( volume.getFormat().equals(VolumeFormat.NFS) ) {
+                                        try {
+                                            support.attach(testVolumeId, testVMId, device);
+                                            fail("Attachment to NFS volume succeeded even though it should not");
+                                        }
+                                        catch( OperationNotSupportedException expected ) {
+                                            tm.ok("NFS volumes cannot be attached");
+                                            return;
+                                        }
+                                    }
+                                    else {
                                         support.attach(testVolumeId, testVMId, device);
-                                        fail("Attachment to NFS volume succeeded even though it should not");
                                     }
-                                    catch( OperationNotSupportedException expected ) {
-                                        tm.ok("NFS volumes cannot be attached");
-                                        return;
-                                    }
+                                    attached = true;
+                                    break;
                                 }
-                                else {
-                                    support.attach(testVolumeId, testVMId, device);
+                                catch( CloudException e ) {
+                                    tm.warn("Failed to mount using " + device + ", will hopefully try again");
                                 }
-                                attached = true;
-                                break;
                             }
-                            catch( CloudException e ) {
-                                tm.warn("Failed to mount using " + device + ", will hopefully try again");
+                            assertTrue("Unable to attach using any available device", attached);
+
+                            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+
+                            while( timeout > System.currentTimeMillis() ) {
+                                volume = support.getVolume(testVolumeId);
+
+                                assertNotNull("Volume disappeared during attachment", volume);
+                                tm.out("---> Attachment", volume.getProviderVirtualMachineId());
+                                if( volume.getProviderVirtualMachineId() != null ) {
+                                    assertEquals("Volume attachment does not match target server", testVMId, volume.getProviderVirtualMachineId());
+                                    return;
+                                }
+                                try { Thread.sleep(30000L); }
+                                catch( InterruptedException e ) { }
+                            }
+                            fail("System timed out verifying attachment");
+                        }
+                        else {
+                            if( support.isSubscribed() ) {
+                                fail("No test volume for " + name.getMethodName());
+                            }
+                            else {
+                                tm.ok("Volume service is not subscribed so this test is not entirely valid");
                             }
                         }
-                        assertTrue("Unable to attach using any available device", attached);
-
-                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
-
-                        while( timeout > System.currentTimeMillis() ) {
-                            volume = support.getVolume(testVolumeId);
-
-                            assertNotNull("Volume disappeared during attachment", volume);
-                            tm.out("---> Attachment", volume.getProviderVirtualMachineId());
-                            if( volume.getProviderVirtualMachineId() != null ) {
-                                assertEquals("Volume attachment does not match target server", testVMId, volume.getProviderVirtualMachineId());
-                                return;
-                            }
-                            try { Thread.sleep(30000L); }
-                            catch( InterruptedException e ) { }
-                        }
-                        fail("System timed out verifying attachment");
                     }
                     else {
-                        fail("No test VM exists for this test");
+                        tm.ok("Attaching is not allowed for state "+vmState);
                     }
                 }
                 else {
-                    if( support.isSubscribed() ) {
-                        fail("No test volume for " + name.getMethodName());
-                    }
-                    else {
-                        tm.ok("Volume service is not subscribed so this test is not entirely valid");
-                    }
+                    fail("No test VM exists for this test");
                 }
             }
             else {
@@ -700,22 +729,30 @@ public class StatefulVolumeTests {
 
                     tm.out("Attachment Before", volume.getProviderVirtualMachineId());
                     assertNotNull("Volume must be attached to something before attempting to detach it", volume.getProviderVirtualMachineId());
-                    support.detach(testVolumeId, true);
+                    // check that detaching is supported in the current state
+                    String vmId = volume.getProviderVirtualMachineId();
+                    VirtualMachine vm = services.getVirtualMachineSupport().getVirtualMachine(vmId);
+                    if (support.getCapabilities().canDetach(vm.getCurrentState())) {
+                        support.detach(testVolumeId, true);
 
-                    long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
+                        long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE* 5L);
 
-                    while( timeout > System.currentTimeMillis() ) {
-                        volume = support.getVolume(testVolumeId);
+                        while( timeout > System.currentTimeMillis() ) {
+                            volume = support.getVolume(testVolumeId);
 
-                        assertNotNull("Volume disappeared during detachment", volume);
-                        tm.out("---> Attachment", volume.getProviderVirtualMachineId());
-                        if( volume.getProviderVirtualMachineId() == null ) {
-                            return;
+                            assertNotNull("Volume disappeared during detachment", volume);
+                            tm.out("---> Attachment", volume.getProviderVirtualMachineId());
+                            if( volume.getProviderVirtualMachineId() == null ) {
+                                return;
+                            }
+                            try { Thread.sleep(30000L); }
+                            catch( InterruptedException e ) { }
                         }
-                        try { Thread.sleep(30000L); }
-                        catch( InterruptedException e ) { }
+                        fail("System timed out verifying attachment");
                     }
-                    fail("System timed out verifying attachment");
+                    else {
+                        tm.ok("Detaching volume in state "+vm.getCurrentState()+" not supported");
+                    }
                 }
                 else {
                     if( support.isSubscribed() ) {
@@ -824,6 +861,9 @@ public class StatefulVolumeTests {
                     }
                     catch( CloudException expected ) {
                         tm.ok("Caught a CloudException: " + expected.getMessage());
+                    }
+                    catch ( OperationNotSupportedException ignore) {
+                        tm.ok("Caught an OperationNotSupportException: " + ignore.getMessage());
                     }
                 }
                 else {
