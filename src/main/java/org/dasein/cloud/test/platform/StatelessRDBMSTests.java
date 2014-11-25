@@ -21,8 +21,11 @@ package org.dasein.cloud.test.platform;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.ProviderContext;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.platform.Database;
+import org.dasein.cloud.platform.DatabaseBackup;
+import org.dasein.cloud.platform.DatabaseBackupState;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.platform.DatabaseProduct;
 import org.dasein.cloud.platform.PlatformServices;
@@ -41,10 +44,12 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 
+import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
@@ -59,7 +64,6 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatelessRDBMSTests {
     static private DaseinTestManager tm;
-
     @BeforeClass
     static public void configure() {
         tm = new DaseinTestManager(StatelessRDBMSTests.class);
@@ -76,11 +80,14 @@ public class StatelessRDBMSTests {
     public final TestName name = new TestName();
 
     private String testDatabaseId;
+    private String testDataCenterId;
+    private final static String statelessTestDatabase = "stateless-test-database-4";
 
     public StatelessRDBMSTests() { }
 
     @Before
     public void before() {
+        testDataCenterId = System.getProperty("test.dataCenter");
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATELESS, false, null);
@@ -112,11 +119,11 @@ public class StatelessRDBMSTests {
         tm.out("Subscribed", support.isSubscribed());
         tm.out("Term for Database", capabilities.getProviderTermForDatabase(Locale.getDefault()));
         tm.out("Term for Database Snapshot", capabilities.getProviderTermForSnapshot(Locale.getDefault()));
-        tm.out("Supports Firewall Rules", capabilities.isSupportsFirewallRules());
-        tm.out("High Availability Support", capabilities.isSupportsHighAvailability());
-        tm.out("Low Availability Support", capabilities.isSupportsLowAvailability());
-        tm.out("Maintenance Window Support", capabilities.isSupportsMaintenanceWindows());
-        tm.out("Supports Snapshots", capabilities.isSupportsSnapshots());
+        tm.out("Supports Firewall Rules", capabilities.supportsFirewallRules());
+        tm.out("High Availability Support", capabilities.supportsHighAvailability());
+        tm.out("Low Availability Support", capabilities.supportsLowAvailability());
+        tm.out("Maintenance Window Support", capabilities.supportsMaintenanceWindows());
+        tm.out("Supports Snapshots", capabilities.supportsSnapshots());
 
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
 
@@ -131,7 +138,7 @@ public class StatelessRDBMSTests {
         assertNotNull("The provider term for a database may not be null", capabilities.getProviderTermForDatabase(Locale.getDefault()));
         assertNotNull("The provider term for a database snapshot may not be null", capabilities.getProviderTermForSnapshot(Locale.getDefault()));
         for( DatabaseEngine engine : support.getDatabaseEngines() ) {
-            Iterable<DatabaseProduct> products = support.getDatabaseProducts(engine); // broke.
+            Iterable<DatabaseProduct> products = support.listDatabaseProducts(engine);
             Iterable<String> versions = support.getSupportedVersions(engine);
 
             assertNotNull("The list of database products for " + engine + " may not be null, even if not supported", products);
@@ -201,31 +208,33 @@ public class StatelessRDBMSTests {
         Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
 
         for( DatabaseEngine engine : DatabaseEngine.values() ) {
-            Iterable<DatabaseProduct> products = support.getDatabaseProducts(engine);  // broke
+            Iterable<DatabaseProduct> products = support.listDatabaseProducts(engine);
             int count = 0;
 
             assertNotNull("The list of database products may not be null, even if the engine is not supported", products);
             for( DatabaseProduct product : products ) {
                 count++;
-                tm.out("RDBMS Product [" + engine + "]", product);
+                tm.out("RDBMS Product [" + engine + "]", product.getName());
             }
-            tm.out("Total " + engine + " Database Product Count", count);
-            boolean supported = false;
+            tm.out("Total " + engine + " Database Product Count " + count);
 
+            boolean supported = false;
             for( DatabaseEngine dbe : engines ) {
                 if( dbe.equals(engine) ) {
                     supported = true;
                     break;
                 }
             }
-            if( count < 1 ) {
-                if( !support.isSubscribed() ) {
-                    tm.ok("This account is not subscribed to RDBMS support in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+
+            if (supported) {
+                if( count < 1 ) {
+                    if (support.isSubscribed()) {
+                        fail("There must be at least one product for each supported database engine (missing one for " + engine + ")");
+                    } else
+                        tm.ok("This account is not subscribed to RDBMS support in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
                 }
-                else if( supported ) {
-                    fail("There must be at least one product for each supported database engine (missing one for " + engine + ")");
-                }
-            }
+            } else
+                tm.ok("RDBMS does not support " + engine + " as expected.");
         }
     }
 
@@ -284,7 +293,6 @@ public class StatelessRDBMSTests {
         assertNotNull("Product is null", db.getProductSize());
         assertNotNull("Region is null", db.getProviderRegionId());
         assertNotNull("Engine is null", db.getEngine());
-        System.out.println(db.getProviderRegionId() + " ?= " + tm.getContext().getRegionId());
         assertTrue("Region must match the current region", tm.getContext().getRegionId().startsWith(db.getProviderRegionId()));
     }
 
@@ -446,5 +454,143 @@ public class StatelessRDBMSTests {
             assertTrue("Status and database lists do not match for " + entry.getKey(), s != null && d != null && s && d);
         }
         tm.out("Matches");
+    }
+
+    @Test 
+    public void restoreBackup() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        if (support.getCapabilities().supportsDatabaseBackups()) {
+            Iterable<DatabaseBackup> backupList = support.listBackups(statelessTestDatabase);
+            for (DatabaseBackup backup : backupList) {
+                if (support.getCapabilities().supportsDatabaseBackups()) {
+                    if (DatabaseBackupState.AVAILABLE == backup.getCurrentState()) {
+                        try {
+                            support.restoreBackup(backup);
+                        } catch (Exception e) {
+                            fail(e.getMessage());
+                        }
+                        tm.ok("Database backup restored");
+                        break;
+                    }
+                }
+            }
+        } else
+            tm.ok("Database does not support backups.");
+    }
+
+    @Test
+    public void createFromLatest() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        String copyName = null;
+        try {
+            Random random = new Random();
+            copyName = "stateless-test-database-clone-";
+            for (int x = 0; x< 7; x++)
+                copyName = copyName + random.nextInt(9);
+            support.createFromLatest(statelessTestDatabase, copyName, "D1", testDataCenterId, 999);
+            Database db = support.getDatabase(copyName);
+            assertTrue(db.getProviderDatabaseId().equals(copyName));
+            assertTrue(db.getProductSize().equals("D1"));
+            if (!tm.getProvider().getProviderName().equals("GCE"))
+                assertTrue(testDataCenterId.startsWith(db.getProviderRegionId())); // testDataCenterId
+        } catch (Exception e) {
+            fail(e.getMessage());
+        } finally {
+            support.removeDatabase(copyName);
+        }
+    }
+
+    /** 
+     * TEST: listBackups
+     * @author Roger Unwin
+     * 
+     * NOTE: requires a database be present named statelessTestDatabase
+     * 
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test 
+    public void listBackups() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        if (support.getCapabilities().supportsDatabaseBackups()) {
+            Iterable<DatabaseBackup> backupList = support.listBackups(statelessTestDatabase);
+            for (DatabaseBackup backup : backupList) {
+                assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals(statelessTestDatabase));
+            }
+
+            backupList = support.listBackups(null);
+            for (DatabaseBackup backup : backupList) {
+
+                assertTrue("DatabaseBackup returned did not match database id requested ", backup.getProviderDatabaseId().equals(statelessTestDatabase));
+
+                if (support.getCapabilities().supportsDeleteBackup())
+                    support.removeBackup(backup); // GCE does not support.
+            }
+        } else
+            tm.ok("Database does not support backups.");
+
+    }
+
+    /** 
+     * TEST: restartDatabase
+     * @author Roger Unwin
+     * 
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test 
+    public void restartDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+        try {
+            support.restart(statelessTestDatabase, true);
+            tm.ok("restart passed");
+        } catch (Exception e) {
+            fail("restartDatabase failed.");
+        }
     }
 }

@@ -846,6 +846,19 @@ public class StatefulVMTests {
                                 tm.warn("Test not attempted");
                                 return;
                             }
+                            VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
+                            if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
+                                VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
+                                Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
+                                String description = "testVolumeAdd";
+                                VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
+                                volumes[0] = vol;
+                                VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
+                                support.alterVirtualMachine(testVmId, options);
+                            }
+                            else {
+                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+                            }
                             try {
                                 Thread.sleep(5000L);
                             } catch (InterruptedException ignore) {
