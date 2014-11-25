@@ -704,7 +704,7 @@ public class ComputeResources {
 
                     if( currentProduct != null ) {
                         // Let WINDOWS come first for a greater chance of StatelessVMTests#getVMPassword to work
-                        for( Platform platform : new Platform[]{Platform.WINDOWS, Platform.UBUNTU, Platform.COREOS, Platform.CENT_OS, Platform.RHEL} ) {
+                        for( Platform platform : new Platform[]{Platform.UBUNTU, Platform.WINDOWS, Platform.COREOS, Platform.CENT_OS, Platform.RHEL} ) {
                             ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
 
                             try {

@@ -66,6 +66,7 @@ public class StatelessVMTests {
     private String testVMId;
     private String testImageId;
     private String testProductId;
+    private String testDataCenterId = null;
 
     public StatelessVMTests() {
     }
@@ -73,8 +74,14 @@ public class StatelessVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
+        tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, false, null);
+        testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, true, testDataCenterId);
         testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
         testProductId = tm.getTestVMProductId();
     }
