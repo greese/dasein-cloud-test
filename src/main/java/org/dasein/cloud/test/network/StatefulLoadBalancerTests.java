@@ -38,6 +38,7 @@ import java.util.List;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.HealthCheckOptions;
@@ -88,8 +89,10 @@ public class StatefulLoadBalancerTests {
     private String testLoadBalancerId;
     private String testVirtualMachineId;
     private String testSSLCertificateName;
+    private String testVLANId;
 
-    public StatefulLoadBalancerTests() { }
+    public StatefulLoadBalancerTests() {
+    }
 
     @Before
     public void before() {
@@ -111,10 +114,10 @@ public class StatefulLoadBalancerTests {
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, false);
         }
-        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
+        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
-        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
+        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
