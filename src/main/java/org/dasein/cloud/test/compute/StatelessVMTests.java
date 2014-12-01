@@ -195,6 +195,23 @@ public class StatelessVMTests {
     }
 
     @Test
+    public void deprecatedCapabilities() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                VMScalingCapabilities capabilities = support.getCapabilities().getVerticalScalingCapabilities();
+                boolean oldCapabilitiesEnabled = !capabilities.getAlterVmForNewVolume().equals(Requirement.NONE)
+                        || !capabilities.getAlterVmForVolumeChange().equals(Requirement.NONE);
+
+                assertFalse("The capabilities indicate that the deprecated volume scaling is supported, however the new product scaling capabilities are not supported, please update your driver", ( !capabilities.isSupportsProductSizeChanges() && !capabilities.isSupportsProductChanges() ) && oldCapabilitiesEnabled);
+            }
+        }
+    }
+
+    @Test
     public void getBogusVMProduct() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
