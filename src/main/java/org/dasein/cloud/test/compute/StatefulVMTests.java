@@ -44,7 +44,9 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -855,9 +857,6 @@ public class StatefulVMTests {
                                 volumes[0] = vol;
                                 VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
                                 support.alterVirtualMachine(testVmId, options);
-                            }
-                            else {
-                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
                             }
                             try {
                                 Thread.sleep(5000L);

@@ -68,6 +68,8 @@ public class StatefulVLANTests {
     private String testRoutingTableId;
     private String testVLANVMId;
     private String testDataCenterId;
+    private String testFirewallId;
+
     private String[] cidrs = new String[]{"192.168.20.0/28", "192.168.40.0/28", "192.168.60.0/28", "192.168.80.0/28", "192.168.100.0/28"};
 
     public StatefulVLANTests() {
@@ -119,15 +121,27 @@ public class StatefulVLANTests {
                 tm.out("Exception while getting vlan for " + name.getMethodName());
             }
         }
-        if( name.getMethodName().equals("removeVLAN") || name.getMethodName().equals("removeVLANwithFirewallRule") || name.getMethodName().equals("removeSubnet") ||
-                name.getMethodName().equals("removeRoutingTable")
-                ) {
+        if( name.getMethodName().equals("removeVLAN")
+                || name.getMethodName().equals("removeSubnet")
+                || name.getMethodName().equals("removeRoutingTable") ) {
             testVLANId = getVLANId(support, name.getMethodName(), DaseinTestManager.REMOVED, true);
             // wait...
             try {
                 Thread.sleep(5000L);
             } catch( InterruptedException ignore ) {
             }
+        }
+        if( name.getMethodName().equals("removeVLANwithFirewallRule") ) {
+            testVLANId = getVLANId(support, name.getMethodName(), DaseinTestManager.REMOVED, true);
+            // wait...
+            try {
+                Thread.sleep(5000L);
+            } catch( InterruptedException ignore ) {
+            }
+            NetworkServices networkServices = tm.getProvider().getNetworkServices();
+            FirewallSupport firewallSupport;
+            firewallSupport = (networkServices == null ? null : networkServices.getFirewallSupport());
+            testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
         }
         if( name.getMethodName().equals("removeRoutingTable") || name.getMethodName().equals("addRouteToVM") ||
                 name.getMethodName().equals("addRouteToNetworkInterface") || name.getMethodName().equals("addRouteToGateway")
@@ -259,6 +273,7 @@ public class StatefulVLANTests {
     public void after() {
         testVLANId = null;
         testSubnetId = null;
+        testFirewallId = null;
         tm.end();
     }
 
@@ -502,8 +517,7 @@ public class StatefulVLANTests {
                 if( testVLANId != null ) {
                     VLAN vlan = support.getVlan(testVLANId);
 
-
-                    firewallSupport.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, 0, 0);
+                    firewallSupport.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, 0, 0);
 
                     tm.out("Before", vlan);
                     assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);

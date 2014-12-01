@@ -1629,6 +1629,7 @@ public class NetworkResources {
         String name = ( namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
         String description = "Dasein Cloud LB Test";
         LoadBalancerCreateOptions options;
+        String vlanId = null;
 
         if( !support.getCapabilities().isAddressAssignedByProvider() && support.getCapabilities().getAddressType().equals(LoadBalancerAddressType.IP) ) {
             IpAddressSupport ipSupport = services.getIpAddressSupport();
@@ -1653,8 +1654,8 @@ public class NetworkResources {
                                 address = ipSupport.getIpAddress(ipSupport.request(version));
                             }
                             else {
-                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version,
-                                        getTestVLANId(label, true, null)));
+                                vlanId = getTestVLANId(label, true, null);
+                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version, vlanId));
                             }
                             if( address != null ) {
                                 break;
@@ -1722,7 +1723,9 @@ public class NetworkResources {
                     if( !internal ) {
                         server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
                     } else {
-                        String vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                        if( vlanId == null ) {
+                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                        }
                         try {
                             Thread.sleep(750L);
                         } catch( InterruptedException ignore ) {
@@ -1809,6 +1812,12 @@ public class NetworkResources {
             		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
+        if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            if( vlanId == null ) {
+                vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            }
+            options.withVlanId(vlanId);
+        }
         String id = options.build(provider);
 
         synchronized ( testLBs ) {

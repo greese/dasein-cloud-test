@@ -33,10 +33,12 @@ import static org.junit.Assume.assumeTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.HealthCheckOptions;
@@ -87,8 +89,10 @@ public class StatefulLoadBalancerTests {
     private String testLoadBalancerId;
     private String testVirtualMachineId;
     private String testSSLCertificateName;
+    private String testVLANId;
 
-    public StatefulLoadBalancerTests() { }
+    public StatefulLoadBalancerTests() {
+    }
 
     @Before
     public void before() {
@@ -110,10 +114,10 @@ public class StatefulLoadBalancerTests {
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, false);
         }
-        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
+        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
-        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
+        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
@@ -151,11 +155,14 @@ public class StatefulLoadBalancerTests {
                     String[] ids = lb.getProviderDataCenterIds();
 
                     boolean found = false;
-                    for( String dataCenterId : ids )
-                        if( testDataCenterId.equals(dataCenterId) )
+                    for( String dataCenterId : ids ) {
+                        if( testDataCenterId.equals(dataCenterId) ) {
                             found = true;
-                    if( !found )
+                        }
+                    }
+                    if( !found ) {
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
+                    }
                     testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
@@ -177,7 +184,7 @@ public class StatefulLoadBalancerTests {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
-                                    ArrayList<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
+                                    List<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
                                     String[] dcs = lb.getProviderDataCenterIds();
 
                                     regionDataCenters.addAll(tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()));
@@ -278,7 +285,7 @@ public class StatefulLoadBalancerTests {
                     LoadBalancerSupport support = net.getLoadBalancerSupport();
 
                     if( support != null ) {
-                        ArrayList<String> ids = new ArrayList<String>();
+                        List<String> ids = new ArrayList<String>();
 
                         for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
                             if( endpoint.getEndpointType().equals(LbEndpointType.VM) ) {
