@@ -509,48 +509,6 @@ public class StatefulFirewallTests {
     }
 
     @Test
-    public void verifyDuplicateTcpVmRejection() throws CloudException, InternalException {
-        NetworkServices services = tm.getProvider().getNetworkServices();
-        ComputeServices computeServices = tm.getProvider().getComputeServices();
-
-        String testVmId = null;
-        String vlanid   = null;
-        if( services != null ) {
-            VirtualMachineSupport support = computeServices.getVirtualMachineSupport();
-
-            if( support != null ) {
-                try {
-                    testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate", "dsn-duplicate-test", "dsn-duplicate-test", testDataCenterId);
-                } catch( Throwable t ) {
-                    tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
-                }
-                VirtualMachine vm = support.getVirtualMachine(testVmId);
-                vlanid = vm.getProviderVlanId();
-                String[] ip = vm.getPrivateIpAddresses();
-                testVmId = ip[0];
-            }
-        }
-        if (( services != null ) && (testVmId != null)) {
-            FirewallSupport support = services.getFirewallSupport();
-            String result = null;
-            try {
-                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 1, 65535);
-                assertNotNull("failed to generate a vlan TCP rule", result);
-                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
-                assertNotNull("failed to generate a overlapping vlan TCP rule", result);
-            } catch (Exception ex) {
-                fail("authorize returned exception " + ex);
-            }
-
-            try {
-                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
-            } catch (CloudException ex) {
-                tm.ok("Received expected duplicate CloudException");
-            }
-        }
-    }
-
-    @Test
     public void createVLANFirewall() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 
@@ -1046,6 +1004,48 @@ public class StatefulFirewallTests {
                 }
                 rules = support.getRules(testFirewallId);
                 assertTrue("The rules have not been deleted", rules.isEmpty());
+            }
+        }
+    }
+
+    @Test
+    public void verifyDuplicateTcpVmRejection() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+        ComputeServices computeServices = tm.getProvider().getComputeServices();
+
+        String testVmId = null;
+        String vlanid   = null;
+        if( services != null ) {
+            VirtualMachineSupport support = computeServices.getVirtualMachineSupport();
+
+            if( support != null ) {
+                try {
+                    testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate", "dsn-duplicate-test", "dsn-duplicate-test", testDataCenterId);
+                } catch( Throwable t ) {
+                    tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                }
+                VirtualMachine vm = support.getVirtualMachine(testVmId);
+                vlanid = vm.getProviderVlanId();
+                String[] ip = vm.getPrivateIpAddresses();
+                testVmId = ip[0];
+            }
+        }
+        if (( services != null ) && (testVmId != null)) {
+            FirewallSupport support = services.getFirewallSupport();
+            String result = null;
+            try {
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 1, 65535);
+                assertNotNull("failed to generate a vlan TCP rule", result);
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
+                assertNotNull("failed to generate a overlapping vlan TCP rule", result);
+            } catch (Exception ex) {
+                fail("authorize returned exception " + ex);
+            }
+
+            try {
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
+            } catch (CloudException ex) {
+                tm.ok("Received expected duplicate CloudException");
             }
         }
     }
