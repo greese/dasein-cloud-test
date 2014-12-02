@@ -72,6 +72,7 @@ public class StatefulFirewallTests {
     private String testFirewallId;
     private String testRuleId;
     private String testVLANId;
+    private String testDataCenterId;
 
     public StatefulFirewallTests() {
     }
@@ -81,6 +82,11 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
 
         if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
             name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
@@ -499,6 +505,48 @@ public class StatefulFirewallTests {
         }
         else {
             tm.ok("Network services are not supported in " + tm.getProvider().getCloudName());
+        }
+    }
+
+    @Test
+    public void verifyDuplicateTcpVmRejection() throws CloudException, InternalException {
+        NetworkServices services = tm.getProvider().getNetworkServices();
+        ComputeServices computeServices = tm.getProvider().getComputeServices();
+
+        String testVmId = null;
+        String vlanid   = null;
+        if( services != null ) {
+            VirtualMachineSupport support = computeServices.getVirtualMachineSupport();
+
+            if( support != null ) {
+                try {
+                    testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate", "dsn-duplicate-test", "dsn-duplicate-test", testDataCenterId);
+                } catch( Throwable t ) {
+                    tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
+                }
+                VirtualMachine vm = support.getVirtualMachine(testVmId);
+                vlanid = vm.getProviderVlanId();
+                String[] ip = vm.getPrivateIpAddresses();
+                testVmId = ip[0];
+            }
+        }
+        if (( services != null ) && (testVmId != null)) {
+            FirewallSupport support = services.getFirewallSupport();
+            String result = null;
+            try {
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 1, 65535);
+                assertNotNull("failed to generate a vlan TCP rule", result);
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
+                assertNotNull("failed to generate a overlapping vlan TCP rule", result);
+            } catch (Exception ex) {
+                fail("authorize returned exception " + ex);
+            }
+
+            try {
+                result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
+            } catch (CloudException ex) {
+                tm.ok("Received expected duplicate CloudException");
+            }
         }
     }
 
@@ -969,7 +1017,7 @@ public class StatefulFirewallTests {
             assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
         }
     }
-    
+
     @Test
     public void verifyDuplicateRejection() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
