@@ -395,7 +395,6 @@ public class StatefulFirewallTests {
         boolean found = false;
         for( FirewallRule rule : support.getRules(testFirewallId) ) {
             if( rule.getProviderRuleId().equals(testRuleId) ) {
-                //System.out.println("Rule " + rule + " is still there");
                 found = true;
             }
         }
@@ -987,6 +986,7 @@ public class StatefulFirewallTests {
                 return;
             }
             try {
+                //testFirewallId = "fw-" + testVLANId; // Hack to enable GCE to use this test, leave comment in
                 String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                 assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
                 try {
@@ -1014,13 +1014,15 @@ public class StatefulFirewallTests {
         ComputeServices computeServices = tm.getProvider().getComputeServices();
 
         String testVmId = null;
+        String testVmId2 = null;
         String vlanid   = null;
         if( services != null ) {
             VirtualMachineSupport support = computeServices.getVirtualMachineSupport();
 
             if( support != null ) {
                 try {
-                    testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate", "dsn-duplicate-test", "dsn-duplicate-test", testDataCenterId);
+                    testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate", "dsn-duplicate-test1", "dsn-duplicate-test1", testDataCenterId);
+                    testVmId2 = DaseinTestManager.getComputeResources().provisionVM(support, "duplicate2", "dsn-duplicate-test2", "dsn-duplicate-test2", testDataCenterId);
                 } catch( Throwable t ) {
                     tm.warn("Failed to provisionKeypair VM for filter test: " + t.getMessage());
                 }
@@ -1028,6 +1030,9 @@ public class StatefulFirewallTests {
                 vlanid = vm.getProviderVlanId();
                 String[] ip = vm.getPrivateIpAddresses();
                 testVmId = ip[0];
+                vm = support.getVirtualMachine(testVmId2);
+                ip = vm.getPrivateIpAddresses();
+                testVmId2 = ip[0];
             }
         }
         if (( services != null ) && (testVmId != null)) {
@@ -1037,6 +1042,8 @@ public class StatefulFirewallTests {
                 result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 1, 65535);
                 assertNotNull("failed to generate a vlan TCP rule", result);
                 result = support.authorize("fw-" + vlanid, testVmId, Protocol.TCP, 22, 22);
+                assertNotNull("failed to generate a overlapping vlan TCP rule", result);
+                result = support.authorize("fw-" + vlanid, testVmId2, Protocol.TCP, 22, 22);
                 assertNotNull("failed to generate a overlapping vlan TCP rule", result);
             } catch (Exception ex) {
                 fail("authorize returned exception " + ex);
