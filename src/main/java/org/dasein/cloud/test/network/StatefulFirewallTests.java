@@ -993,7 +993,7 @@ public class StatefulFirewallTests {
                 try {
                     support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                     fail("should have generated a duplicate rule exception.");
-                }catch ( CloudException ex) {
+                } catch ( CloudException ex) {
                     tm.ok("Exception occurred as expected when trying to create a duplicate rule: " + ex.getMessage());
                 }
             }
