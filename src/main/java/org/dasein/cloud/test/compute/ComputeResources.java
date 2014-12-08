@@ -654,6 +654,9 @@ public class ComputeResources {
                         try {
                             VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDatacenterId(dataCenterId);
                             for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
+                                if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
+                                    continue;
+                                }
                                 if( defaultProduct == null ) {
                                     defaultProduct = product;
                                 }
