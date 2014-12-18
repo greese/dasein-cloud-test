@@ -25,10 +25,7 @@ import java.util.Set;
 
 import junit.framework.Assert;
 
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.DayOfWeek;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.TimeWindow;
+import org.dasein.cloud.*;
 import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -40,9 +37,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
@@ -81,7 +80,7 @@ public class StatefulRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if ( name.getMethodName().equals("listAccess")) {
+        if ( name.getMethodName().equals("listAccess") || name.getMethodName().equals("alterDatabase")) {
             testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
         }
     }
@@ -112,11 +111,8 @@ public class StatefulRDBMSTests {
             assertTrue("Database engine " + engine + " is not known.", engineSet.contains(engine));
 
             Iterable<String> versions = support.getSupportedVersions(engine);
-            int versionCount = 0;
-            for (String version : versions) 
-                versionCount++;
 
-            assertTrue("at least one version of a database engine is required, yet none were found." , (versionCount > 0));
+            assertTrue("At least one version of a database engine is required, yet none were found." , versions.iterator().hasNext());
         }
 
     }
@@ -211,8 +207,57 @@ public class StatefulRDBMSTests {
         }
     }
 
+    private @Nullable Database waitForDatabaseState(@Nonnull String dbId, int waitMinutes, @Nonnull DatabaseState state) throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            return null;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            return null;
+        }
+        long timeout = System.currentTimeMillis() + waitMinutes*60*1000;
+        while( timeout > System.currentTimeMillis() ) {
+            Database instance = support.getDatabase(dbId);
+            if( instance.getCurrentState().equals(state) ) {
+                return instance;
+            }
+            try {
+                Thread.sleep(20000);
+            }
+            catch( InterruptedException ignore ) { }
+        }
+        return null;
+    }
+
+    private @Nullable DatabaseProduct getNextCheapestProduct(@Nonnull Iterable<DatabaseProduct> fromList, @Nullable DatabaseProduct afterThis) {
+        DatabaseProduct minimal = null;
+        for( DatabaseProduct product : fromList ) {
+            if( minimal == null ) {
+                if( afterThis == null ) {
+                    minimal = product;
+                }
+                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate() ) {
+                    minimal = product;
+                }
+            }
+            else {
+                if( afterThis == null ) {
+                    if( product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
+                        minimal = product;
+                    }
+                }
+                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate()
+                        && product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
+                    minimal = product;
+                }
+            }
+        }
+        return minimal;
+    }
+
     /*
-     * Test will fail if run with other tests due to removeDatabase nuking the test db before it gets to this test. 
+     *
      */
     @Test
     public void listAccess() throws CloudException, InternalException {
@@ -228,21 +273,23 @@ public class StatefulRDBMSTests {
             return;
         }
 
+        Database instance = waitForDatabaseState(testDatabaseId, 12, DatabaseState.AVAILABLE);
+        if( instance == null ) {
+            fail("The database instance is not in available state to run this test");
+        }
         Iterable<String> access = support.listAccess(testDatabaseId);
-        int count = 0;
-        for (String element: access)
-            count++;
-        assertTrue("Count was not zero", (count == 0));
+        assertFalse("Count was not zero", access.iterator().hasNext());
 
         support.addAccess(testDatabaseId, "qa-project-2");
         support.addAccess(testDatabaseId, "72.197.190.94");
         support.addAccess(testDatabaseId, "72.197.190.0/24");
 
-        count = 0;
+        int count = 0;
         access = support.listAccess(testDatabaseId);
-        for (String element: access)
+        for (String element: access) {
             count++;
-        assertTrue("Count was not three", (count == 3));
+        }
+        assertEquals("Resulting CIDR number is incorrect after granting access", 3, count);
 
         support.revokeAccess(testDatabaseId, "qa-project-2");
         support.revokeAccess(testDatabaseId, "72.197.190.94");
@@ -252,11 +299,106 @@ public class StatefulRDBMSTests {
         access = support.listAccess(testDatabaseId);
         for (String element: access)
             count++;
-        assertTrue("Count was not zero", (count == 0));
+        assertTrue("Resulting CIDR number is incorrect after revoking access", (count == 0));
     }
 
+    /**
+     * This test verifies database modification, however is quite limited in scope as some things are not
+     * feasible to change in an integration testing context (product size, storage size).
+     * We will add configuration modification testing later on as better support for database configuration
+     * is added to core.
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
     @Test
     public void alterDatabase() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        assertNotNull("Test database instance is not available", testDatabaseId);
+
+        Database instance = waitForDatabaseState(testDatabaseId, 12, DatabaseState.AVAILABLE);
+
+        // TODO: ideally we want to find the next cheap product and try to change to that, but unfortunately it
+        // fails for AWS (no capacity in availability zone, which is totally weird but nothing we can do)
+//        DatabaseEngine engine = instance.getEngine();
+//        DatabaseProduct currentProduct = null;
+//        Iterable<DatabaseProduct> products = support.listDatabaseProducts(engine);
+//        // TODO: we shouldn't be doing this, a Database instance should really include a DatabaseProduct, not a size string
+//        for( DatabaseProduct product : products ) {
+//            if( product.getProductSize().equals(instance.getProductSize()) ) {
+//                currentProduct = product;
+//                break;
+//            }
+//        }
+//        DatabaseProduct nextCheapestProduct = getNextCheapestProduct(products, currentProduct);
+//
+        String productSize = null;
+//        if( nextCheapestProduct == null ) {
+//            productSize = instance.getProductSize();
+//            tm.warn("No other product sizes found, not changing the product size ("+productSize+")");
+//        }
+//        else {
+//            productSize = nextCheapestProduct.getProductSize();
+//        }
+
+        // int storageInGigabytes = (int) (instance.getAllocatedStorageInGb() * 1.5); // must be at least 10% higher for AWS
+        boolean applyImmediately = true;
+        String configurationId = null; // TODO: can't pass arbitrary ids here // "new-configuration-id");
+        String newAdminUser = "dasein";
+        String newAdminPassword = "notasecret";
+        int newPort = instance.getHostPort() + 1;
+        int snapshotRetentionInDays = 5;
+        TimeWindow preferredMaintenanceWindow = new TimeWindow();
+        preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setStartHour(3);
+        preferredMaintenanceWindow.setStartMinute(0);
+        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setEndHour(5);
+        preferredMaintenanceWindow.setEndMinute(0);
+        TimeWindow preferredBackupWindow = new TimeWindow();
+        preferredBackupWindow.setStartHour(1);
+        preferredBackupWindow.setStartMinute(0);
+        preferredBackupWindow.setEndHour(2);
+        preferredBackupWindow.setEndMinute(45);
+        support.alterDatabase(testDatabaseId, applyImmediately, productSize, 0, configurationId, newAdminUser, newAdminPassword, newPort, snapshotRetentionInDays, preferredMaintenanceWindow, preferredBackupWindow);
+
+        Database database = support.getDatabase(testDatabaseId);
+//        Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
+//        Assert.assertEquals("Allocated storage has not been updated", storageInGigabytes, database.getAllocatedStorageInGb());
+//        Assert.assertEquals(configurationId, database.getConfiguration());
+        if (support.getCapabilities().supportsMaintenanceWindows()) {
+            // TODO: TimeWindow should implement #equals, so for now we'll use strings :-(
+            Assert.assertEquals("Preferred maintenance window has not been updated", preferredMaintenanceWindow.toString(), database.getMaintenanceWindow().toString());
+        }
+        // TODO: TimeWindow should implement #equals, so for now we'll use strings :-(
+        assertEquals("Preferred backup window has not been updated", preferredBackupWindow.toString(), database.getBackupWindow().toString());
+
+        //Assert.assertEquals(newAdminUser, database.getAdminUser());
+        //Assert.assertEquals(newPort, database.getHostPort());
+
+        tm.ok("alterDatabase appears fine");
+    }
+
+    /**
+     * FIXME: Stas commented this test out as it's unreliable in AWS. Not all products of all versions can be created
+     * successfully in a test context, which doesn't mean the implementation is wrong. We should think how to improve
+     * this test. Also we don't need to test against all combinations of all engines: we are testing the API, not the
+     * cloud itself.
+     */
+//    @Test DISABLED
+    public void createDatabaseMultiple() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
         if( services == null ) {
@@ -275,43 +417,14 @@ public class StatefulRDBMSTests {
             Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
             for (DatabaseEngine dbEngine : engines) {
                 tm.out("testing " + dbEngine.name());
-                String providerDatabaseId = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", dbEngine);
+                String id = p.provisionRDBMS(support, "provisionRdbms", "dsnrdbms", dbEngine);
 
                     // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
 
-
-                tm.out("New Database", providerDatabaseId);
-                assertNotNull("No database was created by this test", providerDatabaseId);
-                String productSize = "d1";
-                int storageInGigabytes = 250;
-                boolean applyImmediately = true;
-                String configurationId = "new-configuration-id";
-                String newAdminUser = "dcm";
-                String newAdminPassword = "notasecret";
-                int newPort = 9876;
-                int snapshotRetentionInDays = 5;
-                TimeWindow preferredMaintenanceWindow = new TimeWindow();
-                preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
-                preferredMaintenanceWindow.setEndHour(5);
-                preferredMaintenanceWindow.setEndMinute(0);
-                preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
-                preferredMaintenanceWindow.setStartHour(3);
-                preferredMaintenanceWindow.setStartMinute(0);
-                TimeWindow preferredBackupWindow = preferredMaintenanceWindow;
-                support.alterDatabase(providerDatabaseId, applyImmediately, productSize, storageInGigabytes, configurationId, newAdminUser, newAdminPassword, newPort, snapshotRetentionInDays, preferredMaintenanceWindow, preferredBackupWindow);
-
-                Database database = support.getDatabase(providerDatabaseId);
-                Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
-                Assert.assertEquals(storageInGigabytes, database.getAllocatedStorageInGb());
-                Assert.assertEquals(configurationId, database.getConfiguration());
-                if (support.getCapabilities().supportsMaintenanceWindows()) {
-                    Assert.assertEquals(preferredMaintenanceWindow, database.getMaintenanceWindow());
-                }
-
-                //Assert.assertEquals(newAdminUser, database.getAdminUser());
-                //Assert.assertEquals(newPort, database.getHostPort());
-
-                tm.ok("alterDatabase appears fine");
+                tm.out("New Database", id);
+                assertNotNull("No database was created by this test", id);
+                Database database = support.getDatabase(id);
+                assertNotNull("database has not been created", database);
             }
         }
         else {
@@ -319,49 +432,14 @@ public class StatefulRDBMSTests {
         }
     }
 
+
     /**
-     * FIXME: Stas commented this test out as it's unreliable in AWS. Not all products of all versions can be created
-     * successfully in a test context, which doesn't mean the implementation is wrong. We should think how to improve
-     * this test.
+     * This test will only execute where Oracle SE1 is available
+     *
+     * @throws CloudException
+     * @throws InternalException
      */
-//    @Test
-//    public void createDatabaseMultiple() throws CloudException, InternalException {
-//        PlatformServices services = tm.getProvider().getPlatformServices();
-//
-//        if( services == null ) {
-//            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-//            return;
-//        }
-//        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
-//
-//        if( support == null ) {
-//            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
-//            return;
-//        }
-//        PlatformResources p = DaseinTestManager.getPlatformResources();
-//
-//        if( p != null ) {
-//            Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
-//            for (DatabaseEngine dbEngine : engines) {
-//                tm.out("testing " + dbEngine.name());
-//                String id = p.provisionRDBMS(support, "provisionRdbms", "dsnrdbms", dbEngine);
-//
-//                    // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
-//
-//                tm.out("New Database", id);
-//                assertNotNull("No database was created by this test", id);
-//                Database database = support.getDatabase(id);
-//                assertNotNull("database has not been created", database);
-//            }
-//        }
-//        else {
-//            fail("No platform resources were initialized for the test run");
-//        }
-//    }
-
-
     @Test
-
     public void createOracleDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
         if( services == null ) {

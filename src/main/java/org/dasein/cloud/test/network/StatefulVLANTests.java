@@ -131,18 +131,16 @@ public class StatefulVLANTests {
             } catch( InterruptedException ignore ) {
             }
         }
-        if( name.getMethodName().equals("removeVLANwithFirewallRule") ) {
-            testVLANId = getVLANId(support, name.getMethodName(), DaseinTestManager.REMOVED, true);
-            // wait...
-            try {
-                Thread.sleep(5000L);
-            } catch( InterruptedException ignore ) {
-            }
-            NetworkServices networkServices = tm.getProvider().getNetworkServices();
-            FirewallSupport firewallSupport;
-            firewallSupport = (networkServices == null ? null : networkServices.getFirewallSupport());
-            testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
-        }
+//        DISABLED
+//        if( name.getMethodName().equals("removeVLANwithFirewallRule") ) {
+//            testVLANId = getVLANId(support, name.getMethodName(), DaseinTestManager.REMOVED, true);
+//            // wait...
+//            try {
+//                Thread.sleep(5000L);
+//            } catch( InterruptedException ignore ) {
+//            }
+//            testFirewallId = tm.getTestVLANFirewallId(DaseinTestManager.STATEFUL, true, testVLANId);
+//        }
         if( name.getMethodName().equals("removeRoutingTable") || name.getMethodName().equals("addRouteToVM") ||
                 name.getMethodName().equals("addRouteToNetworkInterface") || name.getMethodName().equals("addRouteToGateway")
                 ) {
@@ -505,7 +503,7 @@ public class StatefulVLANTests {
         }
     }
 
-    @Test
+//    @Test DISABLED as specific to GCE edge case
     public void removeVLANwithFirewallRule() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
 

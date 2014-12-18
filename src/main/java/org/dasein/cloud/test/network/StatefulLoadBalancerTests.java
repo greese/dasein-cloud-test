@@ -396,7 +396,7 @@ public class StatefulLoadBalancerTests {
         ArrayList<LbListener> listeners = new ArrayList<LbListener>();
         LbListener l = LbListener.getInstance(80, 80);
         listeners.add(l);
-        l = LbListener.getInstance(90, 90);
+        l = LbListener.getInstance(9090, 9090);
         listeners.add(l);
         support.addListeners(id, listeners.<LbListener>toArray(new LbListener[listeners.size()]));
 
@@ -404,7 +404,7 @@ public class StatefulLoadBalancerTests {
 
         assertTrue("Expected 2 listeners", (2 == testListenders.length));
         for (LbListener listener : testListenders)
-            assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 90));
+            assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 9090));
 
         support.removeListeners(lb.getName(), testListenders);
         testListenders = support.getLoadBalancer(id).getListeners();

@@ -489,7 +489,10 @@ public class StatelessRDBMSTests {
             tm.ok("Database does not support backups.");
     }
 
-    @Test
+/**
+ * TODO: The tests below appear to have preconditions: it only ever supposed to work with Cloud SQL, and relies on a certain named db instance being present. This needs to be changed so it works with other drivers or that other drivers can bail out successfully.
+ */
+//    @Test DISABLED
     public void createFromLatest() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
         if( services == null ) {
@@ -531,7 +534,7 @@ public class StatelessRDBMSTests {
      * @throws CloudException
      * @throws InternalException
      */
-    @Test 
+    // @Test DISABLED
     public void listBackups() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
@@ -572,7 +575,7 @@ public class StatelessRDBMSTests {
      * @throws CloudException
      * @throws InternalException
      */
-    @Test 
+    // @Test DISABLED
     public void restartDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 

@@ -210,11 +210,21 @@ public class StatelessVMTests {
 
             if( support != null ) {
                 VMScalingCapabilities capabilities = support.getCapabilities().getVerticalScalingCapabilities();
-                boolean oldCapabilitiesEnabled = !capabilities.getAlterVmForNewVolume().equals(Requirement.NONE)
-                        || !capabilities.getAlterVmForVolumeChange().equals(Requirement.NONE);
+                if( capabilities != null ) {
+                    boolean oldCapabilitiesEnabled = !capabilities.getAlterVmForNewVolume().equals(Requirement.NONE) || !capabilities.getAlterVmForVolumeChange().equals(Requirement.NONE);
 
-                assertFalse("The capabilities indicate that the deprecated volume scaling is supported, however the new product scaling capabilities are not supported, please update your driver", ( !capabilities.isSupportsProductSizeChanges() && !capabilities.isSupportsProductChanges() ) && oldCapabilitiesEnabled);
+                    assertFalse("The capabilities indicate that the deprecated volume scaling is supported, however the new product scaling capabilities are not supported, please update your driver", ( !capabilities.isSupportsProductSizeChanges() && !capabilities.isSupportsProductChanges() ) && oldCapabilitiesEnabled);
+                }
+                else {
+                    tm.ok("No VM vertical scaling capabilities in this cloud");
+                }
             }
+            else {
+                tm.ok("No VM support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
         }
     }
 

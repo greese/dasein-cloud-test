@@ -88,11 +88,11 @@ public class StatefulFirewallTests {
             // ignore
         }
 
-        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
-            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
-        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection")) {
+        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection") ||
+                name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
             VirtualMachineSupport support;
 
@@ -953,6 +953,15 @@ public class StatefulFirewallTests {
 
         if( services != null ) {
             FirewallSupport support = services.getFirewallSupport();
+            if( testFirewallId == null ) {
+                if( !support.getCapabilities().supportsFirewallCreation(true) ) {
+                    tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
+                } else {
+                    fail("Firewall creation is supported, however no test firewall was found");
+                }
+                return;
+            }
+
             try {
                 String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                 assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
@@ -978,6 +987,14 @@ public class StatefulFirewallTests {
             FirewallSupport support = services.getFirewallSupport();
             if( support == null ) {
                 tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
+                return;
+            }
+            if( testFirewallId == null ) {
+                if( !support.getCapabilities().supportsFirewallCreation(true) ) {
+                    tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
+                } else {
+                    fail("Firewall creation is supported, however no test firewall was found");
+                }
                 return;
             }
             try {
