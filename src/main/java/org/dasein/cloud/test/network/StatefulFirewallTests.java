@@ -72,6 +72,7 @@ public class StatefulFirewallTests {
     private String testFirewallId;
     private String testRuleId;
     private String testVLANId;
+    private String testDataCenterId;
 
     public StatefulFirewallTests() {
     }
@@ -81,6 +82,11 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
 
         if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
             name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
@@ -969,7 +975,7 @@ public class StatefulFirewallTests {
             assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
         }
     }
-    
+
     @Test
     public void verifyDuplicateRejection() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -981,12 +987,13 @@ public class StatefulFirewallTests {
                 return;
             }
             try {
+                //testFirewallId = "fw-" + testVLANId; // Hack to enable GCE to use this test, leave comment in
                 String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                 assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
                 try {
                     support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                     fail("should have generated a duplicate rule exception.");
-                }catch ( CloudException ex) {
+                } catch ( CloudException ex) {
                     tm.ok("Exception occurred as expected when trying to create a duplicate rule: " + ex.getMessage());
                 }
             }
