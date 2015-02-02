@@ -31,6 +31,7 @@ import org.junit.rules.TestName;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
@@ -623,9 +624,23 @@ public class StatelessVMTests {
         tm.out("Total SpotPrice Count", prices);
 
         if( count > 0 ) {
-            SpotPriceHistory sph = histories.iterator().next();
-            VirtualMachineProduct prod = support.getProduct(sph.getProductId());
-            assertNotNull("SpotPriceHistory belongs to an unknown product (" + sph.getProductId() + ")", prod);
+            Iterator<SpotPriceHistory> it = histories.iterator();
+            VirtualMachineProduct prod = null;
+            Map<String, String> triedProducts = new HashMap<String, String>();
+            while( it.hasNext() ) {
+                SpotPriceHistory sph = it.next();
+                if( triedProducts.get(sph.getProductId()) != null ) {
+                    continue;
+                }
+                prod = support.getProduct(sph.getProductId());
+                if( prod != null ) {
+                    break;
+                }
+                else {
+                    triedProducts.put(sph.getProductId(), sph.getProductId());
+                }
+            }
+            assertNotNull(String.format("All %d SpotPriceHistory items were for an unknown product %s", count, Arrays.toString(triedProducts.keySet().toArray(new String[triedProducts.size()]))), prod);
         }
         else {
             tm.warn("SpotPriceHistory is empty, the test is likely INVALID");
@@ -804,13 +819,19 @@ public class StatelessVMTests {
         assertEquals("Found Spot VM request indicates an incorrect product", testProductId, verifyRequest.getProductId());
         assertEquals("Found Spot VM request indicates incorrect valid-from time", validFrom, verifyRequest.getValidFromTimestamp());
         assertEquals("Found Spot VM request indicates incorrect valid-until time", validUntil, verifyRequest.getValidUntilTimestamp());
-        assertThat("Found Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
-        assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+        // only verify the fulfillment if the vm has indeed been fulfilled
+        if( launchedVm != null ) {
+            assertThat("Found fulfilled Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
+            assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+        } else {
+            assertThat("Found unfulfilled Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), equalTo(0L));
+
+        }
 
         vmSupport.cancelSpotVirtualMachineRequest(request.getProviderSpotVmRequestId());
         if( launchedVm != null ) {
             // TODO: add vm instance to TestManager so it would clean up instead?
-            vmSupport.terminate(launchedVm.getName());
+            vmSupport.terminate(launchedVm.getProviderVirtualMachineId());
         }
     }
 
