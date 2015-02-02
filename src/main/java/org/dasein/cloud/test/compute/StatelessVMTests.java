@@ -75,12 +75,6 @@ public class StatelessVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        } catch( Throwable ignore ) {
-            // ignore
-        }
-        tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, true, testDataCenterId);
         testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);

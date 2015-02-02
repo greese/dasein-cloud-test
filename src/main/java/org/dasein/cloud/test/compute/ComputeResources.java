@@ -624,11 +624,6 @@ public class ComputeResources {
     }
 
     public void init() {
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        } catch (Throwable ignore) {
-            // ignore
-        }
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
