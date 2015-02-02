@@ -186,8 +186,9 @@ public class StatefulLoadBalancerTests {
                                 if( lb != null ) {
                                     List<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
                                     String[] dcs = lb.getProviderDataCenterIds();
-
-                                    regionDataCenters.addAll(tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()));
+                                    for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                        regionDataCenters.add(dc);
+                                    }
 
                                     if( dcs.length >= regionDataCenters.size() ) {
                                         support.removeDataCenters(testLoadBalancerId, dcs[0]);
