@@ -637,7 +637,6 @@ public class ComputeResources {
     public void init() {
         testDataCenterId = System.getProperty("test.dataCenter", null);
         testImageId = System.getProperty("test.machineImage", null);
-
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -821,7 +820,6 @@ public class ComputeResources {
             if( volumeSupport != null ) {
                 try {
                     Volume defaultVolume = null;
-
                     for( Volume volume : volumeSupport.listVolumes() ) {
                         if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
