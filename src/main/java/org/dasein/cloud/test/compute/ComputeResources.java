@@ -640,13 +640,8 @@ public class ComputeResources {
 
 
     public void init() {
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
-
-        if (testImageId.equals("")) {
-            testImageId = null;
-        }
-
+        testDataCenterId = System.getProperty("test.dataCenter", null);
+        testImageId = System.getProperty("test.machineImage", null);
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
