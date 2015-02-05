@@ -634,6 +634,10 @@ public class ComputeResources {
     }
 
     public void init() {
+        testDataCenterId = System.getProperty("test.dataCenter");
+        if( testDataCenterId != null && testDataCenterId.trim().isEmpty() ) {
+            testDataCenterId = null; // don't want the empty string datacenter
+        }
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -646,8 +650,6 @@ public class ComputeResources {
             }
         }
 
-        String dataCenterId = System.getProperty("test.dataCenter");
-
         if( computeServices != null ) {
             Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
@@ -657,7 +659,7 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(dataCenterId);
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
                             for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
                                 if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
                                     continue;
@@ -790,7 +792,7 @@ public class ComputeResources {
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
+                        if (( vm.getProviderDataCenterId().equals(testDataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
@@ -802,9 +804,8 @@ public class ComputeResources {
             if( volumeSupport != null ) {
                 try {
                     Volume defaultVolume = null;
-
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
+                        if (( volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
