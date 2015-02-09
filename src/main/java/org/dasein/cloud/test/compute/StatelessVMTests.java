@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -410,6 +410,42 @@ public class StatelessVMTests {
                 }
                 else if( support.isSubscribed() ) {
                     fail("No test virtual machine exists and thus no test could be run for getVMPassword");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    /**
+     * This test should performed outside virtualMachineContent() test as getUserData()
+     * is a separate call.
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test
+    public void getVMUserData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVMId != null ) {
+                    String data = support.getUserData(testVMId);
+
+                    tm.out("User data for vm: ", data);
+                    assertNotNull("Did not find the user-data for test virtual machine " + testVMId, data);
+                    assertTrue("User-data must contain 'echo \"dasein\"'", data.contains("echo \"dasein\""));
+                }
+                else if( support.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for getVMUserData");
                 }
             }
             else {
