@@ -125,8 +125,18 @@ public class ComputeResources {
                 for( Map.Entry<String, String> entry : testVMs.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            VirtualMachine vm = vmSupport.getVirtualMachine(entry.getValue());
-
+                            // Sometimes VMs don't have enough time to start before they are terminated
+                            // by tests, this causes stuck unterminated VMs. Let's try to take care of
+                            // that:
+                            long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+                            VirtualMachine vm = null;
+                            while(System.currentTimeMillis() < timeout) {
+                                vm = vmSupport.getVirtualMachine(entry.getValue());
+                                if( vm == null || !VmState.PENDING.equals(vm.getCurrentState()) ) {
+                                    break;
+                                }
+                                Thread.sleep(10000);
+                            };
                             if( vm != null ) {
                                 vmSupport.terminate(entry.getValue());
                                 count++;
@@ -647,7 +657,7 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDatacenterId(dataCenterId);
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(dataCenterId);
                             for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
                                 if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
                                     continue;
