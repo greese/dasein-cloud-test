@@ -142,10 +142,12 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        if (true == support.getCapabilities().supportsDeleteBackup()) {
+        if( support.getCapabilities().supportsDeleteBackup() ) {
             fail("Please implement deleteBackup test.");
-        } else
+        }
+        else {
             tm.ok("Platform does not support deleting of individual database backups.");
+        }
     }
 
     /** 
@@ -173,10 +175,12 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        if (true == support.getCapabilities().supportsDemandBackups()) {
+        if( support.getCapabilities().supportsDemandBackups() ) {
             fail("Please implement createBackup test.");
-        } else
+        }
+        else {
             tm.ok("Platform does not support manually creating of individual database backups.");
+        }
     }
 
     @Test
@@ -219,7 +223,7 @@ public class StatefulRDBMSTests {
         long timeout = System.currentTimeMillis() + waitMinutes*60*1000;
         while( timeout > System.currentTimeMillis() ) {
             Database instance = support.getDatabase(dbId);
-            if( instance.getCurrentState().equals(state) ) {
+            if( instance != null && instance.getCurrentState().equals(state) ) {
                 return instance;
             }
             try {
@@ -230,31 +234,7 @@ public class StatefulRDBMSTests {
         return null;
     }
 
-    private @Nullable DatabaseProduct getNextCheapestProduct(@Nonnull Iterable<DatabaseProduct> fromList, @Nullable DatabaseProduct afterThis) {
-        DatabaseProduct minimal = null;
-        for( DatabaseProduct product : fromList ) {
-            if( minimal == null ) {
-                if( afterThis == null ) {
-                    minimal = product;
-                }
-                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate() ) {
-                    minimal = product;
-                }
-            }
-            else {
-                if( afterThis == null ) {
-                    if( product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
-                        minimal = product;
-                    }
-                }
-                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate()
-                        && product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
-                    minimal = product;
-                }
-            }
-        }
-        return minimal;
-    }
+
 
     /*
      *
@@ -273,33 +253,38 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        Database instance = waitForDatabaseState(testDatabaseId, 12, DatabaseState.AVAILABLE);
+        Database instance = waitForDatabaseState(testDatabaseId, 15, DatabaseState.AVAILABLE);
         if( instance == null ) {
             fail("The database instance is not in available state to run this test");
         }
-        Iterable<String> access = support.listAccess(testDatabaseId);
-        assertFalse("Count was not zero", access.iterator().hasNext());
+        Iterable<String> rules = support.listAccess(testDatabaseId);
+        int originalRules = 0;
+        for (String element: rules) {
+            originalRules++;
+        }
 
-        support.addAccess(testDatabaseId, "qa-project-2");
-        support.addAccess(testDatabaseId, "72.197.190.94");
-        support.addAccess(testDatabaseId, "72.197.190.0/24");
+        // TODO: qa-project-2 is not a valid CIDR - follow up with RU
+        // support.addAccess(testDatabaseId, "qa-project-2");
+        support.addAccess(testDatabaseId, "10.0.0.0/8");
+        support.addAccess(testDatabaseId, "192.168.0.0/16");
 
         int count = 0;
-        access = support.listAccess(testDatabaseId);
-        for (String element: access) {
+        rules = support.listAccess(testDatabaseId);
+        for (String element: rules) {
             count++;
         }
-        assertEquals("Resulting CIDR number is incorrect after granting access", 3, count);
+        assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + 2, count);
 
-        support.revokeAccess(testDatabaseId, "qa-project-2");
-        support.revokeAccess(testDatabaseId, "72.197.190.94");
-        support.revokeAccess(testDatabaseId, "72.197.190.0/24");
+        // TODO: qa-project-2 is not a valid CIDR - follow up with RU
+        // support.addAccess(testDatabaseId, "qa-project-2");
+        support.revokeAccess(testDatabaseId, "10.0.0.0/8");
+        support.revokeAccess(testDatabaseId, "192.168.0.0/16");
 
         count = 0;
-        access = support.listAccess(testDatabaseId);
-        for (String element: access)
+        rules = support.listAccess(testDatabaseId);
+        for (String element: rules)
             count++;
-        assertTrue("Resulting CIDR number is incorrect after revoking access", (count == 0));
+        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRules, count);
     }
 
     /**
@@ -467,7 +452,7 @@ public class StatefulRDBMSTests {
         }
         String dbName = "dsnora" + ( System.currentTimeMillis() % 10000 );
         String expectedDbName = dbName.toUpperCase().substring(0, 8);
-        String id = support.createFromScratch(dbName, PlatformResources.getCheapestProduct(support, oracleEngine), null, "dasein", PlatformResources.randomPassword(), 3000);
+        String id = support.createFromScratch(dbName, PlatformResources.getCheapestProduct(support, oracleEngine, null), null, "dasein", PlatformResources.randomPassword(), 3000);
         Database database = support.getDatabase(id);
         removeDatabase(id);
         Assert.assertNotNull("Oracle database has not been created", database);
