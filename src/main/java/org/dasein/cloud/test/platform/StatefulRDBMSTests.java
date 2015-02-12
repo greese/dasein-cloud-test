@@ -27,6 +27,7 @@ import junit.framework.Assert;
 
 import org.dasein.cloud.*;
 import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -263,12 +264,15 @@ public class StatefulRDBMSTests {
         for (String element: rules) {
             originalRules++;
         }
+        // TODO: list all vlans and all subnets in them instead of using testVlanId
         String testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         int addedRules = 0;
         if( tm.getProvider().hasNetworkServices() && tm.getProvider().getNetworkServices().hasVlanSupport() ) {
-            for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(testVlanId) ) {
-                support.addAccess(testDatabaseId, subnet.getCidr());
-                addedRules++;
+            for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+                for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                    support.addAccess(testDatabaseId, subnet.getCidr());
+                    addedRules++;
+                }
             }
         }
         if( addedRules == 0 ) {
@@ -284,8 +288,10 @@ public class StatefulRDBMSTests {
         }
         assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + addedRules, count);
 
-        for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(testVlanId)) {
-            support.revokeAccess(testDatabaseId, subnet.getCidr());
+        for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+            for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                support.revokeAccess(testDatabaseId, subnet.getCidr());
+            }
         }
 
         count = 0;
