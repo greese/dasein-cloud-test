@@ -27,7 +27,9 @@ import org.apache.http.impl.client.DefaultHttpClient;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.DayOfWeek;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.TimeWindow;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.platform.Database;
@@ -52,8 +54,10 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import static junit.framework.Assert.assertEquals;
@@ -337,7 +341,7 @@ public class StatefulRDBMSTests {
         return null;
     }
     /*
-     * Test if all CIDR rules are set and revoked correctly
+     * Test if all CIDR ranges are set and revoked correctly
      */
     @Test
     public void listAccess() throws CloudException, InternalException {
@@ -346,8 +350,8 @@ public class StatefulRDBMSTests {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
 
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
         if( support == null ) {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
@@ -357,46 +361,55 @@ public class StatefulRDBMSTests {
         if( instance == null ) {
             fail("The database instance is not in available state to run this test");
         }
-        Iterable<String> rules = support.listAccess(testDatabaseId);
-        int originalRules = 0;
-        for (String element: rules) {
-            originalRules++;
+
+        // Let's see how many ranges did the database have by default
+        Iterable<String> ranges = support.listAccess(testDatabaseId);
+        int originalRanges = 0;
+        for (String element: ranges) {
+            originalRanges++;
         }
-        // TODO: list all vlans and all subnets in them instead of using testVlanId
-        String testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-        int addedRules = 0;
-        if( tm.getProvider().hasNetworkServices() && tm.getProvider().getNetworkServices().hasVlanSupport() ) {
+        List<String> testRanges = new ArrayList<String>();
+
+        // First check if we can find any subnets, so we can authorize against their CIDRs
+        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+        if( networkServices != null && networkServices.hasVlanSupport() &&
+                !Requirement.NONE.equals(
+                        networkServices.getVlanSupport().getCapabilities().getSubnetSupport())) {
             for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
                 for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
-                    support.addAccess(testDatabaseId, subnet.getCidr());
-                    addedRules++;
+                    testRanges.add(subnet.getCidr());
                 }
             }
         }
-        if( addedRules == 0 ) {
-            // TODO: Like this or consider going another way, need to validate it with GCE and Azure
-            tm.warn("Found no ranges to authorize, test is not valid.");
-            return;
+        // If there's no subnet support (hello, GCE!), try a hardcoded range
+        if( testRanges.isEmpty() ) {
+            tm.warn("Found no subnet ranges to authorize, adding a hardcoded range.");
+            testRanges.add("72.197.190.0/24");
+        }
+        // Authorize our ranges
+        for( String range : testRanges ) {
+            support.addAccess(testDatabaseId, range);
         }
 
+        // Check if those ranges have been added
         int count = 0;
-        rules = support.listAccess(testDatabaseId);
-        for (String element: rules) {
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges) {
             count++;
         }
-        assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + addedRules, count);
+        assertEquals("Resulting CIDR number is incorrect after granting access", originalRanges + testRanges.size(), count);
 
-        for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
-            for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
-                support.revokeAccess(testDatabaseId, subnet.getCidr());
-            }
+        // Revoke access for all of our ranges now
+        for( String range : testRanges) {
+            support.revokeAccess(testDatabaseId, range);
         }
 
+        // Check if all ranges were revoked
         count = 0;
-        rules = support.listAccess(testDatabaseId);
-        for (String element: rules)
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges)
             count++;
-        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRules, count);
+        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRanges, count);
     }
 
     /**
