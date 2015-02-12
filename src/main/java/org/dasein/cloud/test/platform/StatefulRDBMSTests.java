@@ -26,6 +26,8 @@ import java.util.Set;
 import junit.framework.Assert;
 
 import org.dasein.cloud.*;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.platform.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -262,23 +264,35 @@ public class StatefulRDBMSTests {
         for (String element: rules) {
             originalRules++;
         }
-
-        // TODO: qa-project-2 is not a valid CIDR - follow up with RU
-        // support.addAccess(testDatabaseId, "qa-project-2");
-        support.addAccess(testDatabaseId, "10.0.0.0/8");
-        support.addAccess(testDatabaseId, "192.168.0.0/16");
+        // TODO: list all vlans and all subnets in them instead of using testVlanId
+        String testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+        int addedRules = 0;
+        if( tm.getProvider().hasNetworkServices() && tm.getProvider().getNetworkServices().hasVlanSupport() ) {
+            for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+                for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                    support.addAccess(testDatabaseId, subnet.getCidr());
+                    addedRules++;
+                }
+            }
+        }
+        if( addedRules == 0 ) {
+            // TODO: Like this or consider going another way, need to validate it with GCE and Azure
+            tm.warn("Found no ranges to authorize, test is not valid.");
+            return;
+        }
 
         int count = 0;
         rules = support.listAccess(testDatabaseId);
         for (String element: rules) {
             count++;
         }
-        assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + 2, count);
+        assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + addedRules, count);
 
-        // TODO: qa-project-2 is not a valid CIDR - follow up with RU
-        // support.addAccess(testDatabaseId, "qa-project-2");
-        support.revokeAccess(testDatabaseId, "10.0.0.0/8");
-        support.revokeAccess(testDatabaseId, "192.168.0.0/16");
+        for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+            for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                support.revokeAccess(testDatabaseId, subnet.getCidr());
+            }
+        }
 
         count = 0;
         rules = support.listAccess(testDatabaseId);
