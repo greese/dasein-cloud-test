@@ -19,16 +19,24 @@
 
 package org.dasein.cloud.test.platform;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
 import junit.framework.Assert;
-
-import org.dasein.cloud.*;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.dasein.cloud.CloudException;
+import org.dasein.cloud.DayOfWeek;
+import org.dasein.cloud.InternalException;
+import org.dasein.cloud.Requirement;
+import org.dasein.cloud.TimeWindow;
+import org.dasein.cloud.network.NetworkServices;
 import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.platform.*;
+import org.dasein.cloud.platform.Database;
+import org.dasein.cloud.platform.DatabaseEngine;
+import org.dasein.cloud.platform.DatabaseState;
+import org.dasein.cloud.platform.PlatformServices;
+import org.dasein.cloud.platform.RelationalDatabaseSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -41,12 +49,20 @@ import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -82,7 +98,9 @@ public class StatefulRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if ( name.getMethodName().equals("listAccess") || name.getMethodName().equals("alterDatabase")) {
+        if ( name.getMethodName().equals("listAccess") ||
+                name.getMethodName().equals("alterDatabase") ||
+                name.getMethodName().equals("checkAccess")) {
             testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
         }
     }
@@ -236,13 +254,13 @@ public class StatefulRDBMSTests {
         return null;
     }
 
-
-
-    /*
-     *
+    /**
+     * Authorize our IP and verify we can connect
+     * @throws CloudException
+     * @throws InternalException
      */
     @Test
-    public void listAccess() throws CloudException, InternalException {
+    public void checkAccess() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
         if( services == null ) {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -255,50 +273,143 @@ public class StatefulRDBMSTests {
             return;
         }
 
+        String ourIp = getOurIp();
+        if( ourIp == null ) {
+            tm.warn("Unable to find out our IP, test can't continue");
+            return;
+        }
+
         Database instance = waitForDatabaseState(testDatabaseId, 15, DatabaseState.AVAILABLE);
         if( instance == null ) {
             fail("The database instance is not in available state to run this test");
         }
-        Iterable<String> rules = support.listAccess(testDatabaseId);
-        int originalRules = 0;
-        for (String element: rules) {
-            originalRules++;
+        assertFalse("Was able to connect to the database server before access was granted, something is really really wrong", checkConnection(instance.getHostName(), instance.getHostPort()));
+        support.addAccess(testDatabaseId, ourIp + "/32");
+        assertTrue("Was unable to connect to the database server after access was granted", checkConnection(instance.getHostName(), instance.getHostPort()));
+        support.revokeAccess(testDatabaseId, ourIp + "/32");
+        assertFalse("Was able to connect to the database server after access was revoked", checkConnection(instance.getHostName(), instance.getHostPort()));
+    }
+
+    /**
+     * Check a TCP connection can be established to given host:port
+     * @param host
+     * @param port
+     * @return true if can connect
+     */
+    // TODO(stas): move out to a util class
+    private boolean checkConnection(String host, int port) {
+        try {
+            Socket socket = new Socket(host, port);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            int data = in.read();
+            socket.close();
+            return data != 0;
         }
-        // TODO: list all vlans and all subnets in them instead of using testVlanId
-        String testVlanId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-        int addedRules = 0;
-        if( tm.getProvider().hasNetworkServices() && tm.getProvider().getNetworkServices().hasVlanSupport() ) {
-            for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
-                for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
-                    support.addAccess(testDatabaseId, subnet.getCidr());
-                    addedRules++;
+        catch( IOException e ) {
+        }
+        return false;
+    }
+
+    /**
+     * Get our external IP address
+     * @return null if there was a problem
+     */
+    // TODO(stas): move out to a util class
+    private @Nullable String getOurIp() {
+        HttpClient client = new DefaultHttpClient();
+        HttpResponse response = null;
+        try {
+            response = client.execute(new HttpGet("http://ipinfo.io/ip"));
+            if( response.getStatusLine().getStatusCode() == 200 ) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                return reader.readLine();
+            }
+        }
+        catch( IOException e ) {
+            e.printStackTrace();
+        }
+        finally {
+            if( response != null ) {
+                try {
+                    response.getEntity().getContent().close();
+                }
+                catch( IOException ignore ) {
                 }
             }
         }
-        if( addedRules == 0 ) {
-            // TODO: Like this or consider going another way, need to validate it with GCE and Azure
-            tm.warn("Found no ranges to authorize, test is not valid.");
+        return null;
+    }
+    /*
+     * Test if all CIDR ranges are set and revoked correctly
+     */
+    @Test
+    public void listAccess() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
 
-        int count = 0;
-        rules = support.listAccess(testDatabaseId);
-        for (String element: rules) {
-            count++;
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
         }
-        assertEquals("Resulting CIDR number is incorrect after granting access", originalRules + addedRules, count);
 
-        for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
-            for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
-                support.revokeAccess(testDatabaseId, subnet.getCidr());
+        Database instance = waitForDatabaseState(testDatabaseId, 15, DatabaseState.AVAILABLE);
+        if( instance == null ) {
+            fail("The database instance is not in available state to run this test");
+        }
+
+        // Let's see how many ranges did the database have by default
+        Iterable<String> ranges = support.listAccess(testDatabaseId);
+        int originalRanges = 0;
+        for (String element: ranges) {
+            originalRanges++;
+        }
+        List<String> testRanges = new ArrayList<String>();
+
+        // First check if we can find any subnets, so we can authorize against their CIDRs
+        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+        if( networkServices != null && networkServices.hasVlanSupport() &&
+                !Requirement.NONE.equals(
+                        networkServices.getVlanSupport().getCapabilities().getSubnetSupport())) {
+            for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+                for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                    testRanges.add(subnet.getCidr());
+                }
             }
         }
+        // If there's no subnet support (hello, GCE!), try a hardcoded range
+        if( testRanges.isEmpty() ) {
+            tm.warn("Found no subnet ranges to authorize, adding a hardcoded range.");
+            testRanges.add("72.197.190.0/24");
+        }
+        // Authorize our ranges
+        for( String range : testRanges ) {
+            support.addAccess(testDatabaseId, range);
+        }
 
-        count = 0;
-        rules = support.listAccess(testDatabaseId);
-        for (String element: rules)
+        // Check if those ranges have been added
+        int count = 0;
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges) {
             count++;
-        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRules, count);
+        }
+        assertEquals("Resulting CIDR number is incorrect after granting access", originalRanges + testRanges.size(), count);
+
+        // Revoke access for all of our ranges now
+        for( String range : testRanges) {
+            support.revokeAccess(testDatabaseId, range);
+        }
+
+        // Check if all ranges were revoked
+        count = 0;
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges)
+            count++;
+        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRanges, count);
     }
 
     /**
