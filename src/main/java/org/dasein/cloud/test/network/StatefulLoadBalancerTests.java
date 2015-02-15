@@ -163,7 +163,7 @@ public class StatefulLoadBalancerTests {
                     if( !found ) {
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
                     }
-                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
+                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL,  + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
             catch( Throwable ignore ) {
@@ -384,32 +384,43 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String name = tm.getUserName() + "-dsncrlbtest";
+        String name = tm.getUserName() + "-dsnlstntest";
         String id = network.provisionLoadBalancer("provision", name, false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
 
         LoadBalancer lb = support.getLoadBalancer(id);
-        support.removeListeners(lb.getName(), lb.getListeners());
+        LbListener[] origListeners = lb.getListeners();
         assertNotNull("The newly created load balancer is null", lb);
 
-        ArrayList<LbListener> listeners = new ArrayList<LbListener>();
+        List<LbListener> listeners = new ArrayList<LbListener>();
         LbListener l = LbListener.getInstance(80, 80);
         listeners.add(l);
         l = LbListener.getInstance(9090, 9090);
         listeners.add(l);
-        support.addListeners(id, listeners.<LbListener>toArray(new LbListener[listeners.size()]));
+        support.addListeners(id, listeners.toArray(new LbListener[listeners.size()]));
 
-        LbListener[] testListenders = support.getLoadBalancer(id).getListeners();
+        LbListener[] testListeners = support.getLoadBalancer(id).getListeners();
 
-        assertTrue("Expected 2 listeners", (2 == testListenders.length));
-        for (LbListener listener : testListenders)
-            assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 9090));
-
-        support.removeListeners(lb.getName(), testListenders);
-        testListenders = support.getLoadBalancer(id).getListeners();
-        assertTrue("Expected 0 listeners", (0 == testListenders.length));
+        assertTrue("Expected 2 listeners to be added", (2 == (testListeners.length - origListeners.length)));
+        boolean found = false;
+        for (LbListener listener : testListeners) {
+            if( listener.getPublicPort() == 80 ) {
+                found = true;
+            }
+        }
+        assertTrue("Newly added listener with port 80 wasn't found", found);
+        found = false;
+        for (LbListener listener : testListeners) {
+            if( listener.getPublicPort() == 9090 ) {
+                found = true;
+            }
+        }
+        assertTrue("Newly added listener with port 9090 wasn't found", found);
+        support.removeListeners(id, listeners.toArray(new LbListener[listeners.size()]));
+        testListeners = support.getLoadBalancer(id).getListeners();
+        assertTrue("Expected " + origListeners.length + " listeners", ( origListeners.length == testListeners.length ));
     }
 
     @Test
