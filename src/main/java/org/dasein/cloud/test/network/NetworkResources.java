@@ -251,10 +251,23 @@ public class NetworkResources {
 
                                 try {
                                     if( lb != null ) {
-                                        lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        // allow five minutes for the load balancer to stop pending
+                                        long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+                                        while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                                                timeout > System.currentTimeMillis() ) {
+                                            Thread.sleep(10000);
+                                            lb = lbSupport.getLoadBalancer(entry.getValue());
+                                        }
+                                        // no point wasting API calls if the load balancer is already gone
+                                        if( !LoadBalancerState.TERMINATED.equals(lb.getCurrentState()) ) {
+                                            lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        }
                                         
                                         try {
-                                        	lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convienence.
+                                            // only delete LBHC if it is separate from an LB
+                                            if( !Requirement.REQUIRED.equals(lbSupport.getCapabilities().identifyHealthCheckOnCreateRequirement()) ) {
+                                                lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convenience.
+                                            }
                                         } catch (Throwable t ) { /* ignore if not supported */ }
                                         
                                         count++;
@@ -1631,6 +1644,11 @@ public class NetworkResources {
         LoadBalancerCreateOptions options;
         String vlanId = null;
 
+        // override healthcheck settings if cloud requires it
+        if( support.getCapabilities().identifyHealthCheckOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            withHealthCheck = true;
+        }
+
         if( !support.getCapabilities().isAddressAssignedByProvider() && support.getCapabilities().getAddressType().equals(LoadBalancerAddressType.IP) ) {
             IpAddressSupport ipSupport = services.getIpAddressSupport();
 
@@ -1764,21 +1782,19 @@ public class NetworkResources {
                     }
                     String server2 = null;
                     if( !internal ) {
-                        @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
                         String targetDC = dcIds[0];
-
-                        if( it.hasNext() ) {
-                            String dcId = it.next().getProviderDataCenterId();
-
-                            if( !dcId.equals(dcIds[0]) ) {
-                                dcIds[1] = dcId;
-                                targetDC = dcId;
+                        // select another datacenter for the second vm
+                        for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+                            if( !dc.getProviderDataCenterId().equals(targetDC) ) {
+                                targetDC = dcIds[1] = dc.getProviderDataCenterId();
+                                break;
                             }
                         }
                         server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
                     }
 
-                    if( server1 != null && server2 != null ) {
+                    // only launch with two vms if they are indeed different
+                    if( server1 != null && server2 != null && !server1.equals(server2)) {
                         options.withVirtualMachines(server1, server2);
                     } else if( server1 != null ) {
                         options.withVirtualMachines(server1);
