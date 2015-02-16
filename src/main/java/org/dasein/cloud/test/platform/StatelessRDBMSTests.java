@@ -294,6 +294,7 @@ public class StatelessRDBMSTests {
         assertNotNull("Region is null", db.getProviderRegionId());
         assertNotNull("Engine is null", db.getEngine());
         assertTrue("Region must match the current region", tm.getContext().getRegionId().startsWith(db.getProviderRegionId()));
+        assertNotNull("Engine version is null", db.getEngineVersion());
     }
 
     @Test
@@ -333,6 +334,7 @@ public class StatelessRDBMSTests {
             tm.out("Maintenance Window", db.getMaintenanceWindow());
             tm.out("Admin User", db.getAdminUser());
             tm.out("Configuration", db.getConfiguration());
+            tm.out("Engine Version", db.getEngineVersion());
 
             assertDatabase(db);
         }
