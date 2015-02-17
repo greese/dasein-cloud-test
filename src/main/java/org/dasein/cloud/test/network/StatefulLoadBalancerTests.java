@@ -163,7 +163,7 @@ public class StatefulLoadBalancerTests {
                     if( !found ) {
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
                     }
-                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL,  + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
+                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL, testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
             catch( Throwable ignore ) {

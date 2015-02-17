@@ -302,9 +302,9 @@ public class StatefulRDBMSTests {
             Socket socket = new Socket(host, port);
             PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
             BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            int data = in.read();
+            int data = in.read(); // -1 no data to read. 
             socket.close();
-            return data != 0;
+            return (data != -1);
         }
         catch( IOException e ) {
         }
