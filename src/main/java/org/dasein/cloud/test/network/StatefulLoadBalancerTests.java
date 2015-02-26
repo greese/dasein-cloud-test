@@ -987,8 +987,30 @@ public class StatefulLoadBalancerTests {
 
             tm.out("Before", (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState());
             assertNotNull("The load balancer is null prior to the test", lb);
-            support.removeLoadBalancer(testLoadBalancerId);
+            // allow five minutes for the load balancer to stop pending
+            long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                    timeout > System.currentTimeMillis() ) {
+                try {
+                    Thread.sleep(10000);
+                }
+                catch( InterruptedException e ) {}
+                lb = support.getLoadBalancer(testLoadBalancerId);
+            }
+            // no point wasting API calls if the load balancer is already gone
+            if( !LoadBalancerState.TERMINATED.equals(lb.getCurrentState()) ) {
+                support.removeLoadBalancer(lb.getProviderLoadBalancerId());
+            }
             lb = support.getLoadBalancer(testLoadBalancerId);
+            timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                    timeout > System.currentTimeMillis() ) {
+                try {
+                    Thread.sleep(10000);
+                }
+                catch( InterruptedException e ) {}
+                lb = support.getLoadBalancer(testLoadBalancerId);
+            }
             LoadBalancerState s = (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState();
 
             tm.out("After", s);
