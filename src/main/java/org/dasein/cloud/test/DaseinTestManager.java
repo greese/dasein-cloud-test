@@ -127,13 +127,13 @@ public class DaseinTestManager {
                 else if( f.type.equals(ContextRequirements.FieldType.KEYPAIR) ) {
                     String shared = overrideShared == null ? System.getProperty(f.name + "Shared") : overrideShared;
                     String secret = overrideSecret == null ? System.getProperty(f.name + "Secret") : overrideSecret;
-                    if( shared != null && secret != null ) {
+                    if( shared != null || secret != null ) {
 
                         //I would rather not have this but its the only way to pass in the binary file from a path
                         boolean p12 = false;
                         byte[] p12Bytes = null;
                         if(f.name.contains("p12")){
-                            String p12Path = System.getProperty(f.name + "Shared");
+                            String p12Path = shared;
                             File file = new File(p12Path);
                             p12Bytes = new byte[(int) file.length()];
                             InputStream ios = null;
