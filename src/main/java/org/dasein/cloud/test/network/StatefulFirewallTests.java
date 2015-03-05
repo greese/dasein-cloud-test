@@ -967,14 +967,14 @@ public class StatefulFirewallTests {
                 assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
             }
             finally {
-                Collection<FirewallRule> rules = support.getRules(testFirewallId);
+                Iterable<FirewallRule> rules = support.getRules(testFirewallId);
 
                 for( FirewallRule rule : rules ) {
                     tm.out(testFirewallId + " - " + rule.getProtocol());
                     support.revoke(rule.getProviderRuleId());
                 }
                 rules = support.getRules(testFirewallId);
-                assertTrue("The rules have not been deleted", rules.isEmpty());
+                assertFalse("The rules have not been deleted", rules.iterator().hasNext());
             }
         }
     }
@@ -1009,13 +1009,13 @@ public class StatefulFirewallTests {
                 }
             }
             finally {
-                Collection<FirewallRule> rules = support.getRules(testFirewallId);
+                Iterable<FirewallRule> rules = support.getRules(testFirewallId);
                 for( FirewallRule rule : rules ) {
                     tm.out(testFirewallId + " - " + rule.getProtocol());
                     support.revoke(rule.getProviderRuleId());
                 }
                 rules = support.getRules(testFirewallId);
-                assertTrue("The rules have not been deleted", rules.isEmpty());
+                assertFalse("The rules have not been deleted", rules.iterator().hasNext());
             }
         }
     }
