@@ -44,185 +44,179 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatefulPushNotificationTests {
 
-  static private final Logger logger = Logger.getLogger( StatefulPushNotificationTests.class );
+    static private final Logger logger = Logger.getLogger(StatefulPushNotificationTests.class);
 
-  private static final String DASEIN_PREFIX = "dasein-topic-";
+    private static final String DASEIN_PREFIX = "dasein-topic-";
 
-  private String provisionedTopicId;
+    private String provisionedTopicId;
 
-  static private DaseinTestManager tm;
+    static private DaseinTestManager tm;
 
-  @Rule
-  public final TestName name = new TestName();
+    @Rule
+    public final TestName name = new TestName();
 
-  @BeforeClass
-  static public void configure() {
-    tm = new DaseinTestManager( StatefulPushNotificationTests.class );
-  }
+    @BeforeClass
+    static public void configure() {
+        tm = new DaseinTestManager(StatefulPushNotificationTests.class);
+    }
 
-  @AfterClass
-  static public void cleanUp() {
-    if ( tm != null ) {
-      tm.close();
+    @AfterClass
+    static public void cleanUp() {
+        if( tm != null ) {
+            tm.close();
+        }
     }
-  }
 
-  public StatefulPushNotificationTests() {
-  }
+    public StatefulPushNotificationTests() {
+    }
 
-  @Before
-  public void before() {
-    String methodName = name.getMethodName();
-    tm.begin( methodName );
-    assumeTrue( !tm.isTestSkipped() );
-    if ( "testListTopics".equals( methodName ) ) {
-      addTestTopic();
+    @Before
+    public void before() {
+        String methodName = name.getMethodName();
+        tm.begin(methodName);
+        assumeTrue(!tm.isTestSkipped());
+        if( "testListTopics".equals(methodName) ) {
+            addTestTopic();
+        }
+        else if( "testGetTopic".equals(methodName) ) {
+            addTestTopic();
+        }
+        else if( "testRemoveTopic".equals(methodName) ) {
+            addTestTopic();
+        }
+        else {
+            logger.debug("No pre-test work for: " + methodName);
+        }
     }
-    else if ( "testGetTopic".equals( methodName ) ) {
-      addTestTopic();
-    }
-    else if ( "testRemoveTopic".equals( methodName ) ) {
-      addTestTopic();
-    }
-    else {
-      logger.debug( "No pre-test work for: " + methodName );
-    }
-  }
 
-  @After
-  public void after() {
-    try {
-      if ( provisionedTopicId != null ) {
-        getSupport().removeTopic( provisionedTopicId );
-      }
+    @After
+    public void after() {
+        try {
+            if( provisionedTopicId != null ) {
+                getSupport().removeTopic(provisionedTopicId);
+            }
+        }
+        catch( Throwable ex ) {
+            logger.warn(ex);
+        }
+        provisionedTopicId = null;
+        tm.end();
     }
-    catch ( Throwable ex ) {
-      logger.warn( ex );
-    }
-    provisionedTopicId = null;
-    tm.end();
-  }
 
-  private void addTestTopic() {
-    PushNotificationSupport support = getSupport();
-    if ( support == null || provisionedTopicId != null ) {
-      return;
+    private void addTestTopic() {
+        PushNotificationSupport support = getSupport();
+        if( support == null || provisionedTopicId != null ) {
+            return;
+        }
+        try {
+            String topicName = DASEIN_PREFIX + getRandomId();
+            Topic topic = support.createTopic(topicName);
+            provisionedTopicId = topic.getProviderTopicId();
+        }
+        catch( Throwable ex ) {
+            logger.warn(ex);
+        }
     }
-    try {
-      String topicName = DASEIN_PREFIX + getRandomId();
-      Topic topic = support.createTopic( topicName );
-      provisionedTopicId = topic.getProviderTopicId();
-    }
-    catch ( Throwable ex ) {
-      logger.warn( ex );
-    }
-  }
 
-  /**
-   * Requires {@link #addTestTopic()} ()} to be run first.
-   *
-   * @throws org.dasein.cloud.CloudException
-   *
-   * @throws org.dasein.cloud.InternalException
-   *
-   */
-  @Test
-  public void testListTopics() throws CloudException, InternalException {
-    PushNotificationSupport support = getSupport();
-    if ( support != null ) {
-      Collection<Topic> topics = support.listTopics();
-      assertNotNull( topics );
-      for ( Topic Topic : topics ) {
-        assertTopic( Topic );
-      }
+    /**
+     * Requires {@link #addTestTopic()} ()} to be run first.
+     *
+     * @throws org.dasein.cloud.CloudException
+     * @throws org.dasein.cloud.InternalException
+     */
+    @Test
+    public void testListTopics() throws CloudException, InternalException {
+        PushNotificationSupport support = getSupport();
+        if( support != null ) {
+            Iterable<Topic> topics = support.listTopics();
+            assertNotNull(topics);
+            for( Topic Topic : topics ) {
+                assertTopic(Topic);
+            }
+        }
+        else {
+            tm.ok("No PushNotificationSupport in this cloud");
+        }
     }
-    else {
-      tm.ok( "No PushNotificationSupport in this cloud" );
-    }
-  }
 
-  /**
-   * Requires {@link #addTestTopic()} ()} to be run first.
-   *
-   * @throws org.dasein.cloud.CloudException
-   *
-   * @throws org.dasein.cloud.InternalException
-   *
-   */
-  @Test
-  public void testGetTopic() throws CloudException, InternalException {
-    PushNotificationSupport support = getSupport();
-    if ( support != null ) {
-      Topic topic = support.getTopic( provisionedTopicId );
-      assertTopic( topic );
+    /**
+     * Requires {@link #addTestTopic()} ()} to be run first.
+     *
+     * @throws org.dasein.cloud.CloudException
+     * @throws org.dasein.cloud.InternalException
+     */
+    @Test
+    public void testGetTopic() throws CloudException, InternalException {
+        PushNotificationSupport support = getSupport();
+        if( support != null ) {
+            Topic topic = support.getTopic(provisionedTopicId);
+            assertTopic(topic);
+        }
+        else {
+            tm.ok("No PushNotificationSupport in this cloud");
+        }
     }
-    else {
-      tm.ok( "No PushNotificationSupport in this cloud" );
-    }
-  }
 
-  @Test
-  public void testAddTopic() throws CloudException, InternalException {
-    PushNotificationSupport support = getSupport();
-    if ( support == null ) {
-      tm.ok( "No PushNotificationSupport in this cloud" );
-      return;
+    @Test
+    public void testAddTopic() throws CloudException, InternalException {
+        PushNotificationSupport support = getSupport();
+        if( support == null ) {
+            tm.ok("No PushNotificationSupport in this cloud");
+            return;
+        }
+        try {
+            String topicName = DASEIN_PREFIX + getRandomId();
+            Topic topic = support.createTopic(topicName);
+            provisionedTopicId = topic.getProviderTopicId();
+        }
+        catch( OperationNotSupportedException expected ) {
+            tm.ok("OperationNotSupportedException thrown.");
+        }
     }
-    try {
-      String topicName = DASEIN_PREFIX + getRandomId();
-      Topic topic = support.createTopic( topicName );
-      provisionedTopicId = topic.getProviderTopicId();
+
+    /**
+     * Requires {@link #addTestTopic()} to be run first.
+     *
+     * @throws org.dasein.cloud.CloudException
+     * @throws org.dasein.cloud.InternalException
+     */
+    @Test
+    public void testRemoveTopic() throws CloudException, InternalException {
+        PushNotificationSupport support = getSupport();
+        if( support == null ) {
+            tm.ok("No PushNotificationSupport in this cloud");
+            return;
+        }
+        try {
+            support.removeTopic(provisionedTopicId);
+        }
+        catch( OperationNotSupportedException expected ) {
+            tm.ok("OperationNotSupportedException thrown.");
+        }
     }
-    catch ( OperationNotSupportedException expected ) {
-      tm.ok( "OperationNotSupportedException thrown." );
+
+    private long getRandomId() {
+        return System.currentTimeMillis() % 10000;
     }
-  }
 
-  /**
-   * Requires {@link #addTestTopic()} to be run first.
-   *
-   * @throws org.dasein.cloud.CloudException
-   *
-   * @throws org.dasein.cloud.InternalException
-   *
-   */
-  @Test
-  public void testRemoveTopic() throws CloudException, InternalException {
-    PushNotificationSupport support = getSupport();
-    if ( support == null ) {
-      tm.ok( "No PushNotificationSupport in this cloud" );
-      return;
+    private void assertTopic(Topic topic) {
+        assertNotNull(topic);
+
+        assertNotNull(topic.getProviderTopicId());
     }
-    try {
-      support.removeTopic( provisionedTopicId );
+
+    private PushNotificationSupport getSupport() {
+        PlatformServices services = getServices();
+
+        if( services != null ) {
+            return services.getPushNotificationSupport();
+        }
+        return null;
     }
-    catch ( OperationNotSupportedException expected ) {
-      tm.ok( "OperationNotSupportedException thrown." );
+
+    private PlatformServices getServices() {
+        CloudProvider provider = tm.getProvider();
+        return provider.getPlatformServices();
     }
-  }
-
-  private long getRandomId() {
-    return System.currentTimeMillis() % 10000;
-  }
-
-  private void assertTopic( Topic topic ) {
-    assertNotNull( topic );
-
-    assertNotNull( topic.getProviderTopicId() );
-  }
-
-  private PushNotificationSupport getSupport() {
-    PlatformServices services = getServices();
-
-    if ( services != null ) {
-      return services.getPushNotificationSupport();
-    }
-    return null;
-  }
-
-  private PlatformServices getServices() {
-    CloudProvider provider = tm.getProvider();
-    return provider.getPlatformServices();
-  }
 
 }
