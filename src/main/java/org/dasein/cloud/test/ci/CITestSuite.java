@@ -20,15 +20,6 @@
 package org.dasein.cloud.test.ci;
 
 import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.compute.StatefulImageTests;
-import org.dasein.cloud.test.compute.StatefulSnapshotTests;
-import org.dasein.cloud.test.compute.StatefulVMTests;
-import org.dasein.cloud.test.compute.StatefulVolumeTests;
-import org.dasein.cloud.test.compute.StatelessImageTests;
-import org.dasein.cloud.test.compute.StatelessSnapshotTests;
-import org.dasein.cloud.test.compute.StatelessVMMonitoringTests;
-import org.dasein.cloud.test.compute.StatelessVMTests;
-import org.dasein.cloud.test.compute.StatelessVolumeTests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;

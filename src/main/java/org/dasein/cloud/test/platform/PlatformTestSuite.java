@@ -43,6 +43,7 @@ import org.junit.runners.Suite;
         StatelessNotificationsTests.class,
         StatelessMQTests.class
 })
+
 public class PlatformTestSuite {
   @BeforeClass
   static public void setup() {
