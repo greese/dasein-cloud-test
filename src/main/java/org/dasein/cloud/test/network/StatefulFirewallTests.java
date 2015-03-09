@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -72,6 +72,7 @@ public class StatefulFirewallTests {
     private String testFirewallId;
     private String testRuleId;
     private String testVLANId;
+    private String testDataCenterId;
 
     public StatefulFirewallTests() {
     }
@@ -81,12 +82,17 @@ public class StatefulFirewallTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
+        try {
+            testDataCenterId = System.getProperty("test.dataCenter");
+        } catch( Throwable ignore ) {
+            // ignore
+        }
 
-        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") || 
-            name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule")) {
+        if( name.getMethodName().equals("createVLANFirewall") || name.getMethodName().equals("createVLANFirewallWithRule") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
         }
-        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection")) {
+        else if( name.getMethodName().equals("launchVM") || name.getMethodName().equals("verifyDuplicateRejection") ||
+                name.getMethodName().equals("createVLANFirewallAndAddAndRemoveIcmpRule") ) {
             ComputeServices services = tm.getProvider().getComputeServices();
             VirtualMachineSupport support;
 
@@ -951,29 +957,32 @@ public class StatefulFirewallTests {
 
         if( services != null ) {
             FirewallSupport support = services.getFirewallSupport();
-            String result = null;
-            try {
-                result = support.authorize("fw-" + testVLANId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
-                assertNotNull("failed to generate a vlan ICMP rule", result);
-            } catch (Exception ex) {
-                fail("authorize returned exception " + ex);
-            }
-
-            Collection<FirewallRule> rules = support.getRules("fw-" + testVLANId);
-
-            for (FirewallRule rule : rules) {
-                tm.out("fw-" + testVLANId + " - " + rule.getProtocol());
-                try {
-                    support.revoke(rule.getProviderRuleId());
-                } catch (Exception ex) {
-                    fail("revoke returned  exception " + ex);
+            if( testFirewallId == null ) {
+                if( !support.getCapabilities().supportsFirewallCreation(true) ) {
+                    tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
+                } else {
+                    fail("Firewall creation is supported, however no test firewall was found");
                 }
+                return;
             }
-            rules = support.getRules("fw-" + testVLANId);
-            assertTrue("Just deleted all firewall rules. why are rules still present!", rules.isEmpty());
+
+            try {
+                String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
+                assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
+            }
+            finally {
+                Iterable<FirewallRule> rules = support.getRules(testFirewallId);
+
+                for( FirewallRule rule : rules ) {
+                    tm.out(testFirewallId + " - " + rule.getProtocol());
+                    support.revoke(rule.getProviderRuleId());
+                }
+                rules = support.getRules(testFirewallId);
+                assertFalse("The rules have not been deleted", rules.iterator().hasNext());
+            }
         }
     }
-    
+
     @Test
     public void verifyDuplicateRejection() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -984,24 +993,33 @@ public class StatefulFirewallTests {
                 tm.ok("Firewalls are not supported in " + tm.getProvider().getCloudName());
                 return;
             }
+            if( testFirewallId == null ) {
+                if( !support.getCapabilities().supportsFirewallCreation(true) ) {
+                    tm.warn("Could not create a test firewall to verify rule adding, so this test is definitely not valid");
+                } else {
+                    fail("Firewall creation is supported, however no test firewall was found");
+                }
+                return;
+            }
             try {
+                //testFirewallId = "fw-" + testVLANId; // Hack to enable GCE to use this test, leave comment in
                 String ruleId = support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                 assertNotNull("Failed to generate a VLAN ICMP rule", ruleId);
                 try {
                     support.authorize(testFirewallId, "0.0.0.0/0", Protocol.ICMP, -1, -1);
                     fail("should have generated a duplicate rule exception.");
-                }catch ( CloudException ex) {
+                } catch ( CloudException ex) {
                     tm.ok("Exception occurred as expected when trying to create a duplicate rule: " + ex.getMessage());
                 }
             }
             finally {
-                Collection<FirewallRule> rules = support.getRules(testFirewallId);
+                Iterable<FirewallRule> rules = support.getRules(testFirewallId);
                 for( FirewallRule rule : rules ) {
                     tm.out(testFirewallId + " - " + rule.getProtocol());
                     support.revoke(rule.getProviderRuleId());
                 }
                 rules = support.getRules(testFirewallId);
-                assertTrue("The rules have not been deleted", rules.isEmpty());
+                assertFalse("The rules have not been deleted", rules.iterator().hasNext());
             }
         }
     }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -69,6 +69,7 @@ public class ComputeResources {
     private Platform testImagePlatform;
     private String   testVMProductId;
     private String   testVolumeProductId;
+    private String   testImageId;
 
     public ComputeResources( @Nonnull CloudProvider provider ) {
         this.provider = provider;
@@ -125,8 +126,18 @@ public class ComputeResources {
                 for( Map.Entry<String, String> entry : testVMs.entrySet() ) {
                     if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
                         try {
-                            VirtualMachine vm = vmSupport.getVirtualMachine(entry.getValue());
-
+                            // Sometimes VMs don't have enough time to start before they are terminated
+                            // by tests, this causes stuck unterminated VMs. Let's try to take care of
+                            // that:
+                            long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+                            VirtualMachine vm = null;
+                            while(System.currentTimeMillis() < timeout) {
+                                vm = vmSupport.getVirtualMachine(entry.getValue());
+                                if( vm == null || !VmState.PENDING.equals(vm.getCurrentState()) ) {
+                                    break;
+                                }
+                                Thread.sleep(10000);
+                            };
                             if( vm != null ) {
                                 vmSupport.terminate(entry.getValue());
                                 count++;
@@ -624,11 +635,9 @@ public class ComputeResources {
     }
 
     public void init() {
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        } catch (Throwable ignore) {
-            // ignore
-        }
+        testDataCenterId = System.getProperty("test.dataCenter", null);
+        testImageId = System.getProperty("test.machineImage", null);
+
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -641,8 +650,6 @@ public class ComputeResources {
             }
         }
 
-        String dataCenterId = System.getProperty("test.dataCenter");
-
         if( computeServices != null ) {
             Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
@@ -652,8 +659,11 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDatacenterId(dataCenterId);
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
                             for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
+                                if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
+                                    continue;
+                                }
                                 if( defaultProduct == null ) {
                                     defaultProduct = product;
                                 }
@@ -698,13 +708,30 @@ public class ComputeResources {
                 } catch( Throwable ignore ) {
                     // ignore
                 }
-
+                // let's make sure we find the test image (if required via "test.machineImage" env parameter)
+                if( testImageId != null ) {
+                    try {
+                        MachineImage image = imageSupport.getImage(testImageId);
+                        if( image != null && MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
+                            testImagePlatform = image.getPlatform();
+                            testMachineImages.put(DaseinTestManager.STATELESS, testImageId);
+                            VirtualMachineProduct product = productMap.get(image.getArchitecture());
+                            if( product != null ) {
+                                testVMProductId = product.getProviderProductId();
+                            }
+                            if( testDataCenterId == null ) {
+                                testDataCenterId = image.getProviderDataCenterId();
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) { }
+                }
                 for( Architecture architecture : architectures ) {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
                     if( currentProduct != null ) {
                         // Let WINDOWS come first for a greater chance of StatelessVMTests#getVMPassword to work
-                        for( Platform platform : new Platform[]{Platform.WINDOWS, Platform.UBUNTU, Platform.COREOS, Platform.CENT_OS, Platform.RHEL} ) {
+                        for( Platform platform : new Platform[]{Platform.UBUNTU, Platform.WINDOWS, Platform.COREOS, Platform.CENT_OS, Platform.RHEL} ) {
                             ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
 
                             try {
@@ -782,7 +809,7 @@ public class ComputeResources {
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
+                        if (( testDataCenterId == null || vm.getProviderDataCenterId().equals(testDataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
@@ -796,7 +823,7 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
+                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
@@ -1175,7 +1202,7 @@ public class ComputeResources {
         metadata.put("dsnNullTag", null);
         metadata.put("dsnEmptyTag", "");
         metadata.put("dsnExtraTag", "extra");
-        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics().withMetaData(metadata), preferredDataCenter);
+        return provisionVM(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics().withMetaData(metadata).withUserData("#!/bin/bash\necho \"dasein\""), preferredDataCenter);
     }
 
     public @Nonnull Iterable<String> provisionManyVMs( @Nonnull VirtualMachineSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nonnull String hostPrefix, @Nullable String preferredDataCenter, int count ) throws CloudException, InternalException {

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -31,6 +31,7 @@ import org.junit.rules.TestName;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
@@ -66,6 +67,7 @@ public class StatelessVMTests {
     private String testVMId;
     private String testImageId;
     private String testProductId;
+    private String testDataCenterId = null;
 
     public StatelessVMTests() {
     }
@@ -74,7 +76,7 @@ public class StatelessVMTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, false, null);
+        testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, true, testDataCenterId);
         testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
         testProductId = tm.getTestVMProductId();
     }
@@ -187,6 +189,33 @@ public class StatelessVMTests {
             }
             else {
                 tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void deprecatedCapabilities() throws CloudException, InternalException {
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                VMScalingCapabilities capabilities = support.getCapabilities().getVerticalScalingCapabilities();
+                if( capabilities != null ) {
+                    boolean oldCapabilitiesEnabled = !capabilities.getAlterVmForNewVolume().equals(Requirement.NONE) || !capabilities.getAlterVmForVolumeChange().equals(Requirement.NONE);
+
+                    assertFalse("The capabilities indicate that the deprecated volume scaling is supported, however the new product scaling capabilities are not supported, please update your driver", ( !capabilities.isSupportsProductSizeChanges() && !capabilities.isSupportsProductChanges() ) && oldCapabilitiesEnabled);
+                }
+                else {
+                    tm.ok("No VM vertical scaling capabilities in this cloud");
+                }
+            }
+            else {
+                tm.ok("No VM support in this cloud");
             }
         }
         else {
@@ -381,6 +410,42 @@ public class StatelessVMTests {
                 }
                 else if( support.isSubscribed() ) {
                     fail("No test virtual machine exists and thus no test could be run for getVMPassword");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    /**
+     * This test should performed outside virtualMachineContent() test as getUserData()
+     * is a separate call.
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
+    @Test
+    public void getVMUserData() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVMId != null ) {
+                    String data = support.getUserData(testVMId);
+
+                    tm.out("User data for vm: ", data);
+                    assertNotNull("Did not find the user-data for test virtual machine " + testVMId, data);
+                    assertTrue("User-data must contain 'echo \"dasein\"'", data.contains("echo \"dasein\""));
+                }
+                else if( support.isSubscribed() ) {
+                    fail("No test virtual machine exists and thus no test could be run for getVMUserData");
                 }
             }
             else {
@@ -589,9 +654,23 @@ public class StatelessVMTests {
         tm.out("Total SpotPrice Count", prices);
 
         if( count > 0 ) {
-            SpotPriceHistory sph = histories.iterator().next();
-            VirtualMachineProduct prod = support.getProduct(sph.getProductId());
-            assertNotNull("SpotPriceHistory belongs to an unknown product (" + sph.getProductId() + ")", prod);
+            Iterator<SpotPriceHistory> it = histories.iterator();
+            VirtualMachineProduct prod = null;
+            Map<String, String> triedProducts = new HashMap<String, String>();
+            while( it.hasNext() ) {
+                SpotPriceHistory sph = it.next();
+                if( triedProducts.get(sph.getProductId()) != null ) {
+                    continue;
+                }
+                prod = support.getProduct(sph.getProductId());
+                if( prod != null ) {
+                    break;
+                }
+                else {
+                    triedProducts.put(sph.getProductId(), sph.getProductId());
+                }
+            }
+            assertNotNull(String.format("All %d SpotPriceHistory items were for an unknown product %s", count, Arrays.toString(triedProducts.keySet().toArray(new String[triedProducts.size()]))), prod);
         }
         else {
             tm.warn("SpotPriceHistory is empty, the test is likely INVALID");
@@ -770,13 +849,19 @@ public class StatelessVMTests {
         assertEquals("Found Spot VM request indicates an incorrect product", testProductId, verifyRequest.getProductId());
         assertEquals("Found Spot VM request indicates incorrect valid-from time", validFrom, verifyRequest.getValidFromTimestamp());
         assertEquals("Found Spot VM request indicates incorrect valid-until time", validUntil, verifyRequest.getValidUntilTimestamp());
-        assertThat("Found Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
-        assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+        // only verify the fulfillment if the vm has indeed been fulfilled
+        if( launchedVm != null ) {
+            assertThat("Found fulfilled Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), greaterThan(0L));
+            assertEquals("Found Spot VM request indicates an incorrect datacenter", launchedVm.getProviderDataCenterId(), verifyRequest.getFulfillmentDataCenterId());
+        } else {
+            assertThat("Found unfulfilled Spot VM request indicates an incorrect fulfillment time", verifyRequest.getFulfillmentTimestamp(), equalTo(0L));
+
+        }
 
         vmSupport.cancelSpotVirtualMachineRequest(request.getProviderSpotVmRequestId());
         if( launchedVm != null ) {
             // TODO: add vm instance to TestManager so it would clean up instead?
-            vmSupport.terminate(launchedVm.getName());
+            vmSupport.terminate(launchedVm.getProviderVirtualMachineId());
         }
     }
 

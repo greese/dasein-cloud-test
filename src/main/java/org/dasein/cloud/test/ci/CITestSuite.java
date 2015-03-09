@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -40,7 +40,8 @@ import org.junit.runners.Suite;
  */
 @RunWith(Suite.class)
 @Suite.SuiteClasses({
-        StatelessTopologyTests.class
+        StatelessTopologyTests.class,
+        StatefulTopologyTests.class
 })
 public class CITestSuite {
     @BeforeClass

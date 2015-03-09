@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -251,10 +251,23 @@ public class NetworkResources {
 
                                 try {
                                     if( lb != null ) {
-                                        lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        // allow five minutes for the load balancer to stop pending
+                                        long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+                                        while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                                                timeout > System.currentTimeMillis() ) {
+                                            Thread.sleep(10000);
+                                            lb = lbSupport.getLoadBalancer(entry.getValue());
+                                        }
+                                        // no point wasting API calls if the load balancer is already gone
+                                        if( !LoadBalancerState.TERMINATED.equals(lb.getCurrentState()) ) {
+                                            lbSupport.removeLoadBalancer(lb.getProviderLoadBalancerId());
+                                        }
                                         
                                         try {
-                                        	lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convienence.
+                                            // only delete LBHC if it is separate from an LB
+                                            if( !Requirement.REQUIRED.equals(lbSupport.getCapabilities().identifyHealthCheckOnCreateRequirement()) ) {
+                                                lbSupport.removeLoadBalancerHealthCheck(lb.getProviderLoadBalancerId()); // named LBHC same as LB for convenience.
+                                            }
                                         } catch (Throwable t ) { /* ignore if not supported */ }
                                         
                                         count++;
@@ -1629,6 +1642,12 @@ public class NetworkResources {
         String name = ( namePrefix == null ? "dsnlb" + random.nextInt(10000) : namePrefix + random.nextInt(10000) );
         String description = "Dasein Cloud LB Test";
         LoadBalancerCreateOptions options;
+        String vlanId = null;
+
+        // override healthcheck settings if cloud requires it
+        if( support.getCapabilities().identifyHealthCheckOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            withHealthCheck = true;
+        }
 
         if( !support.getCapabilities().isAddressAssignedByProvider() && support.getCapabilities().getAddressType().equals(LoadBalancerAddressType.IP) ) {
             IpAddressSupport ipSupport = services.getIpAddressSupport();
@@ -1653,8 +1672,8 @@ public class NetworkResources {
                                 address = ipSupport.getIpAddress(ipSupport.request(version));
                             }
                             else {
-                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version,
-                                        getTestVLANId(label, true, null)));
+                                vlanId = getTestVLANId(label, true, null);
+                                address = ipSupport.getIpAddress(ipSupport.requestForVLAN(version, vlanId));
                             }
                             if( address != null ) {
                                 break;
@@ -1722,7 +1741,9 @@ public class NetworkResources {
                     if( !internal ) {
                         server1 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, null);
                     } else {
-                        String vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                        if( vlanId == null ) {
+                            vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+                        }
                         try {
                             Thread.sleep(750L);
                         } catch( InterruptedException ignore ) {
@@ -1761,21 +1782,19 @@ public class NetworkResources {
                     }
                     String server2 = null;
                     if( !internal ) {
-                        @SuppressWarnings("ConstantConditions") Iterator<DataCenter> it = provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()).iterator();
                         String targetDC = dcIds[0];
-
-                        if( it.hasNext() ) {
-                            String dcId = it.next().getProviderDataCenterId();
-
-                            if( !dcId.equals(dcIds[0]) ) {
-                                dcIds[1] = dcId;
-                                targetDC = dcId;
+                        // select another datacenter for the second vm
+                        for( DataCenter dc : provider.getDataCenterServices().listDataCenters(provider.getContext().getRegionId()) ) {
+                            if( !dc.getProviderDataCenterId().equals(targetDC) ) {
+                                targetDC = dcIds[1] = dc.getProviderDataCenterId();
+                                break;
                             }
                         }
                         server2 = c.getTestVmId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, targetDC);
                     }
 
-                    if( server1 != null && server2 != null ) {
+                    // only launch with two vms if they are indeed different
+                    if( server1 != null && server2 != null && !server1.equals(server2)) {
                         options.withVirtualMachines(server1, server2);
                     } else if( server1 != null ) {
                         options.withVirtualMachines(server1);
@@ -1809,11 +1828,12 @@ public class NetworkResources {
             		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
         }
 
-        if( withHealthCheck ) {
-            options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    null, null, null, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
+        if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+            if( vlanId == null ) {
+                vlanId = getTestVLANId(DaseinTestManager.STATEFUL, true, null);
+            }
+            options.withVlanId(vlanId);
         }
-
         String id = options.build(provider);
 
         synchronized ( testLBs ) {

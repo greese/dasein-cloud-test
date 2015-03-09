@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -19,17 +19,24 @@
 
 package org.dasein.cloud.test.platform;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.Set;
-
 import junit.framework.Assert;
-
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.DayOfWeek;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.TimeWindow;
-import org.dasein.cloud.platform.*;
+import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.Subnet;
+import org.dasein.cloud.network.VLAN;
+import org.dasein.cloud.platform.Database;
+import org.dasein.cloud.platform.DatabaseEngine;
+import org.dasein.cloud.platform.DatabaseState;
+import org.dasein.cloud.platform.PlatformServices;
+import org.dasein.cloud.platform.RelationalDatabaseSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
 import org.junit.After;
@@ -40,12 +47,22 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
+import java.net.Socket;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static junit.framework.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static junit.framework.Assert.assertFalse;
+import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -81,7 +98,9 @@ public class StatefulRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        if ( name.getMethodName().equals("listAccess")) {
+        if ( name.getMethodName().equals("listAccess") ||
+                name.getMethodName().equals("alterDatabase") ||
+                name.getMethodName().equals("checkAccess")) {
             testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
         }
     }
@@ -112,11 +131,8 @@ public class StatefulRDBMSTests {
             assertTrue("Database engine " + engine + " is not known.", engineSet.contains(engine));
 
             Iterable<String> versions = support.getSupportedVersions(engine);
-            int versionCount = 0;
-            for (String version : versions) 
-                versionCount++;
 
-            assertTrue("at least one version of a database engine is required, yet none were found." , (versionCount > 0));
+            assertTrue("At least one version of a database engine is required, yet none were found." , versions.iterator().hasNext());
         }
 
     }
@@ -146,10 +162,12 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        if (true == support.getCapabilities().supportsDeleteBackup()) {
+        if( support.getCapabilities().supportsDeleteBackup() ) {
             fail("Please implement deleteBackup test.");
-        } else
+        }
+        else {
             tm.ok("Platform does not support deleting of individual database backups.");
+        }
     }
 
     /** 
@@ -177,10 +195,12 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        if (true == support.getCapabilities().supportsDemandBackups()) {
+        if( support.getCapabilities().supportsDemandBackups() ) {
             fail("Please implement createBackup test.");
-        } else
+        }
+        else {
             tm.ok("Platform does not support manually creating of individual database backups.");
+        }
     }
 
     @Test
@@ -211,11 +231,36 @@ public class StatefulRDBMSTests {
         }
     }
 
-    /*
-     * Test will fail if run with other tests due to removeDatabase nuking the test db before it gets to this test. 
+    private @Nullable Database waitForDatabaseState(@Nonnull String dbId, int waitMinutes, @Nonnull DatabaseState state) throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            return null;
+        }
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            return null;
+        }
+        long timeout = System.currentTimeMillis() + waitMinutes*60*1000;
+        while( timeout > System.currentTimeMillis() ) {
+            Database instance = support.getDatabase(dbId);
+            if( instance != null && instance.getCurrentState().equals(state) ) {
+                return instance;
+            }
+            try {
+                Thread.sleep(20000);
+            }
+            catch( InterruptedException ignore ) { }
+        }
+        return null;
+    }
+
+    /**
+     * Authorize our IP and verify we can connect
+     * @throws CloudException
+     * @throws InternalException
      */
     @Test
-    public void listAccess() throws CloudException, InternalException {
+    public void checkAccess() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
         if( services == null ) {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
@@ -228,33 +273,154 @@ public class StatefulRDBMSTests {
             return;
         }
 
-        Iterable<String> access = support.listAccess(testDatabaseId);
-        int count = 0;
-        for (String element: access)
-            count++;
-        assertTrue("Count was not zero", (count == 0));
+        String ourIp = getOurIp();
+        if( ourIp == null ) {
+            tm.warn("Unable to find out our IP, test can't continue");
+            return;
+        }
 
-        support.addAccess(testDatabaseId, "qa-project-2");
-        support.addAccess(testDatabaseId, "72.197.190.94");
-        support.addAccess(testDatabaseId, "72.197.190.0/24");
-
-        count = 0;
-        access = support.listAccess(testDatabaseId);
-        for (String element: access)
-            count++;
-        assertTrue("Count was not three", (count == 3));
-
-        support.revokeAccess(testDatabaseId, "qa-project-2");
-        support.revokeAccess(testDatabaseId, "72.197.190.94");
-        support.revokeAccess(testDatabaseId, "72.197.190.0/24");
-
-        count = 0;
-        access = support.listAccess(testDatabaseId);
-        for (String element: access)
-            count++;
-        assertTrue("Count was not zero", (count == 0));
+        Database instance = waitForDatabaseState(testDatabaseId, 15, DatabaseState.AVAILABLE);
+        if( instance == null ) {
+            fail("The database instance is not in available state to run this test");
+        }
+        assertFalse("Was able to connect to the database server before access was granted, something is really really wrong", checkConnection(instance.getHostName(), instance.getHostPort()));
+        support.addAccess(testDatabaseId, ourIp + "/32");
+        assertTrue("Was unable to connect to the database server after access was granted", checkConnection(instance.getHostName(), instance.getHostPort()));
+        support.revokeAccess(testDatabaseId, ourIp + "/32");
+        assertFalse("Was able to connect to the database server after access was revoked", checkConnection(instance.getHostName(), instance.getHostPort()));
     }
 
+    /**
+     * Check a TCP connection can be established to given host:port
+     * @param host
+     * @param port
+     * @return true if can connect
+     */
+    // TODO(stas): move out to a util class
+    private boolean checkConnection(String host, int port) {
+        try {
+            Socket socket = new Socket(host, port);
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            int data = in.read(); // -1 no data to read. 
+            socket.close();
+            return (data != -1);
+        }
+        catch( IOException e ) {
+        }
+        return false;
+    }
+
+    /**
+     * Get our external IP address
+     * @return null if there was a problem
+     */
+    // TODO(stas): move out to a util class
+    private @Nullable String getOurIp() {
+        HttpClient client = new DefaultHttpClient();
+        HttpResponse response = null;
+        try {
+            response = client.execute(new HttpGet("http://ipinfo.io/ip"));
+            if( response.getStatusLine().getStatusCode() == 200 ) {
+                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                return reader.readLine();
+            }
+        }
+        catch( IOException e ) {
+            e.printStackTrace();
+        }
+        finally {
+            if( response != null ) {
+                try {
+                    response.getEntity().getContent().close();
+                }
+                catch( IOException ignore ) {
+                }
+            }
+        }
+        return null;
+    }
+    /*
+     * Test if all CIDR ranges are set and revoked correctly
+     */
+    @Test
+    public void listAccess() throws CloudException, InternalException {
+        PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        RelationalDatabaseSupport support = services.getRelationalDatabaseSupport();
+        if( support == null ) {
+            tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
+            return;
+        }
+
+        Database instance = waitForDatabaseState(testDatabaseId, 15, DatabaseState.AVAILABLE);
+        if( instance == null ) {
+            fail("The database instance is not in available state to run this test");
+        }
+
+        // Let's see how many ranges did the database have by default
+        Iterable<String> ranges = support.listAccess(testDatabaseId);
+        int originalRanges = 0;
+        for (String element: ranges) {
+            originalRanges++;
+        }
+        List<String> testRanges = new ArrayList<String>();
+
+        // First check if we can find any subnets, so we can authorize against their CIDRs
+        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+        if( networkServices != null && networkServices.hasVlanSupport() &&
+                !Requirement.NONE.equals(
+                        networkServices.getVlanSupport().getCapabilities().getSubnetSupport())) {
+            for( VLAN vlan : tm.getProvider().getNetworkServices().getVlanSupport().listVlans() ) {
+                for( Subnet subnet : tm.getProvider().getNetworkServices().getVlanSupport().listSubnets(vlan.getProviderVlanId()) ) {
+                    testRanges.add(subnet.getCidr());
+                }
+            }
+        }
+        // If there's no subnet support (hello, GCE!), try a hardcoded range
+        if( testRanges.isEmpty() ) {
+            tm.warn("Found no subnet ranges to authorize, adding a hardcoded range.");
+            testRanges.add("72.197.190.0/24");
+        }
+        // Authorize our ranges
+        for( String range : testRanges ) {
+            support.addAccess(testDatabaseId, range);
+        }
+
+        // Check if those ranges have been added
+        int count = 0;
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges) {
+            count++;
+        }
+        assertEquals("Resulting CIDR number is incorrect after granting access", originalRanges + testRanges.size(), count);
+
+        // Revoke access for all of our ranges now
+        for( String range : testRanges) {
+            support.revokeAccess(testDatabaseId, range);
+        }
+
+        // Check if all ranges were revoked
+        count = 0;
+        ranges = support.listAccess(testDatabaseId);
+        for (String element: ranges)
+            count++;
+        assertEquals("Resulting CIDR number is incorrect after revoking access", originalRanges, count);
+    }
+
+    /**
+     * This test verifies database modification, however is quite limited in scope as some things are not
+     * feasible to change in an integration testing context (product size, storage size).
+     * We will add configuration modification testing later on as better support for database configuration
+     * is added to core.
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
     @Test
     public void alterDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -269,57 +435,79 @@ public class StatefulRDBMSTests {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        PlatformResources p = DaseinTestManager.getPlatformResources();
 
-        if( p != null ) {
-            Iterable<DatabaseEngine> engines = support.getDatabaseEngines();
-            for (DatabaseEngine dbEngine : engines) {
-                tm.out("testing " + dbEngine.name());
-                String providerDatabaseId = p.provisionRDBMS(support, "provisionKeypair", "dsnrdbms", dbEngine);
+        assertNotNull("Test database instance is not available", testDatabaseId);
 
-                    // this should be updated to exercise all available versions of all available databases.  perhaps even for all available products...
+        Database instance = waitForDatabaseState(testDatabaseId, 12, DatabaseState.AVAILABLE);
 
+        // TODO: ideally we want to find the next cheap product and try to change to that, but unfortunately it
+        // fails for AWS (no capacity in availability zone, which is totally weird but nothing we can do)
+//        DatabaseEngine engine = instance.getEngine();
+//        DatabaseProduct currentProduct = null;
+//        Iterable<DatabaseProduct> products = support.listDatabaseProducts(engine);
+//        // TODO: we shouldn't be doing this, a Database instance should really include a DatabaseProduct, not a size string
+//        for( DatabaseProduct product : products ) {
+//            if( product.getProductSize().equals(instance.getProductSize()) ) {
+//                currentProduct = product;
+//                break;
+//            }
+//        }
+//        DatabaseProduct nextCheapestProduct = getNextCheapestProduct(products, currentProduct);
+//
+        String productSize = null;
+//        if( nextCheapestProduct == null ) {
+//            productSize = instance.getProductSize();
+//            tm.warn("No other product sizes found, not changing the product size ("+productSize+")");
+//        }
+//        else {
+//            productSize = nextCheapestProduct.getProductSize();
+//        }
 
-                tm.out("New Database", providerDatabaseId);
-                assertNotNull("No database was created by this test", providerDatabaseId);
-                String productSize = "d1";
-                int storageInGigabytes = 250;
-                boolean applyImmediately = true;
-                String configurationId = "new-configuration-id";
-                String newAdminUser = "dcm";
-                String newAdminPassword = "notasecret";
-                int newPort = 9876;
-                int snapshotRetentionInDays = 5;
-                TimeWindow preferredMaintenanceWindow = new TimeWindow();
-                preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
-                preferredMaintenanceWindow.setEndHour(5);
-                preferredMaintenanceWindow.setEndMinute(0);
-                preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
-                preferredMaintenanceWindow.setStartHour(3);
-                preferredMaintenanceWindow.setStartMinute(0);
-                TimeWindow preferredBackupWindow = preferredMaintenanceWindow;
-                support.alterDatabase(providerDatabaseId, applyImmediately, productSize, storageInGigabytes, configurationId, newAdminUser, newAdminPassword, newPort, snapshotRetentionInDays, preferredMaintenanceWindow, preferredBackupWindow);
+        // int storageInGigabytes = (int) (instance.getAllocatedStorageInGb() * 1.5); // must be at least 10% higher for AWS
+        boolean applyImmediately = true;
+        String configurationId = null; // TODO: can't pass arbitrary ids here // "new-configuration-id");
+        String newAdminUser = "dasein";
+        String newAdminPassword = "notasecret";
+        int newPort = instance.getHostPort() + 1;
+        int snapshotRetentionInDays = 5;
+        TimeWindow preferredMaintenanceWindow = new TimeWindow();
+        preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setStartHour(3);
+        preferredMaintenanceWindow.setStartMinute(0);
+        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setEndHour(5);
+        preferredMaintenanceWindow.setEndMinute(0);
+        TimeWindow preferredBackupWindow = new TimeWindow();
+        preferredBackupWindow.setStartHour(1);
+        preferredBackupWindow.setStartMinute(0);
+        preferredBackupWindow.setEndHour(2);
+        preferredBackupWindow.setEndMinute(45);
+        support.alterDatabase(testDatabaseId, applyImmediately, productSize, 0, configurationId, newAdminUser, newAdminPassword, newPort, snapshotRetentionInDays, preferredMaintenanceWindow, preferredBackupWindow);
 
-                Database database = support.getDatabase(providerDatabaseId);
-                Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
-                Assert.assertEquals(storageInGigabytes, database.getAllocatedStorageInGb());
-                Assert.assertEquals(configurationId, database.getConfiguration());
-                if (support.getCapabilities().supportsMaintenanceWindows()) {
-                    Assert.assertEquals(preferredMaintenanceWindow, database.getMaintenanceWindow());
-                }
-
-                //Assert.assertEquals(newAdminUser, database.getAdminUser());
-                //Assert.assertEquals(newPort, database.getHostPort());
-
-                tm.ok("alterDatabase appears fine");
-            }
+        Database database = support.getDatabase(testDatabaseId);
+//        Assert.assertEquals(productSize.toLowerCase(), database.getProductSize().toLowerCase());
+//        Assert.assertEquals("Allocated storage has not been updated", storageInGigabytes, database.getAllocatedStorageInGb());
+//        Assert.assertEquals(configurationId, database.getConfiguration());
+        if (support.getCapabilities().supportsMaintenanceWindows()) {
+            // TODO: TimeWindow should implement #equals, so for now we'll use strings :-(
+            Assert.assertEquals("Preferred maintenance window has not been updated", preferredMaintenanceWindow.toString(), database.getMaintenanceWindow().toString());
         }
-        else {
-            fail("No platform resources were initialized for the test run");
-        }
+        // TODO: TimeWindow should implement #equals, so for now we'll use strings :-(
+        assertEquals("Preferred backup window has not been updated", preferredBackupWindow.toString(), database.getBackupWindow().toString());
+
+        //Assert.assertEquals(newAdminUser, database.getAdminUser());
+        //Assert.assertEquals(newPort, database.getHostPort());
+
+        tm.ok("alterDatabase appears fine");
     }
 
-    @Test
+    /**
+     * FIXME: Stas commented this test out as it's unreliable in AWS. Not all products of all versions can be created
+     * successfully in a test context, which doesn't mean the implementation is wrong. We should think how to improve
+     * this test. Also we don't need to test against all combinations of all engines: we are testing the API, not the
+     * cloud itself.
+     */
+//    @Test DISABLED
     public void createDatabaseMultiple() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
@@ -355,6 +543,12 @@ public class StatefulRDBMSTests {
     }
 
 
+    /**
+     * This test will only execute where Oracle SE1 is available
+     *
+     * @throws CloudException
+     * @throws InternalException
+     */
     @Test
     public void createOracleDatabase() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -381,9 +575,9 @@ public class StatefulRDBMSTests {
             tm.ok("Oracle doesn't seem to be supported by " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
         }
-        String dbName = "dsnora" + (System.currentTimeMillis()%10000);
+        String dbName = "dsnora" + ( System.currentTimeMillis() % 10000 );
         String expectedDbName = dbName.toUpperCase().substring(0, 8);
-        String id = support.createFromScratch(dbName, PlatformResources.getCheapestProduct(support, oracleEngine), null, "dasein", PlatformResources.randomPassword(), 3000);
+        String id = support.createFromScratch(dbName, PlatformResources.getCheapestProduct(support, oracleEngine, null), null, "dasein", PlatformResources.randomPassword(), 3000);
         Database database = support.getDatabase(id);
         removeDatabase(id);
         Assert.assertNotNull("Oracle database has not been created", database);
@@ -420,7 +614,7 @@ public class StatefulRDBMSTests {
         removeDatabase(id);
     }
 
-    private void removeDatabase(String id) throws CloudException, InternalException {
+    private void removeDatabase( String id ) throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
 
         if( services == null ) {
@@ -434,24 +628,30 @@ public class StatefulRDBMSTests {
             return;
         }
         if( id != null ) {
-            long timeout = System.currentTimeMillis() + (CalendarWrapper.MINUTE*20L);
+            long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
             Database db = support.getDatabase(id);
 
             while( timeout > System.currentTimeMillis() ) {
                 if( canRemove(db) ) {
                     break;
                 }
-                try { Thread.sleep(15000L); }
-                catch( InterruptedException ignore ) { }
-                try { db = support.getDatabase(db.getProviderDatabaseId()); }
-                catch( Throwable ignore ) { }
+                try {
+                    Thread.sleep(15000L);
+                }
+                catch( InterruptedException ignore ) {
+                }
+                try {
+                    db = support.getDatabase(db.getProviderDatabaseId());
+                }
+                catch( Throwable ignore ) {
+                }
             }
             assertNotNull("The test database is not found", db);
             tm.out("Before", db.getCurrentState());
 
             support.removeDatabase(id);
             db = support.getDatabase(id);
-            DatabaseState s = (db == null ? DatabaseState.DELETED : db.getCurrentState());
+            DatabaseState s = ( db == null ? DatabaseState.DELETED : db.getCurrentState() );
             tm.out("After", s);
             assertTrue("Database state must be one of DELETING or DELETED (or no database found)", s.equals(DatabaseState.DELETED) || s.equals(DatabaseState.DELETING));
         }
@@ -465,13 +665,19 @@ public class StatefulRDBMSTests {
         }
     }
 
-    private boolean canRemove(@Nullable Database db) {
+    private boolean canRemove( @Nullable Database db ) {
         if( db == null ) {
             return true;
         }
         switch( db.getCurrentState() ) {
-            case DELETING: case DELETED: case AVAILABLE: case STORAGE_FULL: case FAILED: return true;
-            default: return false;
+            case DELETING:
+            case DELETED:
+            case AVAILABLE:
+            case STORAGE_FULL:
+            case FAILED:
+                return true;
+            default:
+                return false;
         }
     }
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -33,10 +33,12 @@ import static org.junit.Assume.assumeTrue;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.OperationNotSupportedException;
+import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.network.HealthCheckOptions;
@@ -87,8 +89,10 @@ public class StatefulLoadBalancerTests {
     private String testLoadBalancerId;
     private String testVirtualMachineId;
     private String testSSLCertificateName;
+    private String testVLANId;
 
-    public StatefulLoadBalancerTests() { }
+    public StatefulLoadBalancerTests() {
+    }
 
     @Before
     public void before() {
@@ -110,10 +114,10 @@ public class StatefulLoadBalancerTests {
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, false);
         }
-        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck")) {
+        else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
         }
-        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck")) {
+        else if( name.getMethodName().equals("createLoadBalancerWithHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("removeIP") ) {
@@ -151,12 +155,15 @@ public class StatefulLoadBalancerTests {
                     String[] ids = lb.getProviderDataCenterIds();
 
                     boolean found = false;
-                    for( String dataCenterId : ids )
-                        if( testDataCenterId.equals(dataCenterId) )
+                    for( String dataCenterId : ids ) {
+                        if( testDataCenterId.equals(dataCenterId) ) {
                             found = true;
-                    if( !found )
+                        }
+                    }
+                    if( !found ) {
                         fail("Failed to find testDataCenterId in the results of lb.getProviderDataCenterIds()");
-                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
+                    }
+                    testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL, testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,true, testDataCenterId);
                 }
             }
             catch( Throwable ignore ) {
@@ -177,10 +184,11 @@ public class StatefulLoadBalancerTests {
                                 LoadBalancer lb = support.getLoadBalancer(testLoadBalancerId);
 
                                 if( lb != null ) {
-                                    ArrayList<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
+                                    List<DataCenter> regionDataCenters = new ArrayList<DataCenter>();
                                     String[] dcs = lb.getProviderDataCenterIds();
-
-                                    regionDataCenters.addAll(tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()));
+                                    for( DataCenter dc : tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()) ) {
+                                        regionDataCenters.add(dc);
+                                    }
 
                                     if( dcs.length >= regionDataCenters.size() ) {
                                         support.removeDataCenters(testLoadBalancerId, dcs[0]);
@@ -278,7 +286,7 @@ public class StatefulLoadBalancerTests {
                     LoadBalancerSupport support = net.getLoadBalancerSupport();
 
                     if( support != null ) {
-                        ArrayList<String> ids = new ArrayList<String>();
+                        List<String> ids = new ArrayList<String>();
 
                         for( LoadBalancerEndpoint endpoint : support.listEndpoints(testLoadBalancerId) ) {
                             if( endpoint.getEndpointType().equals(LbEndpointType.VM) ) {
@@ -376,32 +384,43 @@ public class StatefulLoadBalancerTests {
         if( network == null ) {
             fail("Failed to initialize network capabilities for tests");
         }
-        String name = tm.getUserName() + "-dsncrlbtest";
+        String name = tm.getUserName() + "-dsnlstntest";
         String id = network.provisionLoadBalancer("provision", name, false);
 
         tm.out("New Load Balancer", id);
         assertNotNull("The newly created load balancer ID was null", id);
 
         LoadBalancer lb = support.getLoadBalancer(id);
-        support.removeListeners(lb.getName(), lb.getListeners());
+        LbListener[] origListeners = lb.getListeners();
         assertNotNull("The newly created load balancer is null", lb);
 
-        ArrayList<LbListener> listeners = new ArrayList<LbListener>();
+        List<LbListener> listeners = new ArrayList<LbListener>();
         LbListener l = LbListener.getInstance(80, 80);
         listeners.add(l);
-        l = LbListener.getInstance(90, 90);
+        l = LbListener.getInstance(9090, 9090);
         listeners.add(l);
-        support.addListeners(id, listeners.<LbListener>toArray(new LbListener[listeners.size()]));
+        support.addListeners(id, listeners.toArray(new LbListener[listeners.size()]));
 
-        LbListener[] testListenders = support.getLoadBalancer(id).getListeners();
+        LbListener[] testListeners = support.getLoadBalancer(id).getListeners();
 
-        assertTrue("Expected 2 listeners", (2 == testListenders.length));
-        for (LbListener listener : testListenders)
-            assertTrue((listener.getPublicPort() == 80) || (listener.getPublicPort() == 90));
-
-        support.removeListeners(lb.getName(), testListenders);
-        testListenders = support.getLoadBalancer(id).getListeners();
-        assertTrue("Expected 0 listeners", (0 == testListenders.length));
+        assertTrue("Expected 2 listeners to be added", (2 == (testListeners.length - origListeners.length)));
+        boolean found = false;
+        for (LbListener listener : testListeners) {
+            if( listener.getPublicPort() == 80 ) {
+                found = true;
+            }
+        }
+        assertTrue("Newly added listener with port 80 wasn't found", found);
+        found = false;
+        for (LbListener listener : testListeners) {
+            if( listener.getPublicPort() == 9090 ) {
+                found = true;
+            }
+        }
+        assertTrue("Newly added listener with port 9090 wasn't found", found);
+        support.removeListeners(id, listeners.toArray(new LbListener[listeners.size()]));
+        testListeners = support.getLoadBalancer(id).getListeners();
+        assertTrue("Expected " + origListeners.length + " listeners", ( origListeners.length == testListeners.length ));
     }
 
     @Test
@@ -968,8 +987,30 @@ public class StatefulLoadBalancerTests {
 
             tm.out("Before", (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState());
             assertNotNull("The load balancer is null prior to the test", lb);
-            support.removeLoadBalancer(testLoadBalancerId);
+            // allow five minutes for the load balancer to stop pending
+            long timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                    timeout > System.currentTimeMillis() ) {
+                try {
+                    Thread.sleep(10000);
+                }
+                catch( InterruptedException e ) {}
+                lb = support.getLoadBalancer(testLoadBalancerId);
+            }
+            // no point wasting API calls if the load balancer is already gone
+            if( !LoadBalancerState.TERMINATED.equals(lb.getCurrentState()) ) {
+                support.removeLoadBalancer(lb.getProviderLoadBalancerId());
+            }
             lb = support.getLoadBalancer(testLoadBalancerId);
+            timeout = System.currentTimeMillis() + 5 * 60 * 1000;
+            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+                    timeout > System.currentTimeMillis() ) {
+                try {
+                    Thread.sleep(10000);
+                }
+                catch( InterruptedException e ) {}
+                lb = support.getLoadBalancer(testLoadBalancerId);
+            }
             LoadBalancerState s = (lb == null) ? LoadBalancerState.TERMINATED : lb.getCurrentState();
 
             tm.out("After", s);

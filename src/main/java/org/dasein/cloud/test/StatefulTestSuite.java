@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -19,6 +19,7 @@
 
 package org.dasein.cloud.test;
 
+import org.dasein.cloud.test.ci.StatefulTopologyTests;
 import org.dasein.cloud.test.compute.StatefulImageTests;
 import org.dasein.cloud.test.compute.StatefulSnapshotTests;
 import org.dasein.cloud.test.compute.StatefulVMTests;
@@ -65,7 +66,8 @@ import org.junit.runners.Suite;
         StatefulIAMTests.class,
         StatefulDNSTests.class,
         StatefulCDNTests.class,
-        StatefulPushNotificationTests.class
+        StatefulPushNotificationTests.class,
+        StatefulTopologyTests.class
 })
 public class StatefulTestSuite {
 }

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -20,6 +20,7 @@
 package org.dasein.cloud.test.platform;
 
 import org.apache.log4j.Logger;
+import org.dasein.cloud.CloudErrorType;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
 import org.dasein.cloud.InternalException;
@@ -557,33 +558,21 @@ public class PlatformResources {
         return password;
     }
 
-    public static @Nonnull DatabaseProduct getCheapestProduct(@Nonnull RelationalDatabaseSupport support, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
-        DatabaseProduct product = null;
-
-        if( engine != null ) {
-            for( DatabaseProduct p : support.listDatabaseProducts(engine) ) {
-                if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
-                    // can't use in tests
-                    continue;
-                }
-                if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
-                    product = p;
-                }
-            }
-        }
-        else {
+    public static @Nonnull DatabaseProduct getCheapestProduct(@Nonnull RelationalDatabaseSupport support, @Nullable DatabaseEngine engine, @Nullable DatabaseProduct afterThis) throws CloudException, InternalException {
+        if( engine == null ) {
             for( DatabaseEngine e : support.getDatabaseEngines() ) {
-                for( DatabaseProduct p : support.listDatabaseProducts(e) ) {
-                    if( p.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
-                        // can't use in tests
-                        continue;
-                    }
-                    if( product == null || product.getStandardHourlyRate() > p.getStandardHourlyRate() ) {
-                        product = p;
-                    }
+                if( DatabaseEngine.MYSQL.equals(e) ) {
+                    engine = e;
+                    break;
                 }
             }
         }
+        if( engine == null ) {
+            throw new InternalException("No engine was specified, and the cloud doesn't seem to support MySQL. Getting outta here.");
+        }
+
+        DatabaseProduct product = getNextCheapestProduct(support.listDatabaseProducts(engine), afterThis );
+
         if( product == null ) {
             throw new CloudException("No database product could be identified");
         }
@@ -591,13 +580,58 @@ public class PlatformResources {
         return product;
     }
 
+    private static @Nonnull DatabaseProduct getNextCheapestProduct(@Nonnull Iterable<DatabaseProduct> fromList, @Nullable DatabaseProduct afterThis) {
+        DatabaseProduct minimal = null;
+        for( DatabaseProduct product : fromList ) {
+            if( product.getLicenseModel() == DatabaseLicenseModel.BRING_YOUR_OWN_LICENSE) {
+                // can't use in tests
+                continue;
+            }
+            if( minimal == null ) {
+                if( afterThis == null ) {
+                    minimal = product;
+                }
+                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate() ) {
+                    minimal = product;
+                }
+            }
+            else {
+                if( afterThis == null ) {
+                    if( product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
+                        minimal = product;
+                    }
+                }
+                else if( product.getStandardHourlyRate() > afterThis.getStandardHourlyRate()
+                        && product.getStandardHourlyRate() < minimal.getStandardHourlyRate() ) {
+                    minimal = product;
+                }
+            }
+        }
+        return minimal;
+    }
+
     public @Nonnull String provisionRDBMS(@Nonnull RelationalDatabaseSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable DatabaseEngine engine) throws CloudException, InternalException {
         String version = support.getDefaultVersion(engine);
 
-        String id = support.createFromScratch(namePrefix + (System.currentTimeMillis()%10000), getCheapestProduct(support, engine), version, "dasein", randomPassword(), 3000);
+        String id = null;
+        DatabaseProduct databaseProduct = getCheapestProduct(support, engine, null);
+        do {
+            try {
+                id = support.createFromScratch(namePrefix + ( System.currentTimeMillis() % 10000 ), databaseProduct, version, "dasein", randomPassword(), 3000);
+            } catch (CloudException e) {
+                if( CloudErrorType.CAPACITY.equals(e.getErrorType()) ) {
+                    databaseProduct = getCheapestProduct(support, engine, databaseProduct);
+                }
+                else {
+                    throw e;
+                }
+            }
+        } while( id == null );
+
         if( id == null ) {
             throw new CloudException("No database was generated");
         }
+
         synchronized( testRDBMS ) {
             while( testRDBMS.containsKey(label) ) {
                 label = label + random.nextInt(9);

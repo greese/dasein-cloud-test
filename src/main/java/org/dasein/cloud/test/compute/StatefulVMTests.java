@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -44,7 +44,9 @@ import javax.annotation.Nonnegative;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 import static org.junit.Assert.*;
@@ -711,6 +713,51 @@ public class StatefulVMTests {
     }
 
     @Test
+    public void launchVMWithClientRequestToken() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+        if( !support.isSubscribed() ) {
+            tm.ok("No virtual machine support subscribed for");
+            return;
+        }
+        if( !support.getCapabilities().supportsClientRequestToken() ) {
+            tm.ok("No client request token support in this cloud");
+            return;
+        }
+
+        ComputeResources compute = DaseinTestManager.getComputeResources();
+        if( compute != null ) {
+            String productId = tm.getTestVMProductId();
+            assertNotNull("Unable to identify a VM product for test launch", productId);
+            String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+            assertNotNull("Unable to identify a test image for test launch", imageId);
+            String clientToken = "dsntokn" + ( System.currentTimeMillis() % 10000 );
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, clientToken, "Dasein Client Token Launch " + System.currentTimeMillis(), "Test launch for a VM with a client token");
+            options.withClientRequestToken(clientToken);
+            String id = compute.provisionVM(support, "clientRequestTokenLaunch", options, options.getDataCenterId());
+
+            tm.out("Launched", id);
+            assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+            VirtualMachine virtualMachine = support.getVirtualMachine(id);
+            tm.out("With client request token", virtualMachine.getClientRequestToken());
+            assertNotNull("Could not find the newly created virtual machine", virtualMachine);
+            assertEquals("Expected client request token not found", clientToken, virtualMachine.getClientRequestToken());
+        }
+    }
+
+    @Test
     public void filterVMs() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
@@ -815,77 +862,80 @@ public class StatefulVMTests {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
 
-        if( services != null ) {
-            VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
 
-            if( support != null ) {
-                if( testVmId != null ) {
-                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
 
-                    if( vm != null ) {
-                        if( support.getCapabilities().canAlter(vm.getCurrentState()) ) {
-                            tm.out("Before", vm.getProductId());
-                            String modifiedProductId = null;
-                            String cpuCount = null;
-                            String memory = null;
-                            Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
-                            if (products.iterator().hasNext()) {
-                                VirtualMachineProduct p = products.iterator().next();
-                                modifiedProductId = p.getProviderProductId();
-                                cpuCount = Integer.toString(p.getCpuCount());
-                                memory = Long.toString(p.getRamSize().longValue());
-                            }
-                            if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductSizeChanges()) {
-                                vm = support.alterVirtualMachineSize(testVmId, cpuCount, memory);
-                            }
-                            else if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductChanges()) {
-                                vm = support.alterVirtualMachineProduct(testVmId, modifiedProductId);
-                            }
-                            else {
-                                tm.warn("Unable to determine how vm product scaling is handled in "+tm.getProvider().getCloudName());
-                                tm.warn("Test not attempted");
-                                return;
-                            }
-                            VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
-                            if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
-                                VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
-                                Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
-                                String description = "testVolumeAdd";
-                                VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
-                                volumes[0] = vol;
-                                VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
-                                support.alterVirtualMachine(testVmId, options);
-                            }
-                            else {
-                                support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
-                            }
-                            try {
-                                Thread.sleep(5000L);
-                            } catch (InterruptedException ignore) {
-                            }
-                            if( vm != null ) {
-                                tm.out("After", vm.getProductId());
-                                assertEquals("Current product id does not match the target product id", modifiedProductId, vm.getProductId());
-                            }
-                        }
-                        else {
-                            tm.ok("Alter vm not supported for vm state " + vm.getCurrentState());
-                        }
-                    }
-                    else {
-                        tm.warn("Test virtual machine " + testVmId + " no longer exists");
-                    }
-                }
-                else {
-                    tm.warn("No test virtual machine was found for this test");
-                }
+        if( testVmId == null ) {
+            tm.warn("No test virtual machine was found for this test");
+            return;
+        }
+
+        VirtualMachine vm = support.getVirtualMachine(testVmId);
+        if( vm == null ) {
+            tm.warn("Test virtual machine " + testVmId + " no longer exists");
+        }
+
+        if( !support.getCapabilities().canAlter(vm.getCurrentState()) ) {
+            tm.ok("Alter vm not supported for vm state " + vm.getCurrentState());
+            return;
+        }
+
+        VirtualMachineProduct currentProduct = support.getProduct(vm.getProductId());
+        tm.out("Before", vm.getProductId());
+        VirtualMachineProduct newProduct = null;
+        Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
+        for( VirtualMachineProduct product : support.listProducts(vm.getArchitecture()) ) {
+            if( product.getProviderProductId().equals(currentProduct.getProviderProductId()) ) {
+                continue;
             }
-            else {
-                tm.ok("No virtual machine support in this cloud");
+            if( product.getCpuCount() > currentProduct.getCpuCount() || product.getRamSize().intValue() > currentProduct.getRamSize().intValue() ) {
+                newProduct = product;
+                break;
             }
         }
+        assertNotNull("Was unable to select a new product as alterVm target", newProduct);
+
+        if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductSizeChanges()) {
+            // TODO(stas): Having to pass strings here is not nice, we'll need to fix it in the next release
+            vm = support.alterVirtualMachineSize(testVmId, String.valueOf(newProduct.getCpuCount()), String.valueOf(newProduct.getRamSize().intValue()));
+        }
+        else if (support.getCapabilities().getVerticalScalingCapabilities().isSupportsProductChanges()) {
+            vm = support.alterVirtualMachineProduct(testVmId, newProduct.getProviderProductId());
+        }
         else {
-            tm.ok("No compute services in this cloud");
+            tm.warn("Unable to determine how vm product scaling is handled in "+tm.getProvider().getCloudName());
+            tm.warn("Test not attempted");
+            return;
+        }
+//        VMScalingCapabilities scalingCapabilities = support.getCapabilities().getVerticalScalingCapabilities();
+//        if (scalingCapabilities.getAlterVmForNewVolume().equals(Requirement.REQUIRED)) {
+//            VolumeCreateOptions[] volumes = new VolumeCreateOptions[1];
+//            Storage<Gigabyte> size = new Storage<Gigabyte>(5,Storage.GIGABYTE);
+//            String description = "testVolumeAdd";
+//            VolumeCreateOptions vol = VolumeCreateOptions.getInstance(size,"dsnVolAdd",description);
+//            volumes[0] = vol;
+//            VMScalingOptions options = VMScalingOptions.getInstance(modifiedProductId).withVolumes(volumes);
+//            support.alterVirtualMachine(testVmId, options);
+//        }
+//        else {
+//            support.alterVirtualMachine(testVmId, VMScalingOptions.getInstance(modifiedProductId));
+//        }
+//        try {
+//            Thread.sleep(5000L);
+//        } catch (InterruptedException ignore) {
+//        }
+        if( vm != null ) {
+            tm.out("After", vm.getProductId());
+            // TODO(stas): I'm not sure this will work in case of the arbitrary memory/cpu changes
+            assertEquals("Current product id does not match the target product id", newProduct.getProviderProductId(), vm.getProductId());
         }
     }
 

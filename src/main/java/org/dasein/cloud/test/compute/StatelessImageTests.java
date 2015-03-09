@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2009-2014 Dell, Inc.
+ * Copyright (C) 2009-2015 Dell, Inc.
  * See annotations for authorship information
  *
  * ====================================================================
@@ -94,7 +94,7 @@ public class StatelessImageTests {
         tm.end();
     }
 
-    private void assertImageContent(@Nonnull MachineImage image, @Nullable ImageClass expectedClass) {
+    private void assertImageContent(@Nonnull MachineImage image, @Nullable ImageClass expectedClass, Boolean checkPublic) {
         assertNotNull("The image ID may not be null", image.getProviderMachineImageId());
         assertNotNull("Image name may not be null", image.getName());
         assertNotNull("Image description may not be null", image.getDescription());
@@ -134,11 +134,20 @@ public class StatelessImageTests {
                 assertTrue("There is a better guess for platform than UNKNOWN based on the image tag " + entry.getKey(), p.equals(Platform.UNKNOWN));
             }
         }
+        String metaPublic = (String) image.getTag("public");
+        if( metaPublic != null ) {
+            Boolean isPublic = Boolean.valueOf(metaPublic);
+            assertEquals("When 'public' metatag is set it should match isPublic()", isPublic, image.isPublic());
+        }
+
+        if( checkPublic != null ) {
+            assertEquals("Image isPublic? status is incorrect", checkPublic, image.isPublic());
+        }
     }
 
-    private void assertImageContent(@Nonnull Iterable<MachineImage> images, @Nonnull ImageClass expectedClass) {
+    private void assertImageContent(@Nonnull Iterable<MachineImage> images, @Nonnull ImageClass expectedClass, Boolean checkPublic) {
         for( MachineImage image : images ) {
-            assertImageContent(image, expectedClass);
+            assertImageContent(image, expectedClass, checkPublic);
         }
     }
 
@@ -339,7 +348,7 @@ public class StatelessImageTests {
 
                     tm.out("Description", image.getDescription());
 
-                    assertImageContent(image, null);
+                    assertImageContent(image, null, null);
 
                 }
                 else {
@@ -389,7 +398,7 @@ public class StatelessImageTests {
                     assertTrue("Because machine images are not supported, the list of images should be empty", count == 0);
                 }
                 if( count > 0 ) {
-                    assertImageContent(images, ImageClass.MACHINE);
+                    assertImageContent(images, ImageClass.MACHINE, null);
                 }
             }
             else {
@@ -486,7 +495,7 @@ public class StatelessImageTests {
                     tm.warn("No kernel images were returned and so this test may not be valid");
                 }
                 if( count > 0 ) {
-                    assertImageContent(images, ImageClass.KERNEL);
+                    assertImageContent(images, ImageClass.KERNEL, null);
                 }
             }
             else {
@@ -530,7 +539,7 @@ public class StatelessImageTests {
                     tm.warn("No ramdisk images were returned and so this test may not be valid");
                 }
                 if( count > 0 ) {
-                    assertImageContent(images, ImageClass.RAMDISK);
+                    assertImageContent(images, ImageClass.RAMDISK, null);
                 }
             }
             else {
@@ -837,7 +846,7 @@ public class StatelessImageTests {
                     assertTrue("Because machine images are not supported, the list of images should be empty", count == 0);
                 }
                 if( count > 0 ) {
-                    assertImageContent(images, ImageClass.MACHINE);
+                    assertImageContent(images, ImageClass.MACHINE, Boolean.TRUE);
                 }
             }
         }
