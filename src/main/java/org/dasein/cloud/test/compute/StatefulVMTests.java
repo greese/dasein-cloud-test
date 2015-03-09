@@ -713,6 +713,51 @@ public class StatefulVMTests {
     }
 
     @Test
+    public void launchVMWithClientRequestToken() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+        if( !support.isSubscribed() ) {
+            tm.ok("No virtual machine support subscribed for");
+            return;
+        }
+        if( !support.getCapabilities().supportsClientRequestToken() ) {
+            tm.ok("No client request token support in this cloud");
+            return;
+        }
+
+        ComputeResources compute = DaseinTestManager.getComputeResources();
+        if( compute != null ) {
+            String productId = tm.getTestVMProductId();
+            assertNotNull("Unable to identify a VM product for test launch", productId);
+            String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+            assertNotNull("Unable to identify a test image for test launch", imageId);
+            String clientToken = "dsntokn" + ( System.currentTimeMillis() % 10000 );
+            VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, clientToken, "Dasein Client Token Launch " + System.currentTimeMillis(), "Test launch for a VM with a client token");
+            options.withClientRequestToken(clientToken);
+            String id = compute.provisionVM(support, "clientRequestTokenLaunch", options, options.getDataCenterId());
+
+            tm.out("Launched", id);
+            assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+            VirtualMachine virtualMachine = support.getVirtualMachine(id);
+            tm.out("With client request token", virtualMachine.getClientRequestToken());
+            assertNotNull("Could not find the newly created virtual machine", virtualMachine);
+            assertEquals("Expected client request token not found", clientToken, virtualMachine.getClientRequestToken());
+        }
+    }
+
+    @Test
     public void filterVMs() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());
         ComputeServices services = tm.getProvider().getComputeServices();
