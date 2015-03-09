@@ -108,7 +108,7 @@ public class StatefulReplicapoolTests {
                 String description = "foo";
                 String zone = "us-central1-f";
                 String instanceTemplate = "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/instanceTemplates/instance-template-2";
-                CIProvisionOptions options = CIProvisionOptions.getInstance(id, name, description , zone , 0, instanceTemplate );  // is testTopologyId the url?
+                CIProvisionOptions options = CIProvisionOptions.getInstance(id, name, description , zone , 2, instanceTemplate );  // is testTopologyId the url?
                 ConvergedInfrastructure result = replicapoolSupport.provision(options);
                 
                 System.out.println("INSPECT");
@@ -136,6 +136,27 @@ public class StatefulReplicapoolTests {
                 
                 
                 
+            } else {
+                tm.ok("No topology support in this cloud");
+            }
+        } else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void listConvergedInfrastructures() throws CloudException, InternalException {
+        CIServices services = tm.getProvider().getCIServices();
+
+        if( services != null ) {
+            TopologySupport topologySupport = services.getTopologySupport();
+            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+
+            if( replicapoolSupport != null ) {
+
+                replicapoolSupport.listConvergedInfrastructures(null);
+
+
             } else {
                 tm.ok("No topology support in this cloud");
             }
