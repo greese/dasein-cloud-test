@@ -69,6 +69,7 @@ public class ComputeResources {
     private Platform testImagePlatform;
     private String   testVMProductId;
     private String   testVolumeProductId;
+    private String   testImageId;
 
     public ComputeResources( @Nonnull CloudProvider provider ) {
         this.provider = provider;
@@ -634,6 +635,9 @@ public class ComputeResources {
     }
 
     public void init() {
+        testDataCenterId = System.getProperty("test.dataCenter", null);
+        testImageId = System.getProperty("test.machineImage", null);
+
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -646,8 +650,6 @@ public class ComputeResources {
             }
         }
 
-        String dataCenterId = System.getProperty("test.dataCenter");
-
         if( computeServices != null ) {
             Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
             VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
@@ -657,7 +659,7 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(dataCenterId);
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
                             for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
                                 if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
                                     continue;
@@ -706,7 +708,24 @@ public class ComputeResources {
                 } catch( Throwable ignore ) {
                     // ignore
                 }
-
+                // let's make sure we find the test image (if required via "test.machineImage" env parameter)
+                if( testImageId != null ) {
+                    try {
+                        MachineImage image = imageSupport.getImage(testImageId);
+                        if( image != null && MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
+                            testImagePlatform = image.getPlatform();
+                            testMachineImages.put(DaseinTestManager.STATELESS, testImageId);
+                            VirtualMachineProduct product = productMap.get(image.getArchitecture());
+                            if( product != null ) {
+                                testVMProductId = product.getProviderProductId();
+                            }
+                            if( testDataCenterId == null ) {
+                                testDataCenterId = image.getProviderDataCenterId();
+                            }
+                        }
+                    }
+                    catch( Throwable ignore ) { }
+                }
                 for( Architecture architecture : architectures ) {
                     VirtualMachineProduct currentProduct = productMap.get(architecture);
 
@@ -790,7 +809,7 @@ public class ComputeResources {
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if (( vm.getProviderDataCenterId().equals(dataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
+                        if (( testDataCenterId == null || vm.getProviderDataCenterId().equals(testDataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
                             testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
                             break;
                         }
@@ -804,7 +823,7 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( volume.getProviderDataCenterId().equals(dataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
+                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
