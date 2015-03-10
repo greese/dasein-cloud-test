@@ -19,17 +19,15 @@
 
 package org.dasein.cloud.test.ci;
 
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
+
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ci.CIProvisionOptions;
 import org.dasein.cloud.ci.CIServices;
 import org.dasein.cloud.ci.ConvergedInfrastructure;
 import org.dasein.cloud.ci.ConvergedInfrastructureSupport;
-import org.dasein.cloud.ci.Topology;
-import org.dasein.cloud.ci.TopologyProvisionOptions;
-import org.dasein.cloud.ci.TopologyProvisionOptions.AccessConfig;
-import org.dasein.cloud.ci.TopologyProvisionOptions.DiskType;
-import org.dasein.cloud.ci.TopologyProvisionOptions.MaintenenceOption;
 import org.dasein.cloud.ci.TopologySupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
@@ -39,21 +37,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-
-import javax.annotation.Nonnull;
-
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests support for Dasein Cloud Replicapools which represent complex, multi-resource groups.
@@ -84,12 +67,34 @@ public class StatefulReplicapoolTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testTopologyId = tm.getTestTopologyId(DaseinTestManager.STATELESS, false);
+        //testTopologyId = tm.getTestTopologyId(DaseinTestManager.STATELESS, false);
+
+        if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
+            name.getMethodName().startsWith("deleteReplicapoolFromTopolology")) {
+            //tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine()
+            try {
+                CIProvisionOptions options = CIProvisionOptions.getInstance("instance-template-2", "test-name", "test-description", "us-central1-f", 1, "instance-template-2");
+                ConvergedInfrastructure foo = tm.getProvider().getCIServices().getConvergedInfrastructureSupport().provision(options);
+                testTopologyId = foo.getName();
+            } catch ( Exception e ) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @After
     public void after() {
         tm.end();
+        try {
+            if (name.getMethodName().startsWith("listConvergedInfrastructures")) {
+                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate("test-name", "test over");
+            }
+            if (name.getMethodName().startsWith("createReplicapoolFromTopolology")) {
+                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate("create-test", "test over");
+            }
+        } catch ( Exception e ) {
+            e.printStackTrace();
+        }
     }
 
     /*
@@ -103,15 +108,14 @@ public class StatefulReplicapoolTests {
             TopologySupport topologySupport = services.getTopologySupport();
             ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
             if ((null != topologySupport) && (null != replicapoolSupport)) {
-                String id = "instance-template-2";
-                String name = "instance-template-2";
-                String description = "foo";
+                String id = "create-test";
+                String name = "create-test";
+                String description = "create-test";
                 String zone = "us-central1-f";
-                String instanceTemplate = "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/instanceTemplates/instance-template-2";
-                CIProvisionOptions options = CIProvisionOptions.getInstance(id, name, description , zone , 2, instanceTemplate );  // is testTopologyId the url?
+                //String instanceTemplate = "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/instanceTemplates/instance-template-2";
+                CIProvisionOptions options = CIProvisionOptions.getInstance(id, name, description , zone , 2, "instance-template-2" );  // is testTopologyId the url?
                 ConvergedInfrastructure result = replicapoolSupport.provision(options);
-                
-                System.out.println("INSPECT");
+
             } else {
                 tm.ok("No topology support in this cloud");
             }
@@ -127,15 +131,13 @@ public class StatefulReplicapoolTests {
     public void deleteReplicapoolFromTopolology() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
-        if( services != null ) {
+        if ( services != null) {
             TopologySupport support = services.getTopologySupport();
 
-            if( support != null ) {
+            if (support != null) {
+                ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+                replicapoolSupport.terminate(testTopologyId, "die");
 
-                
-                
-                
-                
             } else {
                 tm.ok("No topology support in this cloud");
             }
@@ -148,20 +150,22 @@ public class StatefulReplicapoolTests {
     public void listConvergedInfrastructures() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
-        if( services != null ) {
-            TopologySupport topologySupport = services.getTopologySupport();
+        if (services != null) {
             ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
 
             if( replicapoolSupport != null ) {
-
-                replicapoolSupport.listConvergedInfrastructures(null);
-
-
+                int count = 0;
+                Iterable<ConvergedInfrastructure> convergedInfrastructures = replicapoolSupport.listConvergedInfrastructures(null);
+                for (ConvergedInfrastructure ci : convergedInfrastructures) {
+                    count++;
+                    // testTopologyId
+                }
+                assertTrue("listConvergedInfrastructures must return more than one result.", count > 0);
             } else {
-                tm.ok("No topology support in this cloud");
+                tm.ok("No replicapool support in this cloud");
             }
         } else {
-            tm.ok("No compute services in this cloud");
+            tm.ok("No Converged Infrastructure services in this cloud");
         }
     }
 }
