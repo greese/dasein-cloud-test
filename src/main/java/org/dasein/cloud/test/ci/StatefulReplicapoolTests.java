@@ -81,7 +81,7 @@ public class StatefulReplicapoolTests {
             }
         }
     }
-
+// listVLANs, listVirtualMachines
     @After
     public void after() {
         tm.end();
@@ -178,12 +178,35 @@ public class StatefulReplicapoolTests {
 
             if( replicapoolSupport != null ) {
                 int count = 0;
-                
+
                 Iterable<String> virtualMachines = replicapoolSupport.listVirtualMachines("instance-template-2");
                 for (String vm : virtualMachines) {
                     count++;
                 }
                 assertTrue("listVirtualMachines must return more than one result.", count > 0);
+            } else {
+                tm.ok("No replicapool support in this cloud");
+            }
+        } else {
+            tm.ok("No Converged Infrastructure services in this cloud");
+        }
+    }
+
+    @Test
+    public void listVLANs() throws CloudException, InternalException {
+        CIServices services = tm.getProvider().getCIServices();
+
+        if (services != null) {
+            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+
+            if( replicapoolSupport != null ) {
+                int count = 0;
+
+                Iterable<String> virtualMachines = replicapoolSupport.listVLANs("instance-template-2");
+                for (String vlan : virtualMachines) {
+                    count++;
+                }
+                assertTrue("listVLANs must return more than one result.", count > 0);
             } else {
                 tm.ok("No replicapool support in this cloud");
             }
