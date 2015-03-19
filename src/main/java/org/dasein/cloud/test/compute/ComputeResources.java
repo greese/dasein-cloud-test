@@ -638,6 +638,10 @@ public class ComputeResources {
         testDataCenterId = System.getProperty("test.dataCenter", null);
         testImageId = System.getProperty("test.machineImage", null);
 
+        if (testImageId.equals("")) {
+            testImageId = null;
+        }
+
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
