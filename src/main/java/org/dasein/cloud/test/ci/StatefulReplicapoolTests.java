@@ -70,27 +70,31 @@ public class StatefulReplicapoolTests {
         //testTopologyId = tm.getTestTopologyId(DaseinTestManager.STATELESS, false);
 
         if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
+            name.getMethodName().startsWith("listVLANs") ||
+            name.getMethodName().startsWith("listVirtualMachines") ||
             name.getMethodName().startsWith("deleteReplicapoolFromTopolology")) {
             //tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine()
             try {
-                CIProvisionOptions options = CIProvisionOptions.getInstance("instance-template-2", "test-name", "test-description", "us-central1-f", 1, "instance-template-2");
-                ConvergedInfrastructure foo = tm.getProvider().getCIServices().getConvergedInfrastructureSupport().provision(options);
-                testTopologyId = foo.getName();
+                CIProvisionOptions options = CIProvisionOptions.getInstance(name.getMethodName().toLowerCase(), "test-description", "us-central1-f", 1, "instance-template-2");
+                ConvergedInfrastructure ci = tm.getProvider().getCIServices().getConvergedInfrastructureSupport().provision(options);
+                testTopologyId = ci.getName();
             } catch ( Exception e ) {
                 e.printStackTrace();
             }
         }
     }
-// listVLANs, listVirtualMachines
+
     @After
     public void after() {
         tm.end();
         try {
-            if (name.getMethodName().startsWith("listConvergedInfrastructures")) {
-                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate("test-name", "test over");
+            if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
+                name.getMethodName().startsWith("listVLANs") ||
+                name.getMethodName().startsWith("listVirtualMachines")) {
+                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate(name.getMethodName().toLowerCase(), "test over");
             }
             if (name.getMethodName().startsWith("createReplicapoolFromTopolology")) {
-                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate("create-test", "test over");
+                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate(name.getMethodName().toLowerCase(), "test over");
             }
         } catch ( Exception e ) {
             e.printStackTrace();
@@ -108,12 +112,9 @@ public class StatefulReplicapoolTests {
             TopologySupport topologySupport = services.getTopologySupport();
             ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
             if ((null != topologySupport) && (null != replicapoolSupport)) {
-                String id = "create-test";
-                String name = "create-test";
                 String description = "create-test";
                 String zone = "us-central1-f";
-                //String instanceTemplate = "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/instanceTemplates/instance-template-2";
-                CIProvisionOptions options = CIProvisionOptions.getInstance(id, name, description , zone , 2, "instance-template-2" );  // is testTopologyId the url?
+                CIProvisionOptions options = CIProvisionOptions.getInstance(name.getMethodName().toLowerCase(), description , zone , 2, "instance-template-2" );  // is testTopologyId the url?
                 ConvergedInfrastructure result = replicapoolSupport.provision(options);
 
             } else {
@@ -179,7 +180,7 @@ public class StatefulReplicapoolTests {
             if( replicapoolSupport != null ) {
                 int count = 0;
 
-                Iterable<String> virtualMachines = replicapoolSupport.listVirtualMachines("instance-template-2");
+                Iterable<String> virtualMachines = replicapoolSupport.listVirtualMachines(testTopologyId);
                 for (String vm : virtualMachines) {
                     count++;
                 }
@@ -202,7 +203,7 @@ public class StatefulReplicapoolTests {
             if( replicapoolSupport != null ) {
                 int count = 0;
 
-                Iterable<String> virtualMachines = replicapoolSupport.listVLANs("instance-template-2");
+                Iterable<String> virtualMachines = replicapoolSupport.listVLANs(testTopologyId);
                 for (String vlan : virtualMachines) {
                     count++;
                 }
