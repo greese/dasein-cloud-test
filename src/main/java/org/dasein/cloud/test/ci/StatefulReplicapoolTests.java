@@ -24,6 +24,7 @@ import static org.junit.Assume.assumeTrue;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
+import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.ci.CIProvisionOptions;
 import org.dasein.cloud.ci.CIServices;
 import org.dasein.cloud.ci.ConvergedInfrastructure;
@@ -72,6 +73,7 @@ public class StatefulReplicapoolTests {
         if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
             name.getMethodName().startsWith("listVLANs") ||
             name.getMethodName().startsWith("listVirtualMachines") ||
+            name.getMethodName().startsWith("listConvergedInfrastructureStatus") ||
             name.getMethodName().startsWith("deleteReplicapoolFromTopolology")) {
             //tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine()
             try {
@@ -90,6 +92,7 @@ public class StatefulReplicapoolTests {
         try {
             if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
                 name.getMethodName().startsWith("listVLANs") ||
+                name.getMethodName().startsWith("listConvergedInfrastructureStatus") ||
                 name.getMethodName().startsWith("listVirtualMachines")) {
                 tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate(name.getMethodName().toLowerCase(), "test over");
             }
@@ -208,6 +211,29 @@ public class StatefulReplicapoolTests {
                     count++;
                 }
                 assertTrue("listVLANs must return more than one result.", count > 0);
+            } else {
+                tm.ok("No replicapool support in this cloud");
+            }
+        } else {
+            tm.ok("No Converged Infrastructure services in this cloud");
+        }
+    }
+
+    @Test
+    public void listConvergedInfrastructureStatus() throws CloudException, InternalException {
+        CIServices services = tm.getProvider().getCIServices();
+
+        if (services != null) {
+            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+
+            if( replicapoolSupport != null ) {
+                int count = 0;
+
+                Iterable<ResourceStatus> ciStatus = replicapoolSupport.listConvergedInfrastructureStatus();
+                for (ResourceStatus status : ciStatus) {
+                    count++;
+                }
+                assertTrue("listConvergedInfrastructureStatus must return more than one result.", count > 0);
             } else {
                 tm.ok("No replicapool support in this cloud");
             }
