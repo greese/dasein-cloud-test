@@ -31,9 +31,7 @@ import org.junit.rules.TestName;
 import java.util.*;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.Matchers.equalTo;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
+import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
 import static org.junit.matchers.JUnitMatchers.both;
@@ -77,7 +75,10 @@ public class StatelessVMTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, true, testDataCenterId);
-        testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+        testImageId = System.getProperty("test.machineImage");
+        if( testImageId == null || testImageId.isEmpty() ) {
+            testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+        }
         testProductId = tm.getTestVMProductId();
     }
 
@@ -358,6 +359,52 @@ public class StatelessVMTests {
         else {
             tm.ok("No compute services in this cloud");
         }
+    }
+
+    // TODO(stas): this is a bare-bones test that doesn't test anything specific to
+    // listProducts(String imageId) so it will need further work.
+    @Test
+    public void listVMProductsForImage() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+        MachineImageSupport imageSupport = services.getImageSupport();
+        if( imageSupport == null ) {
+            tm.ok("No machine image support in this cloud");
+            return;
+        }
+        assertNotNull("No test imageId for the test", testImageId);
+
+        boolean found = false;
+
+        MachineImage image = imageSupport.getImage(testImageId);
+        Iterator<VirtualMachineProduct> productsByArch = support.listProducts(VirtualMachineProductFilterOptions.getInstance().withArchitecture(image.getArchitecture())).iterator();
+        int totalByArch = 0;
+        for( ; productsByArch.hasNext(); productsByArch.next() ) {
+            totalByArch++;
+        }
+        tm.out("Total Product Count Filtered by Architecture", totalByArch);
+
+        Iterable<VirtualMachineProduct> products = support.listProducts(testImageId);
+        int totalByImage = 0;
+
+        assertNotNull("listProducts() must return at least an empty collections and may not be null", products);
+        for( VirtualMachineProduct product : products ) {
+            totalByImage++;
+            // TODO: check that the product is the same architecture as the image at the very least
+        }
+        tm.out("Total Product Count Filtered by Image", totalByImage);
+        assertThat("Number of products filtered by image should be lesser than or equal to the number of products filtered by this image's architecture alone", totalByImage, lessThanOrEqualTo(totalByArch));
     }
 
     @Test
