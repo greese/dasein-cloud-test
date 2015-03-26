@@ -75,8 +75,8 @@ public class StatelessVMTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         testVMId = tm.getTestVMId(DaseinTestManager.STATELESS, null, true, testDataCenterId);
-        testImageId = System.getProperty("test.machineImage");
-        if( testImageId == null || testImageId.isEmpty() ) {
+        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
+        if( testImageId == null ) {
             testImageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
         }
         testProductId = tm.getTestVMProductId();

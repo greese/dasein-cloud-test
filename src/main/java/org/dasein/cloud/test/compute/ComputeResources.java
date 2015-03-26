@@ -634,9 +634,10 @@ public class ComputeResources {
         return testVolumeProductId;
     }
 
+
     public void init() {
-        testDataCenterId = System.getProperty("test.dataCenter", null);
-        testImageId = System.getProperty("test.machineImage", null);
+        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
+        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
 
         ComputeServices computeServices = provider.getComputeServices();
 
@@ -659,8 +660,15 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
-                            for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId).withArchitecture(architecture);
+                            Iterable<VirtualMachineProduct> products;
+                            if( testImageId != null ) {
+                                products = vmSupport.listProducts(testImageId);
+                            }
+                            else {
+                                products = vmSupport.listProducts(options);
+                            }
+                            for( VirtualMachineProduct product : products ) {
                                 if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
                                     continue;
                                 }
@@ -774,38 +782,9 @@ public class ComputeResources {
                 }
             }
 
+            testVolumeProductId = findTestVolumeProductId();
+
             VolumeSupport volumeSupport = computeServices.getVolumeSupport();
-
-            if( volumeSupport != null ) {
-                try {
-                    VolumeProduct defaultProduct = null;
-
-                    for( VolumeProduct product : volumeSupport.listVolumeProducts() ) {
-                        if( defaultProduct == null ) {
-                            defaultProduct = product;
-                        }
-                        else {
-                            if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
-                                if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
-                                    defaultProduct = product;
-                                }
-                            }
-                            else {
-                                if( product.getMonthlyGigabyteCost() > 0.00 ) {
-                                    if( product.getMonthlyGigabyteCost() < defaultProduct.getMonthlyGigabyteCost() ) {
-                                        defaultProduct = product;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if( defaultProduct != null ) {
-                        testVolumeProductId = defaultProduct.getProviderProductId();
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore me
-                }
-            }
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
@@ -840,6 +819,47 @@ public class ComputeResources {
                 }
             }
         }
+    }
+
+    // Find a volume product id
+    private @Nullable String findTestVolumeProductId() {
+        ComputeServices computeServices = provider.getComputeServices();
+        if( computeServices == null ) {
+            return null;
+        }
+        VolumeSupport volumeSupport = computeServices.getVolumeSupport();
+
+        if( volumeSupport != null ) {
+            try {
+                VolumeProduct defaultProduct = null;
+
+                for( VolumeProduct product : volumeSupport.listVolumeProducts() ) {
+                    if( defaultProduct == null ) {
+                        defaultProduct = product;
+                    }
+                    else {
+                        if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
+                            if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
+                                defaultProduct = product;
+                            }
+                        }
+                        else {
+                            if( product.getMonthlyGigabyteCost() > 0.00 ) {
+                                if( product.getMonthlyGigabyteCost() < defaultProduct.getMonthlyGigabyteCost() ) {
+                                    defaultProduct = product;
+                                }
+                            }
+                        }
+                    }
+                }
+                if( defaultProduct != null ) {
+                    return defaultProduct.getProviderProductId();
+                }
+            } catch( Throwable ignore ) {
+                // ignore me
+            }
+        }
+        return null;
     }
 
     public @Nonnull String provisionImage( @Nonnull MachineImageSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String vmId ) throws CloudException, InternalException {
