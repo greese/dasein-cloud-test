@@ -1003,7 +1003,7 @@ public class StatefulLoadBalancerTests {
             }
             lb = support.getLoadBalancer(testLoadBalancerId);
             timeout = System.currentTimeMillis() + 5 * 60 * 1000;
-            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+            while( lb != null && LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
                     timeout > System.currentTimeMillis() ) {
                 try {
                     Thread.sleep(10000);
