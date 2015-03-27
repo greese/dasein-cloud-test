@@ -77,30 +77,28 @@ public class StatefulVolumeTests {
     @Rule
     public final TestName name = new TestName();
 
-    private String provisionedVolume;
+    private String provisionedVolumeId;
     private String testSnapshotId;
     private String testVLANId;
     private String testVMId;
     private String testVolumeId;
-	private String testDataCenterId;
+    private String testDataCenterId;
 
-    public StatefulVolumeTests() { }
+    public StatefulVolumeTests() {
+    }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
         try {
-			testDataCenterId = System.getProperty("test.dataCenter");
-		} catch (Throwable ignore) {
-			// ignore
-		}
-        try {
-	        if (testDataCenterId == null)
-	    		testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-	    } catch (Throwable ignore) {
-			// ignore
-		}
+            if( testDataCenterId == null )
+                testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
+        }
+        catch( Throwable ignore ) {
+            // ignore
+        }
 
         if( name.getMethodName().equals("createNFSVolume") ) {
             testVLANId = tm.getTestVLANId(DaseinTestManager.STATELESS, false, testDataCenterId);
@@ -288,9 +286,9 @@ public class StatefulVolumeTests {
                             // ignore
                         }
                     }
-                    if( provisionedVolume != null ) {
+                    if( provisionedVolumeId != null ) {
                         try {
-                            support.detach(provisionedVolume, true);
+                            support.detach(provisionedVolumeId, true);
                         }
                         catch( Throwable ignore ) {
                             // ignore
@@ -298,7 +296,7 @@ public class StatefulVolumeTests {
                         try { Thread.sleep(10000L); }
                         catch( InterruptedException ignore ) { }
                         try {
-                            support.remove(provisionedVolume);
+                            support.remove(provisionedVolumeId);
                         }
                         catch( Throwable ignore ) {
                             // ignore
@@ -306,7 +304,7 @@ public class StatefulVolumeTests {
                     }
                 }
             }
-            provisionedVolume = null;
+            provisionedVolumeId = null;
             testSnapshotId = null;
             testVolumeId = null;
             testVLANId = null;
@@ -367,169 +365,173 @@ public class StatefulVolumeTests {
 
     @Test
     public void createBlockVolume() throws CloudException, InternalException {
-        ComputeServices services = tm.getProvider().getComputeServices();
+        final ComputeServices services = tm.getProvider().getComputeServices();
 
-        if( services != null ) {
-            VolumeSupport support = services.getVolumeSupport();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        final VolumeSupport support = services.getVolumeSupport();
 
-            if( support != null ) {
-                boolean supported = support.isSubscribed();
+        if( support == null ) {
+            tm.ok("No volume support in this cloud");
+            return;
+        }
+        boolean supported = support.isSubscribed();
 
-                if( supported ) {
-                    supported = false;
-                    for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
-                        if( fmt.equals(VolumeFormat.BLOCK) ) {
-                            supported = true;
-                        }
-                    }
-                }
-
-                String productId = tm.getTestVolumeProductId();
-                VolumeCreateOptions options = null;
-
-                if( productId != null ) {
-                    Storage<Gigabyte> size = null;
-
-                    if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
-                        VolumeProduct product = null;
-
-                        for( VolumeProduct prd : support.listVolumeProducts() ) {
-                            if( prd.getProviderProductId().equals(productId) ) {
-                                product = prd;
-                                break;
-                            }
-                        }
-                        if( product != null ) {
-                            size = product.getVolumeSize();
-                        }
-                    }
-                    if( size == null ) {
-                        size = support.getCapabilities().getMinimumVolumeSize();
-                    }
-                    options = VolumeCreateOptions.getInstance(productId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
-                }
-                if( options == null ) {
-                    options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
-                }
-                if (testDataCenterId != null)
-                    options.setDataCenterId(testDataCenterId);
-
-                if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                    provisionedVolume = options.build(tm.getProvider());
-
-                    tm.out("New Block Volume", provisionedVolume);
-                }
-                else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
-                    options.withVirtualMachineId(testVmId);
-                    provisionedVolume = options.build(tm.getProvider());
-
-                    tm.out("New Block Volume", provisionedVolume);
-                }
-                else {
-                    try {
-                        provisionedVolume = options.build(tm.getProvider());
-                        fail("Block volumes are either not subscribed or supported, yet the operation completed");
-                    }
-                    catch( OperationNotSupportedException expected ) {
-                        tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
-                    }
+        if( supported ) {
+            supported = false;
+            for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
+                if( fmt.equals(VolumeFormat.BLOCK) ) {
+                    supported = true;
                 }
             }
-            else {
-                tm.ok("No volume support in this cloud");
+        }
+
+        final String productId = tm.getTestVolumeProductId();
+        VolumeCreateOptions options = null;
+
+        if( productId != null ) {
+            Storage<Gigabyte> size = null;
+
+            if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
+                VolumeProduct product = null;
+
+                for( VolumeProduct prd : support.listVolumeProducts() ) {
+                    if( prd.getProviderProductId().equals(productId) ) {
+                        product = prd;
+                        break;
+                    }
+                }
+                if( product != null ) {
+                    size = product.getVolumeSize();
+                }
+            }
+            if( size == null ) {
+                size = support.getCapabilities().getMinimumVolumeSize();
+            }
+            options = VolumeCreateOptions.getInstance(productId, size, "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test", 0);
+        }
+        if( options == null ) {
+            options = VolumeCreateOptions.getInstance(support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+        }
+
+        options.setDataCenterId(testDataCenterId);
+
+        if( supported ) {
+            if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                options.withVirtualMachineId(tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId));
+                assertNotNull(options.getProviderVirtualMachineId(),
+                        "Cloud " + tm.getProvider().getCloudName() +
+                                " requires volumes to be attached to VMs, but no VM could be provisioned");
+            }
+
+            provisionedVolumeId = options.build(tm.getProvider());
+
+            tm.out("New Block Volume", provisionedVolumeId);
+            if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                final Volume volume = support.getVolume(provisionedVolumeId);
+                assertEquals(options.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId(),
+                        "The volume is supposed to have the providerVirtualMachineId set correctly.");
             }
         }
         else {
-            tm.ok("No compute services in this cloud");
+            try {
+                provisionedVolumeId = options.build(tm.getProvider());
+                fail("Block volumes are either not subscribed or supported, yet the operation completed");
+            }
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
+            }
         }
     }
 
     @Test
     public void createNFSVolume() throws CloudException, InternalException {
-        ComputeServices services = tm.getProvider().getComputeServices();
+        final ComputeServices services = tm.getProvider().getComputeServices();
 
-        if( services != null ) {
-            VolumeSupport support = services.getVolumeSupport();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VolumeSupport support = services.getVolumeSupport();
 
-            if( support != null ) {
-                boolean supported = support.isSubscribed();
+        if( support == null ) {
+            tm.ok("No volume support in this cloud");
+            return;
+        }
 
-                if( supported ) {
-                    supported = false;
-                    for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
-                        if( fmt.equals(VolumeFormat.NFS) ) {
-                            supported = true;
-                        }
-                    }
-                }
-                if( testVLANId != null ) {
-                    String productId = tm.getTestVolumeProductId();
-                    VolumeCreateOptions options = null;
-
-                    if( productId != null ) {
-                        Storage<Gigabyte> size = null;
-
-                        if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
-                            VolumeProduct product = null;
-
-                            for( VolumeProduct prd : support.listVolumeProducts() ) {
-                                if( prd.getProviderProductId().equals(productId) ) {
-                                    product = prd;
-                                    break;
-                                }
-                            }
-                            if( product != null ) {
-                                size = product.getVolumeSize();
-                            }
-                        }
-                        if( size == null ) {
-                            size = support.getCapabilities().getMinimumVolumeSize();
-                        }
-                        options = VolumeCreateOptions.getNetworkInstance(productId, testVLANId, size, "dsnnfsvol" + (System.currentTimeMillis()%10000), "Dasein NFS volume test");
-                    }
-                    if( options == null ) {
-                        options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
-                    }
-                    if (testDataCenterId != null)
-                        options.setDataCenterId(testDataCenterId);
-                    if( supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                        provisionedVolume = options.build(tm.getProvider());
-
-                        tm.out("New NFS Volume", provisionedVolume);
-                    }
-                    else if (supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                        String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
-                        options.withVirtualMachineId(testVmId);
-                        provisionedVolume = options.build(tm.getProvider());
-
-                        tm.out("New NFS Volume", provisionedVolume);
-                    }
-                    else {
-                        try {
-                            provisionedVolume = options.build(tm.getProvider());
-                            fail("NFS volumes are either not subscribed or supported, yet the operation completed");
-                        }
-                        catch( OperationNotSupportedException expected ) {
-                            tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
-                        }
-                    }
-                }
-                else {
-                    if( !supported ) {
-                        tm.ok("Either network volumes are not supported or volumes are not subscribed");
-                    }
-                    else {
-                        fail("Unable to test network volume provisioning due to a lack of a network in which to test");
-                    }
+        boolean supported = false;
+        if( support.isSubscribed() ) {
+            for( VolumeFormat fmt : support.getCapabilities().listSupportedFormats() ) {
+                if( fmt.equals(VolumeFormat.NFS) ) {
+                    supported = true;
+                    break;
                 }
             }
+        }
+        if( testVLANId == null ) {
+            if( !supported ) {
+                tm.ok("Either network volumes are not supported or volumes are not subscribed");
+                return;
+            }
             else {
-                tm.ok("No volume support in this cloud");
+                fail("Unable to test network volume provisioning due to a lack of a network in which to test");
+            }
+        }
+        final String productId = tm.getTestVolumeProductId();
+        VolumeCreateOptions options = null;
+
+        if( productId != null ) {
+            Storage<Gigabyte> size = null;
+
+            if( support.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
+                VolumeProduct product = null;
+
+                for( VolumeProduct prd : support.listVolumeProducts() ) {
+                    if( prd.getProviderProductId().equals(productId) ) {
+                        product = prd;
+                        break;
+                    }
+                }
+                if( product != null ) {
+                    size = product.getVolumeSize();
+                }
+            }
+            if( size == null ) {
+                size = support.getCapabilities().getMinimumVolumeSize();
+            }
+            options = VolumeCreateOptions.getNetworkInstance(productId, testVLANId, size, "dsnnfsvol" + (System.currentTimeMillis()%10000), "Dasein NFS volume test");
+        }
+        if( options == null ) {
+            options = VolumeCreateOptions.getNetworkInstance(testVLANId, support.getCapabilities().getMinimumVolumeSize(), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
+        }
+        options.setDataCenterId(testDataCenterId);
+        if( supported ) {
+            if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                options.withVirtualMachineId(tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId));
+                assertNotNull(options.getProviderVirtualMachineId(),
+                        "Cloud " + tm.getProvider().getCloudName() +
+                                " requires volumes to be attached to VMs, but no VM could be provisioned");
+            }
+            provisionedVolumeId = options.build(tm.getProvider());
+
+            tm.out("New NFS Volume", provisionedVolumeId);
+
+            if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                Volume volume = support.getVolume(provisionedVolumeId);
+                assertEquals(options.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId(),
+                        "The volume is supposed to have the providerVirtualMachineId set correctly.");
             }
         }
         else {
-            tm.ok("No compute services in this cloud");
+            try {
+                provisionedVolumeId = options.build(tm.getProvider());
+                fail("NFS volumes are either not subscribed or supported, yet the operation completed");
+            }
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Got an OperationNotSupportedException from " + name.getMethodName() + " as expected");
+            }
         }
     }
 
@@ -580,25 +582,32 @@ public class StatefulVolumeTests {
                 }
                 if( options == null ) {
                     options = VolumeCreateOptions.getInstanceForSnapshot(testSnapshotId, new Storage<Gigabyte>(10, Storage.GIGABYTE), "dsnvolprv" + (System.currentTimeMillis()%10000), "Volume Provisioning Test");
-                    if (testDataCenterId != null)
+                    if (testDataCenterId != null) {
                         options.setDataCenterId(testDataCenterId);
+                    }
                 }
 
-                if( support.isSubscribed() && supported && !support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                    provisionedVolume = options.build(tm.getProvider());
+                if( supported ) {
+                    if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                        options.withVirtualMachineId(tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId));
+                        assertNotNull(options.getProviderVirtualMachineId(),
+                                "Cloud " + tm.getProvider().getCloudName() +
+                                        " requires volumes to be attached to VMs, but no VM could be provisioned");
+                    }
 
-                    tm.out("New Volume from Snapshot", provisionedVolume);
-                }
-                else if (support.isSubscribed() && supported && support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED)) {
-                    String testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
-                    options.withVirtualMachineId(testVmId);
-                    provisionedVolume = options.build(tm.getProvider());
+                    provisionedVolumeId = options.build(tm.getProvider());
 
-                    tm.out("New Volume from Snapshot", provisionedVolume);
+                    tm.out("New Volume from Snapshot", provisionedVolumeId);
+
+                    if( support.getCapabilities().requiresVMOnCreate().equals(Requirement.REQUIRED) ) {
+                        Volume volume = support.getVolume(provisionedVolumeId);
+                        assertEquals(options.getProviderVirtualMachineId(), volume.getProviderVirtualMachineId(),
+                                "The volume is supposed to have the providerVirtualMachineId set correctly.");
+                    }
                 }
                 else {
                     try {
-                        provisionedVolume = options.build(tm.getProvider());
+                        provisionedVolumeId = options.build(tm.getProvider());
                         fail("Volume snapshots are either not subscribed or supported, yet the operation completed");
                     }
                     catch( OperationNotSupportedException expected ) {

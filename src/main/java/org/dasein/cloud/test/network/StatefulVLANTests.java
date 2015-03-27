@@ -78,12 +78,10 @@ public class StatefulVLANTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        } catch( Throwable ignore ) {
-            // ignore
-        }
         assumeTrue(!tm.isTestSkipped());
+
+        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
+
         NetworkServices services = null;
         VLANSupport support = null;
         try {

@@ -98,12 +98,7 @@ public class StatefulLoadBalancerTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        }
-        catch( Throwable ignore ) {
-            // ignore
-        }
+        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
         try {
             if( testDataCenterId == null )
                 testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
@@ -210,19 +205,6 @@ public class StatefulLoadBalancerTests {
                                             }
                                         }
                                     }
-                                }
-                            }
-                            else {
-                                try {
-                                    testDataCenterId = System.getProperty("test.dataCenter");
-                                } catch (Throwable ignore) {
-                                    // ignore
-                                }
-                                try {
-                                    if (testDataCenterId == null)
-                                        testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-                                } catch (Throwable ignore) {
-                                    // ignore
                                 }
                             }
                         }
@@ -1003,7 +985,7 @@ public class StatefulLoadBalancerTests {
             }
             lb = support.getLoadBalancer(testLoadBalancerId);
             timeout = System.currentTimeMillis() + 5 * 60 * 1000;
-            while( LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
+            while( lb != null && LoadBalancerState.PENDING.equals(lb.getCurrentState()) &&
                     timeout > System.currentTimeMillis() ) {
                 try {
                     Thread.sleep(10000);

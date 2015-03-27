@@ -907,4 +907,17 @@ public class DaseinTestManager {
     public String getUserName() {
     	return userName;
     }
+
+    /**
+     * Get environment property
+     * @param key
+     * @return environment property, null if missing or empty
+     */
+    public static @Nullable String getSystemProperty(@Nonnull String key) {
+        String value = System.getProperty(key);
+        if( value != null && value.trim().isEmpty() ) {
+            return null;
+        }
+        return value;
+    }
 }
