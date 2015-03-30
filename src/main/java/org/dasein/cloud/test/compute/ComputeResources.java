@@ -1214,7 +1214,7 @@ public class ComputeResources {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
+        String name = namePrefix + "-" + now;
         String host = hostPrefix + ( now % 10000 );
 
         return provisionManyVMs(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter, count);
