@@ -605,7 +605,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVolumes.get(label);
 
