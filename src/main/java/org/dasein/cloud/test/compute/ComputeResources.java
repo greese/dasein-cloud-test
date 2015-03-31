@@ -414,7 +414,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVMs.get(label);
 
