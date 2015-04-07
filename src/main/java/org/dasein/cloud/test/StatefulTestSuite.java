@@ -19,6 +19,7 @@
 
 package org.dasein.cloud.test;
 
+import org.dasein.cloud.test.ci.StatefulHttpLoadBalancerTests;
 import org.dasein.cloud.test.ci.StatefulReplicapoolTests;
 import org.dasein.cloud.test.ci.StatefulTopologyTests;
 import org.dasein.cloud.test.compute.StatefulImageTests;
@@ -69,7 +70,8 @@ import org.junit.runners.Suite;
         StatefulCDNTests.class,
         StatefulPushNotificationTests.class,
         StatefulTopologyTests.class,
-        StatefulReplicapoolTests.class
+        StatefulReplicapoolTests.class,
+        StatefulHttpLoadBalancerTests.class
 })
 public class StatefulTestSuite {
 }

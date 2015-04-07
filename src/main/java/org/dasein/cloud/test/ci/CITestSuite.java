@@ -33,7 +33,9 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
         StatelessTopologyTests.class,
         StatefulTopologyTests.class,
-        StatefulReplicapoolTests.class
+        StatefulReplicapoolTests.class,
+        StatelessHttpLoadBalancerTests.class,
+        StatefulHttpLoadBalancerTests.class
 })
 public class CITestSuite {
     @BeforeClass
