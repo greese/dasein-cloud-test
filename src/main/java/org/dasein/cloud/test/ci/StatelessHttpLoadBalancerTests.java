@@ -19,6 +19,8 @@
 
 package org.dasein.cloud.test.ci;
 
+import static org.junit.Assume.assumeTrue;
+import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ci.CIServices;
@@ -26,11 +28,7 @@ import org.dasein.cloud.ci.ConvergedHttpLoadBalancer;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancerFilterOptions;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancerSupport;
 import org.dasein.cloud.ci.ConvergedHttpLoadbalancerOptions;
-import org.dasein.cloud.ci.ConvergedInfrastructure;
-import org.dasein.cloud.ci.ConvergedInfrastructureSupport;
-import org.dasein.cloud.ci.Topology;
-import org.dasein.cloud.ci.TopologySupport;
-import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.ci.HttpPort;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -38,18 +36,6 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-
-import javax.annotation.Nonnull;
-
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
-
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
-import static org.junit.Assume.assumeTrue;
 
 /**
  * Tests support for Dasein Cloud topologies which represent complex, multi-resource templates that can be provisioned into
@@ -119,6 +105,22 @@ public class StatelessHttpLoadBalancerTests {
         }
     }
 
+    // withExistingXXXXX()
+    @Test
+    public void removeHttpLoadBalancers() throws CloudException, InternalException {
+        CIServices services = tm.getProvider().getCIServices();
+
+        if (services != null) {
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
+
+                    support.removeConvergedHttpLoadBalancers("https://www.googleapis.com/compute/v1/projects/qa-project-2/global/httpHealthChecks/bobfr");
+                }
+            }
+        }
+    }
+    
     @Test
     public void createHttpLoadBalancer() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
@@ -129,10 +131,19 @@ public class StatelessHttpLoadBalancerTests {
                 if (support != null) {
 
 
-                    ConvergedHttpLoadbalancerOptions withConvergedHttpLoadbalancerOptions = ConvergedHttpLoadbalancerOptions.getInstance("roger", "roger", "https://www.googleapis.com/compute/beta/projects/qa-project-2/global/urlMaps/roger-wizard-http-lb");
-                    String result = support.createConvergedHttpLoadBalancer(withConvergedHttpLoadbalancerOptions );
+                    ConvergedHttpLoadbalancerOptions withConvergedHttpLoadbalancerOptions = 
+                            ConvergedHttpLoadbalancerOptions.getInstance("roger-name", "roger-description")
+                                                            .withHttpHealthCheck("roger-hc-1", "roger-hc-1", 5, 5, 2, 2, 80, "/", null)
+                                                            //.withHttpHealthCheck("roger-hc-2", "roger-hc-2", 5, 7, 2, 2, 80, "/", null) //ONLY ONE ALLOWED
+                                                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http")
+                                                            .withUrlMap("roger-url-map", "roger-url-map")
+                                                            .withUrlMapPathRule(new String[] {"/video", "/video/*"}, "roger-bes-name")
+                                                            .withTargetProxy("bob", "bob")
+                                                            .withGlobalForwardingRule("bobfr", "bobfr", HttpPort.PORT80, null);
 
-                    // ConvergedHttpLoadBalancer likely will need to be populated with data from other calls...
+                    String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withConvergedHttpLoadbalancerOptions);
+                    System.out.println(convergedHttpLoadBalancerSelfUrl);
+
 
                     tm.out("Subscribed", support.isSubscribed());
                     //tm.out("Public Library", support.supportsPublicLibrary());
