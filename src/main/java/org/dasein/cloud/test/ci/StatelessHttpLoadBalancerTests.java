@@ -115,7 +115,7 @@ public class StatelessHttpLoadBalancerTests {
                 ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
                 if (support != null) {
 
-                    support.removeConvergedHttpLoadBalancers("https://www.googleapis.com/compute/v1/projects/qa-project-2/global/httpHealthChecks/bobfr");
+                    support.removeConvergedHttpLoadBalancers("roger-url-map");
                 }
             }
         }
