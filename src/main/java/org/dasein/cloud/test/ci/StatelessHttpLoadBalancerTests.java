@@ -90,7 +90,7 @@ public class StatelessHttpLoadBalancerTests {
                 if (support != null) {
                     ConvergedHttpLoadBalancerFilterOptions options = new ConvergedHttpLoadBalancerFilterOptions();
 
-                    Iterable<ConvergedHttpLoadBalancer> result = support.listConvergedHttpLoadBalancers(options);
+                    Iterable<String> result = support.listConvergedHttpLoadBalancers();
 
                     // ConvergedHttpLoadBalancer likely will need to be populated with data from other calls...
 
@@ -105,7 +105,21 @@ public class StatelessHttpLoadBalancerTests {
         }
     }
 
-    // withExistingXXXXX()
+    @Test
+    public void getConvergedHttpLoadBalancer() throws CloudException, InternalException {
+        CIServices services = tm.getProvider().getCIServices();
+
+        if (services != null) {
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
+
+                    ConvergedHttpLoadBalancer result = support.getConvergedHttpLoadBalancer("roger-url-map");
+                }
+            }
+        }
+    }
+
     @Test
     public void removeHttpLoadBalancers() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
@@ -120,7 +134,8 @@ public class StatelessHttpLoadBalancerTests {
             }
         }
     }
-    
+
+    // withExistingXXXXX()
     @Test
     public void createHttpLoadBalancer() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
