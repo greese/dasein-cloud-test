@@ -150,12 +150,13 @@ public class StatelessHttpLoadBalancerTests {
                     Map<String, String> pathMap = new HashMap<String, String>();
                     pathMap.put("/*", "roger-bes-name");
                     pathMap.put("/video, /video/*", "roger-bes2-name");
-                    pathMap.put("/audio, /audio/*", "roger-bes2-name");
+                    pathMap.put("/audio, /audio/*", "roger-bes3-name");
                     ConvergedHttpLoadBalancer withExperimentalConvergedHttpLoadbalancerOptions = ConvergedHttpLoadBalancer
                             .getInstance("roger-name", "roger-description", "roger-bes-name")
                             .withHealthCheck("roger-hc-1", "roger-hc-1", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
-                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30)  // needs to know the backendservicebackend
-                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30) // needs to know the backendservicebackend
+                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1"}, 30)
+                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2"}, 30)
+                            .withBackendService("roger-bes3-name", "roger-bes3-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1", "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2"}, 30)
                             .withUrlSet("roger-url-map", "roger-url-map", "*", pathMap)
                             .withTargetHttpProxy("bob", "bob")
                             .withTargetHttpProxy("fred", "fred")
