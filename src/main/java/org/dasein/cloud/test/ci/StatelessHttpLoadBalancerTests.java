@@ -116,7 +116,7 @@ public class StatelessHttpLoadBalancerTests {
                 ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
                 if (support != null) {
 
-                    ConvergedHttpLoadBalancer result = support.getConvergedHttpLoadBalancer("roger-url-map");
+                    ConvergedHttpLoadBalancer result = support.getConvergedHttpLoadBalancer("roger-name");
                 }
             }
         }
@@ -131,7 +131,7 @@ public class StatelessHttpLoadBalancerTests {
                 ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
                 if (support != null) {
 
-                    support.removeConvergedHttpLoadBalancers("roger-url-map");
+                    support.removeConvergedHttpLoadBalancers("roger-name");
                 }
             }
         }
@@ -149,42 +149,22 @@ public class StatelessHttpLoadBalancerTests {
 
                     Map<String, String> pathMap = new HashMap<String, String>();
                     pathMap.put("/*", "roger-bes-name");
-                    pathMap.put("/video, /video/*", "roger-bes-name");
+                    pathMap.put("/video, /video/*", "roger-bes2-name");
                     ConvergedHttpLoadBalancer withExperimentalConvergedHttpLoadbalancerOptions = ConvergedHttpLoadBalancer
                             .getInstance("roger-name", "roger-description", "roger-bes-name")
                             .withHealthCheck("roger-hc-1", "roger-hc-1", null, 80, "/", 5, 5, 2, 2)
                             //.withHealthCheck("roger-hc-2", "roger-hc-2", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
-                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30)
-                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30)
+                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30)  // needs to know the backendservicebackend
+                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, 30) // needs to know the backendservicebackend
                             .withUrlSet("roger-url-map", "roger-url-map", "*", pathMap)
                             .withTargetHttpProxy("bob", "bob")
                             .withTargetHttpProxy("fred", "fred")
                             .withForwardingRule("bobfr", "bobfr", null, "TCP", "80", "bob")
                             .withForwardingRule("fredfr", "fredfr", null, "TCP", "8080", "fred");
-                    
+
                     String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withExperimentalConvergedHttpLoadbalancerOptions);
-                    System.out.println(convergedHttpLoadBalancerSelfUrl);
-                    /*
-                    ConvergedHttpLoadbalancerOptions withConvergedHttpLoadbalancerOptions = 
-                            ConvergedHttpLoadbalancerOptions.getInstance("roger-name", "roger-description")
-                                                            .withHttpHealthCheck("roger-hc-1", "roger-hc-1", 5, 5, 2, 2, 80, "/", null)
-                                                            //.withHttpHealthCheck("roger-hc-2", "roger-hc-2", 5, 7, 2, 2, 80, "/", null) //ONLY ONE ALLOWED
-                                                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http")
-                                                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http")
-                                                            .withUrlMap("roger-url-map", "roger-url-map")
-                                                            .withUrlMapPathRule(new String[] {"/video", "/video/*"}, "roger-bes-name")
-                                                            .withTargetProxy("bob", "bob")
-                                                            .withTargetProxy("fred", "fred")
-                                                            .withGlobalForwardingRule("bobfr", "bobfr", HttpPort.PORT80, null)
-                                                            .withGlobalForwardingRule("fredfr", "fredfr", HttpPort.PORT80, null);
-
-                    String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withConvergedHttpLoadbalancerOptions);
-                    */
-                    System.out.println(convergedHttpLoadBalancerSelfUrl);
-
 
                     tm.out("Subscribed", support.isSubscribed());
-                    //tm.out("Public Library", support.supportsPublicLibrary());
                 } else {
                     tm.ok(tm.getProvider().getCloudName() + " does not support topologies");
                 }
