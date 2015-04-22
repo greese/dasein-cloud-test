@@ -146,22 +146,30 @@ public class StatelessHttpLoadBalancerTests {
             if (services.hasConvergedHttpLoadBalancerSupport()) {
                 ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
                 if (support != null) {
-
+                    String instanceGroup1 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1";
+                    String instanceGroup2 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2";
                     Map<String, String> pathMap = new HashMap<String, String>();
-                    pathMap.put("/*", "roger-bes-name");
-                    pathMap.put("/video, /video/*", "roger-bes2-name");
-                    pathMap.put("/audio, /audio/*", "roger-bes3-name");
+                    String defaultBackend = "roger-bes-name";
+                    String backend2 = "roger-bes2-name";
+                    String backend3 = "roger-bes3-name";
+                    pathMap.put("/*", defaultBackend);
+                    pathMap.put("/video, /video/*", backend2);
+                    pathMap.put("/audio, /audio/*", backend3);
+                    String healthCheck1 = "roger-hc-1";
+                    String targetProxy1 = "bob";
+                    String targetProxy2 = "fred";
                     ConvergedHttpLoadBalancer withExperimentalConvergedHttpLoadbalancerOptions = ConvergedHttpLoadBalancer
-                            .getInstance("roger-name", "roger-description", "roger-bes-name")
-                            .withHealthCheck("roger-hc-1", "roger-hc-1", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
-                            .withBackendService("roger-bes-name", "roger-bes-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1"}, 30)
-                            .withBackendService("roger-bes2-name", "roger-bes2-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2"}, 30)
-                            .withBackendService("roger-bes3-name", "roger-bes3-description", 80, "http", "HTTP", new String[] {"roger-hc-1"}, new String[] {"https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1", "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2"}, 30)
+                            .getInstance("roger-name", "roger-description", defaultBackend)
+                            .withHealthCheck(healthCheck1, healthCheck1 + "-description", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
+                            .withBackendService(defaultBackend, defaultBackend + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1}, 30)
+                            .withBackendService(backend2, backend2 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup2}, 30)
+                            .withBackendService(backend3, backend3 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1, instanceGroup2}, 30)
                             .withUrlSet("roger-url-map", "roger-url-map", "*", pathMap)
-                            .withTargetHttpProxy("bob", "bob")
-                            .withTargetHttpProxy("fred", "fred")
-                            .withForwardingRule("bobfr", "bobfr", null, "TCP", "80", "bob")
-                            .withForwardingRule("fredfr", "fredfr", null, "TCP", "8080", "fred");
+                            .withUrlSet("roger-url-map2", "roger-url-map2", "*.net", pathMap)
+                            .withTargetHttpProxy(targetProxy1, targetProxy1 + "-description")
+                            .withTargetHttpProxy(targetProxy2, targetProxy2 + "-description")
+                            .withForwardingRule(targetProxy1 + "-fr", targetProxy1 + "-fr-description", null, "TCP", "80", targetProxy1)
+                            .withForwardingRule(targetProxy2 + "-fr", targetProxy2 + "-fr-description", null, "TCP", "8080", targetProxy2);
 
                     String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withExperimentalConvergedHttpLoadbalancerOptions);
 
