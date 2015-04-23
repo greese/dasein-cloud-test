@@ -22,12 +22,18 @@ package org.dasein.cloud.test.ci;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.ci.CIProvisionOptions;
 import org.dasein.cloud.ci.CIServices;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancer;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancerFilterOptions;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancerSupport;
 import org.dasein.cloud.ci.ConvergedInfrastructure;
 import org.dasein.cloud.ci.ConvergedInfrastructureSupport;
 import org.dasein.cloud.ci.TopologySupport;
@@ -45,6 +51,7 @@ import org.junit.rules.TestName;
  */
 public class StatefulHttpLoadBalancerTests {
     static private DaseinTestManager tm;
+    private String testTopologyId;
 
     @BeforeClass
     static public void configure() {
@@ -61,183 +68,119 @@ public class StatefulHttpLoadBalancerTests {
     @Rule
     public final TestName name = new TestName();
 
-    private String testTopologyId;
-
     public StatefulHttpLoadBalancerTests() { }
 
     @Before
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        //testTopologyId = tm.getTestTopologyId(DaseinTestManager.STATELESS, false);
-
-        if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
-            name.getMethodName().startsWith("listVLANs") ||
-            name.getMethodName().startsWith("listVirtualMachines") ||
-            name.getMethodName().startsWith("listConvergedInfrastructureStatus") ||
-            name.getMethodName().startsWith("deleteReplicapoolFromTopolology")) {
-            //tm.getProvider().getComputeServices().getVirtualMachineSupport().getVirtualMachine()
-            try {
-                CIProvisionOptions options = CIProvisionOptions.getInstance(name.getMethodName().toLowerCase(), "test-description", "us-central1-f", 1, "instance-template-2");
-                ConvergedInfrastructure ci = tm.getProvider().getCIServices().getConvergedInfrastructureSupport().provision(options);
-                testTopologyId = ci.getName();
-            } catch ( Exception e ) {
-                e.printStackTrace();
-            }
-        }
+        testTopologyId = tm.getTestTopologyId(DaseinTestManager.STATELESS, false);
     }
 
     @After
     public void after() {
         tm.end();
-        try {
-            if (name.getMethodName().startsWith("listConvergedInfrastructures") ||
-                name.getMethodName().startsWith("listVLANs") ||
-                name.getMethodName().startsWith("listConvergedInfrastructureStatus") ||
-                name.getMethodName().startsWith("listVirtualMachines")) {
-                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate(name.getMethodName().toLowerCase(), "test over");
-            }
-            if (name.getMethodName().startsWith("createReplicapoolFromTopolology")) {
-                tm.getProvider().getCIServices().getConvergedInfrastructureSupport().terminate(name.getMethodName().toLowerCase(), "test over");
-            }
-        } catch ( Exception e ) {
-            e.printStackTrace();
-        }
     }
 
     @Test
-    public void createReplicapoolFromTopolology() throws CloudException, InternalException {
-        ComputeServices services = tm.getProvider().getComputeServices();
-/*
-        if( services != null ) {
-            HttpLoadBalancerSupport support = services.getHttpLoadBalancerSupport();
-            services.hasHttpLoadBalancerSuppot
-            if ((null != topologySupport) && (null != replicapoolSupport)) {
-                String description = "create-test";
-                String zone = "us-central1-f";
-                CIProvisionOptions options = CIProvisionOptions.getInstance(name.getMethodName().toLowerCase(), description , zone , 2, "instance-template-2" );  // is testTopologyId the url?
-                ConvergedInfrastructure result = replicapoolSupport.provision(options);
-
-            } else {
-                tm.ok("No topology support in this cloud");
-            }
-        } else {
-            tm.ok("No compute services in this cloud");
-        }
-        */
-    }
-
-    /*
-     * delete a replicapool
-     */
-    @Test
-    public void deleteReplicapoolFromTopolology() throws CloudException, InternalException {
-        CIServices services = tm.getProvider().getCIServices();
-
-        if ( services != null) {
-            TopologySupport support = services.getTopologySupport();
-
-            if (support != null) {
-                ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
-                replicapoolSupport.terminate(testTopologyId, "die");
-
-            } else {
-                tm.ok("No topology support in this cloud");
-            }
-        } else {
-            tm.ok("No compute services in this cloud");
-        }
-    }
-
-    @Test
-    public void listConvergedInfrastructures() throws CloudException, InternalException {
+    public void listHttpLoadBalancers() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if (services != null) {
-            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
+                    ConvergedHttpLoadBalancerFilterOptions options = new ConvergedHttpLoadBalancerFilterOptions();
 
-            if( replicapoolSupport != null ) {
-                int count = 0;
-                Iterable<ConvergedInfrastructure> convergedInfrastructures = replicapoolSupport.listConvergedInfrastructures(null);
-                for (ConvergedInfrastructure ci : convergedInfrastructures) {
-                    count++;
-                    // testTopologyId
+                    Iterable<String> result = support.listConvergedHttpLoadBalancers();
+
+                    // ConvergedHttpLoadBalancer likely will need to be populated with data from other calls...
+
+                    tm.out("Subscribed", support.isSubscribed());
+                    //tm.out("Public Library", support.supportsPublicLibrary());
+                } else {
+                    tm.ok(tm.getProvider().getCloudName() + " does not support topologies");
                 }
-                assertTrue("listConvergedInfrastructures must return more than one result.", count > 0);
-            } else {
-                tm.ok("No replicapool support in this cloud");
             }
         } else {
-            tm.ok("No Converged Infrastructure services in this cloud");
+            tm.ok(tm.getProvider().getCloudName() + " does not support compute services");
         }
     }
 
     @Test
-    public void listVirtualMachines() throws CloudException, InternalException {
+    public void getConvergedHttpLoadBalancer() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if (services != null) {
-            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
 
-            if( replicapoolSupport != null ) {
-                int count = 0;
-
-                Iterable<String> virtualMachines = replicapoolSupport.listVirtualMachines(testTopologyId);
-                for (String vm : virtualMachines) {
-                    count++;
+                    ConvergedHttpLoadBalancer result = support.getConvergedHttpLoadBalancer("test-http-load-balancer");
                 }
-                assertTrue("listVirtualMachines must return more than one result.", count > 0);
-            } else {
-                tm.ok("No replicapool support in this cloud");
             }
-        } else {
-            tm.ok("No Converged Infrastructure services in this cloud");
         }
     }
 
     @Test
-    public void listVLANs() throws CloudException, InternalException {
+    public void removeHttpLoadBalancers() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if (services != null) {
-            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
 
-            if( replicapoolSupport != null ) {
-                int count = 0;
-
-                Iterable<String> virtualMachines = replicapoolSupport.listVLANs(testTopologyId);
-                for (String vlan : virtualMachines) {
-                    count++;
+                    support.removeConvergedHttpLoadBalancers("test-http-load-balancer");
                 }
-                assertTrue("listVLANs must return more than one result.", count > 0);
-            } else {
-                tm.ok("No replicapool support in this cloud");
             }
-        } else {
-            tm.ok("No Converged Infrastructure services in this cloud");
         }
     }
 
+
+    // withExistingXXXXX()
     @Test
-    public void listConvergedInfrastructureStatus() throws CloudException, InternalException {
+    public void createHttpLoadBalancer() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if (services != null) {
-            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
+            if (services.hasConvergedHttpLoadBalancerSupport()) {
+                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
+                if (support != null) {
+                    String instanceGroup1 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1";
+                    String instanceGroup2 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2";
+                    Map<String, String> pathMap = new HashMap<String, String>();
+                    String defaultBackend = "test-backend-1";
+                    String backend2 = "test-backend-2";
+                    String backend3 = "test-backend-3";
+                    pathMap.put("/*", defaultBackend);
+                    pathMap.put("/video, /video/*", backend2);
+                    pathMap.put("/audio, /audio/*", backend3);
+                    String healthCheck1 = "test-health-check";
+                    String targetProxy1 = "target-proxy-1";
+                    String targetProxy2 = "target-proxy-2";
+                    ConvergedHttpLoadBalancer withExperimentalConvergedHttpLoadbalancerOptions = ConvergedHttpLoadBalancer
+                            .getInstance("test-http-load-balancer", "test-http-load-balancer-description", defaultBackend)
+                            .withHealthCheck(healthCheck1, healthCheck1 + "-description", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
+                            .withBackendService(defaultBackend, defaultBackend + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1}, 30)
+                            .withBackendService(backend2, backend2 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup2}, 30)
+                            .withBackendService(backend3, backend3 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1, instanceGroup2}, 30)
+                            .withUrlSet("url-map-1", "url-map-description", "*", pathMap)
+                            .withUrlSet("url-map-2", "url-map-2-description", "*.net", pathMap)
+                            .withTargetHttpProxy(targetProxy1, targetProxy1 + "-description")
+                            .withTargetHttpProxy(targetProxy2, targetProxy2 + "-description")
+                            .withForwardingRule(targetProxy1 + "-fr", targetProxy1 + "-fr-description", null, "TCP", "80", targetProxy1)
+                            .withForwardingRule(targetProxy2 + "-fr", targetProxy2 + "-fr-description", null, "TCP", "8080", targetProxy2);
 
-            if( replicapoolSupport != null ) {
-                int count = 0;
+                    String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withExperimentalConvergedHttpLoadbalancerOptions);
 
-                Iterable<ResourceStatus> ciStatus = replicapoolSupport.listConvergedInfrastructureStatus();
-                for (ResourceStatus status : ciStatus) {
-                    count++;
+                    tm.out("Subscribed", support.isSubscribed());
+                } else {
+                    tm.ok(tm.getProvider().getCloudName() + " does not support topologies");
                 }
-                assertTrue("listConvergedInfrastructureStatus must return more than one result.", count > 0);
-            } else {
-                tm.ok("No replicapool support in this cloud");
             }
         } else {
-            tm.ok("No Converged Infrastructure services in this cloud");
+            tm.ok(tm.getProvider().getCloudName() + " does not support compute services");
         }
     }
 }

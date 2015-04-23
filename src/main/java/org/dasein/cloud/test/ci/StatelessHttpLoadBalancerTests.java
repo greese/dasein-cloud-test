@@ -81,105 +81,10 @@ public class StatelessHttpLoadBalancerTests {
         tm.end();
     }
 
-
     @Test
-    public void listHttpLoadBalancers() throws CloudException, InternalException {
-        CIServices services = tm.getProvider().getCIServices();
-
-        if (services != null) {
-            if (services.hasConvergedHttpLoadBalancerSupport()) {
-                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
-                if (support != null) {
-                    ConvergedHttpLoadBalancerFilterOptions options = new ConvergedHttpLoadBalancerFilterOptions();
-
-                    Iterable<String> result = support.listConvergedHttpLoadBalancers();
-
-                    // ConvergedHttpLoadBalancer likely will need to be populated with data from other calls...
-
-                    tm.out("Subscribed", support.isSubscribed());
-                    //tm.out("Public Library", support.supportsPublicLibrary());
-                } else {
-                    tm.ok(tm.getProvider().getCloudName() + " does not support topologies");
-                }
-            }
-        } else {
-            tm.ok(tm.getProvider().getCloudName() + " does not support compute services");
-        }
+    public void dummyTest() {
+        
     }
+ 
 
-    @Test
-    public void getConvergedHttpLoadBalancer() throws CloudException, InternalException {
-        CIServices services = tm.getProvider().getCIServices();
-
-        if (services != null) {
-            if (services.hasConvergedHttpLoadBalancerSupport()) {
-                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
-                if (support != null) {
-
-                    ConvergedHttpLoadBalancer result = support.getConvergedHttpLoadBalancer("roger-name");
-                }
-            }
-        }
-    }
-
-    @Test
-    public void removeHttpLoadBalancers() throws CloudException, InternalException {
-        CIServices services = tm.getProvider().getCIServices();
-
-        if (services != null) {
-            if (services.hasConvergedHttpLoadBalancerSupport()) {
-                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
-                if (support != null) {
-
-                    support.removeConvergedHttpLoadBalancers("roger-name");
-                }
-            }
-        }
-    }
-
-    // withExistingXXXXX()
-    @Test
-    public void createHttpLoadBalancer() throws CloudException, InternalException {
-        CIServices services = tm.getProvider().getCIServices();
-
-        if (services != null) {
-            if (services.hasConvergedHttpLoadBalancerSupport()) {
-                ConvergedHttpLoadBalancerSupport support = services.getConvergedHttpLoadBalancerSupport();
-                if (support != null) {
-                    String instanceGroup1 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/europe-west1-b/resourceViews/instance-group-1";
-                    String instanceGroup2 = "https://www.googleapis.com/resourceviews/v1beta2/projects/qa-project-2/zones/us-central1-f/resourceViews/instance-group-2";
-                    Map<String, String> pathMap = new HashMap<String, String>();
-                    String defaultBackend = "roger-bes-name";
-                    String backend2 = "roger-bes2-name";
-                    String backend3 = "roger-bes3-name";
-                    pathMap.put("/*", defaultBackend);
-                    pathMap.put("/video, /video/*", backend2);
-                    pathMap.put("/audio, /audio/*", backend3);
-                    String healthCheck1 = "roger-hc-1";
-                    String targetProxy1 = "bob";
-                    String targetProxy2 = "fred";
-                    ConvergedHttpLoadBalancer withExperimentalConvergedHttpLoadbalancerOptions = ConvergedHttpLoadBalancer
-                            .getInstance("roger-name", "roger-description", defaultBackend)
-                            .withHealthCheck(healthCheck1, healthCheck1 + "-description", null, 80, "/", 5, 5, 2, 2) //ONLY ONE ALLOWED
-                            .withBackendService(defaultBackend, defaultBackend + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1}, 30)
-                            .withBackendService(backend2, backend2 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup2}, 30)
-                            .withBackendService(backend3, backend3 + "-description", 80, "http", "HTTP", new String[] {healthCheck1}, new String[] {instanceGroup1, instanceGroup2}, 30)
-                            .withUrlSet("roger-url-map", "roger-url-map", "*", pathMap)
-                            .withUrlSet("roger-url-map2", "roger-url-map2", "*.net", pathMap)
-                            .withTargetHttpProxy(targetProxy1, targetProxy1 + "-description")
-                            .withTargetHttpProxy(targetProxy2, targetProxy2 + "-description")
-                            .withForwardingRule(targetProxy1 + "-fr", targetProxy1 + "-fr-description", null, "TCP", "80", targetProxy1)
-                            .withForwardingRule(targetProxy2 + "-fr", targetProxy2 + "-fr-description", null, "TCP", "8080", targetProxy2);
-
-                    String convergedHttpLoadBalancerSelfUrl = support.createConvergedHttpLoadBalancer(withExperimentalConvergedHttpLoadbalancerOptions);
-
-                    tm.out("Subscribed", support.isSubscribed());
-                } else {
-                    tm.ok(tm.getProvider().getCloudName() + " does not support topologies");
-                }
-            }
-        } else {
-            tm.ok(tm.getProvider().getCloudName() + " does not support compute services");
-        }
-    }
 }
