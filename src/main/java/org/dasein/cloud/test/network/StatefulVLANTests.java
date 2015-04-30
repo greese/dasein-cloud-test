@@ -470,21 +470,33 @@ public class StatefulVLANTests {
 
             if( support != null ) {
                 if( testVLANId != null ) {
-                    VLAN vlan = support.getVlan(testVLANId);
+                    if( support.getCapabilities().allowsNewVlanCreation() ) {
+                        VLAN vlan = support.getVlan(testVLANId);
 
-                    tm.out("Before", vlan);
-                    assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
-                    tm.out("State", vlan.getCurrentState());
-                    support.removeVlan(testVLANId);
-                    try {
-                        Thread.sleep(5000L);
-                    } catch( InterruptedException ignore ) {
+                        tm.out("Before", vlan);
+                        assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
+                        tm.out("State", vlan.getCurrentState());
+                        support.removeVlan(testVLANId);
+                        try {
+                            Thread.sleep(5000L);
+                        }
+                        catch( InterruptedException ignore ) {
+                        }
+                        vlan = support.getVlan(testVLANId);
+                        tm.out("After", vlan);
+                        tm.out("State", ( vlan == null ? "DELETED" : vlan.getCurrentState() ));
+                        assertNull("The VLAN remains available", vlan);
                     }
-                    vlan = support.getVlan(testVLANId);
-                    tm.out("After", vlan);
-                    tm.out("State", ( vlan == null ? "DELETED" : vlan.getCurrentState() ));
-                    assertNull("The VLAN remains available", vlan);
-                } else {
+                    else {
+                        try {
+                            support.removeVlan(testVLANId);
+                            fail("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName() + ", however the removeVlan call has succeeded");
+                        } catch( Exception ignore ) {
+                            tm.ok("VLAN create/deletion is not supported in " + tm.getProvider().getCloudName() + ", and removeVlan did not succeed");
+                        }
+                    }
+                }
+                else {
                     if( !support.getCapabilities().allowsNewVlanCreation() ) {
                         tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     } else if( support.isSubscribed() ) {
@@ -493,7 +505,8 @@ public class StatefulVLANTests {
                         tm.ok("VLAN service is not subscribed so this test is not entirely valid");
                     }
                 }
-            } else {
+            }
+            else {
                 tm.ok("No VLAN support in this cloud");
             }
         } else {
