@@ -101,7 +101,7 @@ public class StatefulRDBMSTests {
         if ( name.getMethodName().equals("listAccess") ||
                 name.getMethodName().equals("alterDatabase") ||
                 name.getMethodName().equals("checkAccess")) {
-            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
+            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, DatabaseEngine.MYSQL);
         }
     }
 
@@ -286,11 +286,13 @@ public class StatefulRDBMSTests {
         assertFalse("Was able to connect to the database server before access was granted, something is really really wrong", checkConnection(instance.getHostName(), instance.getHostPort()));
 
         support.addAccess(testDatabaseId, ourIp + "/32");
+        // let the cloud settle in
+        try { Thread.sleep(60000L); } catch( InterruptedException e ) {}
         assertTrue("Was unable to connect to the database server after access was granted", checkConnection(instance.getHostName(), instance.getHostPort()));
 
         support.revokeAccess(testDatabaseId, ourIp + "/32");
         // let the cloud settle in
-        try { Thread.sleep(5000L); } catch( InterruptedException e ) {}
+        try { Thread.sleep(60000L); } catch( InterruptedException e ) {}
 
         assertFalse("Was able to connect to the database server after access was revoked", checkConnection(instance.getHostName(), instance.getHostPort()));
     }
@@ -480,7 +482,7 @@ public class StatefulRDBMSTests {
         preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
         preferredMaintenanceWindow.setStartHour(3);
         preferredMaintenanceWindow.setStartMinute(0);
-        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.SUNDAY);
         preferredMaintenanceWindow.setEndHour(5);
         preferredMaintenanceWindow.setEndMinute(0);
         TimeWindow preferredBackupWindow = new TimeWindow();
