@@ -722,7 +722,23 @@ public class StatefulVLANTests {
             return;
         }
 
-        String vmId = compute.provisionVM(vmSupport, "vlanLaunch", options, options.getDataCenterId());
+        String vmId = null;
+        try {
+            vmId = compute.provisionVM(vmSupport, "vlanLaunch", options, options.getDataCenterId());
+            // we should check that the cloud behaviour matches the declared capabilities
+            if( options.getVlanId() != null && Requirement.NONE.equals(vmSupport.getCapabilities().identifyVlanRequirement()) ) {
+                assertNull("The capabilities for "+tm.getProvider().getCloudName()+" dictate that setting VLAN upon VM launch is not possible, however the VM has been launched successfully", vmId);
+            }
+        }
+        catch( Exception ignore ) {
+            if( options.getVlanId() != null && Requirement.NONE.equals(vmSupport.getCapabilities().identifyVlanRequirement()) ) {
+                tm.ok("The capabilities for "+tm.getProvider().getCloudName()+" dictate that setting VLAN upon VM launch is not possible, and the VM launch has failed as expected");
+                return;
+            }
+            else {
+                throw new InternalException(ignore);
+            }
+        }
 
         tm.out("Virtual Machine", vmId);
         assertNotNull("No error received launching VM in VLAN/subnet, but there was no virtual machine", vmId);
