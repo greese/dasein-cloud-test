@@ -27,22 +27,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.ci.CIProvisionOptions;
 import org.dasein.cloud.ci.CIServices;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancer;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancer.BackendService;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancer.ForwardingRule;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancer.HealthCheck;
+import org.dasein.cloud.ci.ConvergedHttpLoadBalancer.TargetHttpProxy;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancer.UrlSet;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancerFilterOptions;
 import org.dasein.cloud.ci.ConvergedHttpLoadBalancerSupport;
-import org.dasein.cloud.ci.ConvergedInfrastructure;
-import org.dasein.cloud.ci.ConvergedInfrastructureSupport;
-import org.dasein.cloud.ci.HttpLoadBalancerCapabilities;
-import org.dasein.cloud.ci.TopologySupport;
-import org.dasein.cloud.compute.ComputeServices;
+import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -117,20 +113,43 @@ public class StatefulHttpLoadBalancerTests {
         if (null != backendServices) {
             for (BackendService backendService : backendServices) {
                 if (backendService.getName().equals(name)) {
-                    assertTrue("backendService description does not match.", backendService.getDescription().equals(description));
+                    found = true;
+                    //assertTrue("backendService description does not match.", backendService.getDescription().equals(description));
                     assertTrue("backendService selfLink does not match.", backendService.getSelfLink().equals(selfUrl));
                 }
             }
         }
-        assertTrue("backendService not found.", found);
+        assertTrue("BackendService not found.", found);
     }
 
     private void verifyConvergedHttpLoadBalancerTargetHttpProxyPresent(ConvergedHttpLoadBalancer createdHttpLoadBalancer, String name, String description) {
-
+        boolean found = false;
+        List<TargetHttpProxy> targetHttpProxies = createdHttpLoadBalancer.getTargetHttpProxies();
+        if (null != targetHttpProxies) {
+            for (TargetHttpProxy targetHttpProxy : targetHttpProxies) {
+                found = true;
+                assertTrue("targetHttpProxy name does not match.", targetHttpProxy.getName().equals(name));
+                assertTrue("targetHttpProxy description does not match.", targetHttpProxy.getDescription().equals(description));
+            }
+        }
+        assertTrue("TargetHttpProxy not found.", found);
     }
 
     private void verifyConvergedHttpLoadBalancerForwardingRulePresent(ConvergedHttpLoadBalancer createdHttpLoadBalancer, String name, String description, String ipAddress, String ipProtocol, String portRange, String target) {
-
+        boolean found = false;
+        List<ForwardingRule> forwardingRules = createdHttpLoadBalancer.getForwardingRules();
+        if (null != forwardingRules) {
+            for (ForwardingRule forwardingRule : forwardingRules) {
+                found = true;
+                assertTrue("forwardingRule name does not match.", forwardingRule.getName().equals(name));
+                assertTrue("forwardingRule description does not match.", forwardingRule.getDescription().equals(description));
+                //assertTrue("forwardingRule ipAddress does not match.", forwardingRule.getIpAddress().equals(ipAddress));
+                assertTrue("forwardingRule ipProtocol does not match.", forwardingRule.getIpProtocol().equals(ipProtocol));
+                assertTrue("forwardingRule portRange does not match.", forwardingRule.getPortRange().equals(portRange));
+                assertTrue("forwardingRule target does not match.", forwardingRule.getTarget().equals(target));
+            }
+        }
+        assertTrue("forwardingRule not found.", found);
     }
 
     @Test
@@ -302,7 +321,7 @@ public class StatefulHttpLoadBalancerTests {
                             verifyConvergedHttpLoadBalancerUrlSetPresent(createdHttpLoadBalancer, "url-map-1", "url-map-description", "*", pathMap);  // why no description
                             verifyConvergedHttpLoadBalancerBackendServicePresent(createdHttpLoadBalancer, "test-backend-1", "", "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/backendServices/test-backend-1");
                             verifyConvergedHttpLoadBalancerTargetHttpProxyPresent(createdHttpLoadBalancer, targetProxy, targetProxy + "-description");
-                            verifyConvergedHttpLoadBalancerForwardingRulePresent(createdHttpLoadBalancer, targetProxy + "-fr", targetProxy + "-fr-description", null, "TCP", "80", targetProxy);
+                            verifyConvergedHttpLoadBalancerForwardingRulePresent(createdHttpLoadBalancer, targetProxy + "-fr", targetProxy + "-fr-description", null, "TCP", "80-80", targetProxy);
 
                             tm.ok("createHttpLoadBalancerUsingExistingBackendService");
                     } else {
