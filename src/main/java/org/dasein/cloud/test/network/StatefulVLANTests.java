@@ -470,21 +470,33 @@ public class StatefulVLANTests {
 
             if( support != null ) {
                 if( testVLANId != null ) {
-                    VLAN vlan = support.getVlan(testVLANId);
+                    if( support.getCapabilities().allowsNewVlanCreation() ) {
+                        VLAN vlan = support.getVlan(testVLANId);
 
-                    tm.out("Before", vlan);
-                    assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
-                    tm.out("State", vlan.getCurrentState());
-                    support.removeVlan(testVLANId);
-                    try {
-                        Thread.sleep(5000L);
-                    } catch( InterruptedException ignore ) {
+                        tm.out("Before", vlan);
+                        assertNotNull("Test VLAN no longer exists, cannot test removing it", vlan);
+                        tm.out("State", vlan.getCurrentState());
+                        support.removeVlan(testVLANId);
+                        try {
+                            Thread.sleep(5000L);
+                        }
+                        catch( InterruptedException ignore ) {
+                        }
+                        vlan = support.getVlan(testVLANId);
+                        tm.out("After", vlan);
+                        tm.out("State", ( vlan == null ? "DELETED" : vlan.getCurrentState() ));
+                        assertNull("The VLAN remains available", vlan);
                     }
-                    vlan = support.getVlan(testVLANId);
-                    tm.out("After", vlan);
-                    tm.out("State", ( vlan == null ? "DELETED" : vlan.getCurrentState() ));
-                    assertNull("The VLAN remains available", vlan);
-                } else {
+                    else {
+                        try {
+                            support.removeVlan(testVLANId);
+                            fail("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName() + ", however the removeVlan call has succeeded");
+                        } catch( Exception ignore ) {
+                            tm.ok("VLAN create/deletion is not supported in " + tm.getProvider().getCloudName() + ", and removeVlan did not succeed");
+                        }
+                    }
+                }
+                else {
                     if( !support.getCapabilities().allowsNewVlanCreation() ) {
                         tm.ok("VLAN creation/deletion is not supported in " + tm.getProvider().getCloudName());
                     } else if( support.isSubscribed() ) {
@@ -493,7 +505,8 @@ public class StatefulVLANTests {
                         tm.ok("VLAN service is not subscribed so this test is not entirely valid");
                     }
                 }
-            } else {
+            }
+            else {
                 tm.ok("No VLAN support in this cloud");
             }
         } else {
@@ -709,7 +722,23 @@ public class StatefulVLANTests {
             return;
         }
 
-        String vmId = compute.provisionVM(vmSupport, "vlanLaunch", options, options.getDataCenterId());
+        String vmId = null;
+        try {
+            vmId = compute.provisionVM(vmSupport, "vlanLaunch", options, options.getDataCenterId());
+            // we should check that the cloud behaviour matches the declared capabilities
+            if( options.getVlanId() != null && Requirement.NONE.equals(vmSupport.getCapabilities().identifyVlanRequirement()) ) {
+                assertNull("The capabilities for "+tm.getProvider().getCloudName()+" dictate that setting VLAN upon VM launch is not possible, however the VM has been launched successfully", vmId);
+            }
+        }
+        catch( Exception ignore ) {
+            if( options.getVlanId() != null && Requirement.NONE.equals(vmSupport.getCapabilities().identifyVlanRequirement()) ) {
+                tm.ok("The capabilities for "+tm.getProvider().getCloudName()+" dictate that setting VLAN upon VM launch is not possible, and the VM launch has failed as expected");
+                return;
+            }
+            else {
+                throw new InternalException(ignore);
+            }
+        }
 
         tm.out("Virtual Machine", vmId);
         assertNotNull("No error received launching VM in VLAN/subnet, but there was no virtual machine", vmId);

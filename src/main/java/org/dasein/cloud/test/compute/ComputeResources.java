@@ -320,6 +320,10 @@ public class ComputeResources {
         return null;
     }
 
+    public @Nullable Platform getTestImagePlatform() {
+        return testImagePlatform;
+    }
+
     public @Nullable String getTestImageId( @Nonnull String label, boolean provisionIfNull ) {
         String id = testMachineImages.get(label);
 
@@ -1099,7 +1103,7 @@ public class ComputeResources {
         if( options.getBootstrapUser() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyPasswordRequirement(testImagePlatform)) ) {
             options.withBootstrapUser("dasein", "x" + random.nextInt(100000) + System.currentTimeMillis());
         }
-        if( options.getBootstrapKey() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyShellKeyRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapKey() == null && !Requirement.NONE.equals(support.getCapabilities().identifyShellKeyRequirement(testImagePlatform)) ) {
             IdentityResources identity = DaseinTestManager.getIdentityResources();
 
             if( identity != null ) {

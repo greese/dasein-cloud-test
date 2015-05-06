@@ -245,6 +245,10 @@ public class StatefulVMTests {
                     tm.out("Launched", id);
                     assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
                     assertNotNull("Could not find the newly created virtual machine", support.getVirtualMachine(id));
+                    if( !Requirement.NONE.equals(support.getCapabilities().identifyShellKeyRequirement(DaseinTestManager.getComputeResources().getTestImagePlatform())) ) {
+                        VirtualMachine vm = support.getVirtualMachine(id);
+                        assertNotNull("Should have set a keypair", vm.getProviderKeypairId());
+                    }
                 }
                 else {
                     try {
