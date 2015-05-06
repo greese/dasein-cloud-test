@@ -1070,7 +1070,10 @@ public class NetworkResources {
                     }
                 }
             }
-            return findStatelessLoadBalancer();
+            String id = findStatelessLoadBalancer();
+            if (null != id) {
+                return id;
+            }
         }
         String id = testLBs.get(label);
 
@@ -1825,7 +1828,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-            		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
+                    name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 60, 3, 10)); // MAX for GCE is 60 sec
         }
 
         if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
