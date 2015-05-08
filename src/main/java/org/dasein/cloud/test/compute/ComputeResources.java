@@ -418,7 +418,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVMs.get(label);
 
@@ -609,7 +608,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVolumes.get(label);
 
@@ -642,6 +640,10 @@ public class ComputeResources {
     public void init() {
         testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
         testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
+
+        if (testImageId.equals("")) {
+            testImageId = null;
+        }
 
         ComputeServices computeServices = provider.getComputeServices();
 
@@ -1235,7 +1237,7 @@ public class ComputeResources {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
+        String name = namePrefix + "-" + now;
         String host = hostPrefix + ( now % 10000 );
 
         return provisionManyVMs(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter, count);

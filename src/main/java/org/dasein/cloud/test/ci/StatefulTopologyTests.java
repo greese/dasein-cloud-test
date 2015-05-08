@@ -97,7 +97,7 @@ public class StatefulTopologyTests {
     private void assertTopology(@Nonnull Topology topology) {
         assertNotNull("Topology ID may not be null", topology.getProviderTopologyId());
         assertNotNull("Topology name may not be null", topology.getName());
-        //assertNotNull("Topology description may not be null", topology.getDescription());
+        assertNotNull("Topology description may not be null", topology.getDescription());
         assertNotNull("Topology state may not be null", topology.getCurrentState());
         assertTrue("Topology creation timestamp may not be negative", topology.getCreationTimestamp() >= 0L);
         assertNotNull("Topology tags may not be null", topology.getTags());
