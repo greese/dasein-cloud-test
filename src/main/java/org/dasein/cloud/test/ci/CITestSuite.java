@@ -33,7 +33,7 @@ import org.junit.runners.Suite;
 @Suite.SuiteClasses({
         StatelessTopologyTests.class,
         StatefulTopologyTests.class,
-        StatefulReplicapoolTests.class,
+        StatefulCITests.class,
         StatelessHttpLoadBalancerTests.class,
         StatefulHttpLoadBalancerTests.class
 })
