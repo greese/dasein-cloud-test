@@ -42,12 +42,12 @@ import org.junit.rules.TestName;
 /**
  * Tests support for Dasein Cloud Replicapools which represent complex, multi-resource groups.
  */
-public class StatefulReplicapoolTests {
+public class StatefulCITests {
     static private DaseinTestManager tm;
 
     @BeforeClass
     static public void configure() {
-        tm = new DaseinTestManager(StatefulReplicapoolTests.class);
+        tm = new DaseinTestManager(StatefulCITests.class);
     }
 
     @AfterClass
@@ -62,7 +62,7 @@ public class StatefulReplicapoolTests {
 
     private String testTopologyId;
 
-    public StatefulReplicapoolTests() { }
+    public StatefulCITests() { }
 
     @Before
     public void before() {
@@ -105,20 +105,20 @@ public class StatefulReplicapoolTests {
     }
 
     /*
-     * create new replicapool and verify it.
+     * create new replica pool and verify it.
      */
     @Test
-    public void createReplicapoolFromTopolology() throws CloudException, InternalException {
+    public void createCIFromTopology() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if( services != null ) {
             TopologySupport topologySupport = services.getTopologySupport();
-            ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
-            if ((null != topologySupport) && (null != replicapoolSupport)) {
+            ConvergedInfrastructureSupport ciSupport = services.getConvergedInfrastructureSupport();
+            if ((null != topologySupport) && (null != ciSupport)) {
                 String description = "create-test";
                 String zone = "us-central1-f";
                 CIProvisionOptions options = CIProvisionOptions.getInstance(name.getMethodName().toLowerCase(), description , zone , 2, "instance-template-2" );  // is testTopologyId the url?
-                ConvergedInfrastructure result = replicapoolSupport.provision(options);
+                ConvergedInfrastructure result = ciSupport.provision(options);
 
             } else {
                 tm.ok("No topology support in this cloud");
@@ -132,15 +132,15 @@ public class StatefulReplicapoolTests {
      * delete a replicapool
      */
     @Test
-    public void deleteReplicapoolFromTopolology() throws CloudException, InternalException {
+    public void deleteCIFromTopology() throws CloudException, InternalException {
         CIServices services = tm.getProvider().getCIServices();
 
         if ( services != null) {
             TopologySupport support = services.getTopologySupport();
 
             if (support != null) {
-                ConvergedInfrastructureSupport replicapoolSupport = services.getConvergedInfrastructureSupport();
-                replicapoolSupport.terminate(testTopologyId, "die");
+                ConvergedInfrastructureSupport ciSupport = services.getConvergedInfrastructureSupport();
+                ciSupport.terminate(testTopologyId, "die");
 
             } else {
                 tm.ok("No topology support in this cloud");
