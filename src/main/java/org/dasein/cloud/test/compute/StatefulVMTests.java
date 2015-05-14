@@ -149,6 +149,9 @@ public class StatefulVMTests {
                 }
             }
         }
+        else if( name.getMethodName().equals("reboot") ) {
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
+        }
         else if( name.getMethodName().equals("terminate") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.REMOVED, VmState.RUNNING, true, testDataCenterId);
         }
@@ -1174,6 +1177,44 @@ public class StatefulVMTests {
         }
     }
 
+
+    @Test
+    public void reboot() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services != null ) {
+            VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+            if( support != null ) {
+                if( testVmId != null ) {
+                    VirtualMachine vm = support.getVirtualMachine(testVmId);
+
+                    if( vm != null ) {
+                        tm.out("Before", vm.getCurrentState());
+                        support.reboot(vm.getProviderVirtualMachineId());
+                        vm = awaitState(vm, VmState.RUNNING, System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L ));
+                        VmState currentState = ( vm == null ? VmState.RUNNING : vm.getCurrentState() );
+                        tm.out("After", currentState);
+                        assertEquals("Current state does not match the target state", VmState.RUNNING, currentState);
+                    }
+                    else {
+                        tm.warn("Test virtual machine " + testVmId + " failed to reboot");
+                    }
+                }
+                else {
+                    tm.warn("No test virtual machine was found for this test");
+                }
+            }
+            else {
+                tm.ok("No virtual machine support in this cloud");
+            }
+        }
+        else {
+            tm.ok("No compute services in this cloud");
+        }
+    }
+    
     @Test
     public void terminate() throws CloudException, InternalException {
         assumeTrue(!tm.isTestSkipped());

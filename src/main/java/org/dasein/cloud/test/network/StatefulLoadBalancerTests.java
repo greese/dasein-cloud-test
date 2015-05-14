@@ -297,7 +297,7 @@ public class StatefulLoadBalancerTests {
                             testVirtualMachineId = ids.iterator().next();
                         }
                         else {
-                            testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "_" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
+                            testVirtualMachineId = tm.getTestVMId(DaseinTestManager.STATEFUL + "-" + testLoadBalancerId + (System.currentTimeMillis()%10000), VmState.RUNNING,  true, testDataCenterId);
                             if( testVirtualMachineId != null ) {
                                 support.addServers(testLoadBalancerId, testVirtualMachineId);
                             }

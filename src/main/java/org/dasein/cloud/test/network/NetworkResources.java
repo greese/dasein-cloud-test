@@ -1825,7 +1825,7 @@ public class NetworkResources {
 
         if( withHealthCheck ) {
             options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-            		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 100, 3, 10));
+            		name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 60, 3, 10));
         }
 
         if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
