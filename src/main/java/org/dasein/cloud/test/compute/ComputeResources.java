@@ -43,6 +43,8 @@ import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 
+import static org.junit.Assert.fail;
+
 /**
  * Handles the shared compute resources for executing various tests.
  * <p>Created by George Reese: 2/17/13 8:35 PM</p>
@@ -868,6 +870,20 @@ public class ComputeResources {
         return null;
     }
 
+    public void prepareVmForImaging(@Nonnull VirtualMachine vm, @Nonnull VirtualMachineSupport vmSupport, @Nonnull MachineImageSupport imageSupport) throws CloudException, InternalException {
+        if( !imageSupport.getCapabilities().canImage(vm.getCurrentState()) ) {
+            if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                vmSupport.stop(vm.getProviderVirtualMachineId());
+            }
+            else if( VmState.STOPPED.equals(vm.getCurrentState()) ) {
+                vmSupport.start(vm.getProviderVirtualMachineId());
+            }
+            else {
+                fail("Image capture is not supported in started and stopped states, please go ahead and improve this test so that it works with your weird cloud.");
+            }
+        }
+    }
+
     public @Nonnull String provisionImage( @Nonnull MachineImageSupport support, @Nonnull String label, @Nonnull String namePrefix, @Nullable String vmId ) throws CloudException, InternalException {
         VirtualMachineSupport vmSupport = null;
 
@@ -894,6 +910,8 @@ public class ComputeResources {
         MachineImage image = support.getImage(imageId);
 
         if( image == null || support.getCapabilities().supportsImageCapture(image.getType()) ) {
+            prepareVmForImaging(vm, vmSupport, support);
+
             String id = ImageCreateOptions.getInstance(vm, namePrefix + ( System.currentTimeMillis() % 10000 ), "Test machine image with label " + label).build(provider);
 
             synchronized ( testMachineImages ) {
