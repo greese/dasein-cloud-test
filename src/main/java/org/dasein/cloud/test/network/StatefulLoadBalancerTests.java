@@ -107,7 +107,7 @@ public class StatefulLoadBalancerTests {
             // ignore
         }
         if( name.getMethodName().equals("removeLoadBalancer") ) {
-            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, false);
+            testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, true);
         }
         else if( name.getMethodName().equals("addIP") || name.getMethodName().equals("createLoadBalancerHealthCheck") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATEFUL, tm.getUserName() + "-dsnlb", true);
