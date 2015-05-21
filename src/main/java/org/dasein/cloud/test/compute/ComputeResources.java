@@ -808,7 +808,6 @@ public class ComputeResources {
             if( volumeSupport != null ) {
                 try {
                     Volume defaultVolume = null;
-
                     for( Volume volume : volumeSupport.listVolumes() ) {
                         if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
