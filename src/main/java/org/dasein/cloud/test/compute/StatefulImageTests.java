@@ -626,10 +626,11 @@ public class StatefulImageTests {
         VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
 
         assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
-        ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test");
 
+        // make sure to put the VM into the right state for capturing
         computeResources.prepareVmForImaging(vm, vmSupport, support);
 
+        ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test");
         options.withMetaData("dsntestcase", "true");
 
         String imageId = vm.getProviderMachineImageId();
@@ -707,124 +708,127 @@ public class StatefulImageTests {
             capturedOnce = true;
         }
         ComputeServices services = tm.getProvider().getComputeServices();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud " + tm.getProvider().getCloudName());
+            return;
+        }
+        ComputeResources computeResources = DaseinTestManager.getComputeResources();
+        if( computeResources == null ) {
+            fail("Compute resources failed to initialise");
+        }
 
-        if( services != null ) {
-            VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
-            MachineImageSupport support = services.getImageSupport();
+        VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+        MachineImageSupport support = services.getImageSupport();
 
-            if( support != null && vmSupport != null ) {
-                if( testVMId != null ) {
-                    VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
-
-                    assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
-
-                    String imageId = vm.getProviderMachineImageId();
-                    MachineImageType type = null;
-
-                    MachineImage source = support.getImage(imageId);
-
-                    if( source != null ) {
-                        type = source.getType();
-                    }
-                    else {
-                        for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
-                            type = t; // pray
-                        }
-                    }
-                    if( type == null ) {
-                        type = MachineImageType.VOLUME; // or not; qui sait?
-                    }
-                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test");
-
-                    options.withMetaData("dsntestcase", "true");
-
-                    AsynchronousTask<MachineImage> task = new AsynchronousTask<MachineImage>();
-
-                    if( support.getCapabilities().supportsImageCapture(type) ) {
-                        support.captureImageAsync(options, task);
-
-                        tm.out("Task", "");
-
-                        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 30L );
-
-                        while( timeout > System.currentTimeMillis() ) {
-                            if( task.isComplete() ) {
-                                Throwable t = task.getTaskError();
-
-                                if( t != null ) {
-                                    tm.out("-->", "Failure: " + t.getMessage());
-                                    throw t;
-                                }
-                                tm.out("-->", "Complete");
-                                break;
-                            }
-                            else {
-                                tm.out("-->", task.getPercentComplete() + "%");
-                            }
-                            try {
-                                Thread.sleep(15000L);
-                            }
-                            catch( InterruptedException ignore ) {
-                            }
-                        }
-                        MachineImage image = task.getResult();
-
-                        tm.out("New Image", image);
-                        assertNotNull("The image ID returned from provisioning the image was null", image);
-
-                        provisionedImage = image.getProviderMachineImageId();
-
-                        timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 30L );
-
-                        while( timeout > System.currentTimeMillis() ) {
-                            try {
-                                MachineImage img = support.getImage(provisionedImage);
-
-                                assertNotNull("The image disappeared after it was created, but before it became available", img);
-                                assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(img.getCurrentState()));
-                                tm.out("--> Current State", img.getCurrentState());
-                                if( MachineImageState.ACTIVE.equals(img.getCurrentState()) ) {
-                                    break;
-                                }
-                            }
-                            catch( Throwable t ) {
-                                tm.warn("Error fetching captured image " + provisionedImage);
-                            }
-                            try {
-                                Thread.sleep(15000L);
-                            }
-                            catch( InterruptedException ignore ) {
-                            }
-                        }
-                        image = support.getImage(provisionedImage);
-
-                        assertNotNull("The image disappeared after it was created, but before it became available", image);
-                        assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
-                    }
-                    else {
-                        try {
-                            support.captureImageAsync(options, task);
-                        }
-                        catch( OperationNotSupportedException expected ) {
-                            tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
-                        }
-                    }
-                }
-                else {
-                    if( !support.isSubscribed() ) {
-                        tm.warn("No test VM was identified for image capture, so this test is not valid");
-                    }
-                    else {
-                        fail("No test VM exists for the " + name.getMethodName() + " test");
-                    }
-                }
+        if( support == null || vmSupport == null ) {
+            tm.ok("No image or VM support in this cloud " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testVMId == null ) {
+            if( !support.isSubscribed() ) {
+                tm.warn("No test VM was identified for image capture, so this test is not valid");
+                return;
             }
             else {
-                tm.ok("No image support in this cloud");
+                fail("No test VM exists for the " + name.getMethodName() + " test");
             }
         }
+        VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+        assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
+
+        // make sure to put the VM into the right state for capturing
+        computeResources.prepareVmForImaging(vm, vmSupport, support);
+
+        String imageId = vm.getProviderMachineImageId();
+        MachineImageType type = null;
+
+        MachineImage source = support.getImage(imageId);
+
+        if( source != null ) {
+            type = source.getType();
+        }
         else {
-            tm.ok("No compute services in this cloud");
+            for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
+                type = t; // pray
+            }
+        }
+        if( type == null ) {
+            type = MachineImageType.VOLUME; // or not; qui sait?
+        }
+        ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test");
+
+        options.withMetaData("dsntestcase", "true");
+
+        AsynchronousTask<MachineImage> task = new AsynchronousTask<MachineImage>();
+
+        if( support.getCapabilities().supportsImageCapture(type) ) {
+            support.captureImageAsync(options, task);
+
+            tm.out("Task", "");
+
+            long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 30L );
+
+            while( timeout > System.currentTimeMillis() ) {
+                if( task.isComplete() ) {
+                    Throwable t = task.getTaskError();
+
+                    if( t != null ) {
+                        tm.out("-->", "Failure: " + t.getMessage());
+                        throw t;
+                    }
+                    tm.out("-->", "Complete");
+                    break;
+                }
+                else {
+                    tm.out("-->", task.getPercentComplete() + "%");
+                }
+                try {
+                    Thread.sleep(15000L);
+                }
+                catch( InterruptedException ignore ) {
+                }
+            }
+            MachineImage image = task.getResult();
+
+            tm.out("New Image", image);
+            assertNotNull("The image ID returned from provisioning the image was null", image);
+
+            provisionedImage = image.getProviderMachineImageId();
+
+            timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 30L );
+
+            while( timeout > System.currentTimeMillis() ) {
+                try {
+                    MachineImage img = support.getImage(provisionedImage);
+
+                    assertNotNull("The image disappeared after it was created, but before it became available", img);
+                    assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(img.getCurrentState()));
+                    tm.out("--> Current State", img.getCurrentState());
+                    if( MachineImageState.ACTIVE.equals(img.getCurrentState()) ) {
+                        break;
+                    }
+                }
+                catch( Throwable t ) {
+                    tm.warn("Error fetching captured image " + provisionedImage);
+                }
+                try {
+                    Thread.sleep(15000L);
+                }
+                catch( InterruptedException ignore ) {
+                }
+            }
+            image = support.getImage(provisionedImage);
+
+            assertNotNull("The image disappeared after it was created, but before it became available", image);
+            assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
+        }
+        else {
+            try {
+                support.captureImageAsync(options, task);
+            }
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
+            }
         }
     }
 
@@ -841,94 +845,96 @@ public class StatefulImageTests {
             capturedOnce = true;
         }
         ComputeServices services = tm.getProvider().getComputeServices();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud " + tm.getProvider().getCloudName());
+            return;
+        }
+        ComputeResources computeResources = DaseinTestManager.getComputeResources();
+        if( computeResources == null ) {
+            fail("Compute resources failed to initialise");
+        }
 
-        if( services != null ) {
-            VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
-            MachineImageSupport support = services.getImageSupport();
+        VirtualMachineSupport vmSupport = services.getVirtualMachineSupport();
+        MachineImageSupport support = services.getImageSupport();
 
-            if( support != null && vmSupport != null ) {
-                if( testVMId != null ) {
-                    VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
-
-                    assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
-
-
-                    ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test", false);
-
-                    options.withMetaData("dsntestcase", "true");
-
-                    String imageId = vm.getProviderMachineImageId();
-                    MachineImageType type = null;
-
-                    MachineImage source = support.getImage(imageId);
-
-                    if( source != null ) {
-                        type = source.getType();
-                    }
-                    else {
-                        for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
-                            type = t; // pray
-                        }
-                    }
-                    if( type == null ) {
-                        type = MachineImageType.VOLUME; // or not; qui sait?
-                    }
-                    if( support.getCapabilities().supportsImageCapture(type) ) {
-                        provisionedImage = options.build(tm.getProvider());
-                        tm.out("New Image", provisionedImage);
-                        assertNotNull("The image ID returned from provisioning the image was null", provisionedImage);
-
-                        long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
-
-                        while( timeout > System.currentTimeMillis() ) {
-                            try {
-                                MachineImage image = support.getImage(provisionedImage);
-
-                                assertNotNull("The image disappeared after it was created, but before it became available", image);
-                                assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(image.getCurrentState()));
-                                tm.out("--> Current State", image.getCurrentState());
-                                if( MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
-                                    break;
-                                }
-                            }
-                            catch( Throwable t ) {
-                                tm.warn("Error fetching captured image " + provisionedImage);
-                            }
-                            try {
-                                Thread.sleep(15000L);
-                            }
-                            catch( InterruptedException ignore ) {
-                            }
-                        }
-                        MachineImage image = support.getImage(provisionedImage);
-
-                        assertNotNull("The image disappeared after it was created, but before it became available", image);
-                        assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
-                    }
-                    else {
-                        try {
-                            provisionedImage = options.build(tm.getProvider());
-                        }
-                        catch( OperationNotSupportedException expected ) {
-                            tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
-                        }
-                    }
-                }
-                else {
-                    if( !support.isSubscribed() ) {
-                        tm.warn("No test VM was identified for image capture, so this test is not valid");
-                    }
-                    else {
-                        fail("No test VM exists for the " + name.getMethodName() + " test");
-                    }
-                }
+        if( support == null || vmSupport == null ) {
+            tm.ok("No image or VM support in this cloud " + tm.getProvider().getCloudName());
+            return;
+        }
+        if( testVMId == null ) {
+            if( !support.isSubscribed() ) {
+                tm.warn("No test VM was identified for image capture, so this test is not valid");
+                return;
             }
             else {
-                tm.ok("No image support in this cloud");
+                fail("No test VM exists for the " + name.getMethodName() + " test");
             }
         }
+        VirtualMachine vm = vmSupport.getVirtualMachine(testVMId);
+        assertNotNull("The test virtual machine " + testVMId + " does not exist", vm);
+
+        // make sure to put the VM into the right state for capturing
+        computeResources.prepareVmForImaging(vm, vmSupport, support);
+
+        ImageCreateOptions options = ImageCreateOptions.getInstance(vm, "dsncap" + ( System.currentTimeMillis() % 10000 ), "Dasein Capture Image Test", false);
+
+        options.withMetaData("dsntestcase", "true");
+
+        String imageId = vm.getProviderMachineImageId();
+        MachineImageType type = null;
+
+        MachineImage source = support.getImage(imageId);
+
+        if( source != null ) {
+            type = source.getType();
+        }
         else {
-            tm.ok("No compute services in this cloud");
+            for( MachineImageType t : support.getCapabilities().listSupportedImageTypes() ) {
+                type = t; // pray
+            }
+        }
+        if( type == null ) {
+            type = MachineImageType.VOLUME; // or not; qui sait?
+        }
+        if( support.getCapabilities().supportsImageCapture(type) ) {
+            provisionedImage = options.build(tm.getProvider());
+            tm.out("New Image", provisionedImage);
+            assertNotNull("The image ID returned from provisioning the image was null", provisionedImage);
+
+            long timeout = System.currentTimeMillis() + ( CalendarWrapper.MINUTE * 20L );
+
+            while( timeout > System.currentTimeMillis() ) {
+                try {
+                    MachineImage image = support.getImage(provisionedImage);
+
+                    assertNotNull("The image disappeared after it was created, but before it became available", image);
+                    assertFalse("The image is now in a deleted state, but before it became available", MachineImageState.DELETED.equals(image.getCurrentState()));
+                    tm.out("--> Current State", image.getCurrentState());
+                    if( MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
+                        break;
+                    }
+                }
+                catch( Throwable t ) {
+                    tm.warn("Error fetching captured image " + provisionedImage);
+                }
+                try {
+                    Thread.sleep(15000L);
+                }
+                catch( InterruptedException ignore ) {
+                }
+            }
+            MachineImage image = support.getImage(provisionedImage);
+
+            assertNotNull("The image disappeared after it was created, but before it became available", image);
+            assertEquals("The image never entered an ACTIVE state during the allotted time window", MachineImageState.ACTIVE, image.getCurrentState());
+        }
+        else {
+            try {
+                provisionedImage = options.build(tm.getProvider());
+            }
+            catch( OperationNotSupportedException expected ) {
+                tm.ok("Caught OperationNotSupportedException while attempting to capture image in cloud that does not support capture");
+            }
         }
     }
 
