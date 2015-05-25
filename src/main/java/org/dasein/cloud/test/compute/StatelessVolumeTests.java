@@ -144,13 +144,11 @@ public class StatelessVolumeTests {
 
     @Before
     public void before() {
-        try {
-            testDataCenterId = System.getProperty("test.dataCenter");
-        } catch( Throwable ignore ) {
-            // ignore
-        }
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
+
         testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATELESS, true, null, testDataCenterId);
         testProductId = tm.getTestVolumeProductId();
     }

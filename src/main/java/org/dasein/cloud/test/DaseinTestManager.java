@@ -607,6 +607,10 @@ public class DaseinTestManager {
         return name;
     }
 
+    public @Nullable String getTestDataCenterId(boolean stateless) {
+        return (computeResources == null ? null : computeResources.getTestDataCenterId(stateless));
+    }
+
     public @Nullable String getTestAnyFirewallId(@Nonnull String label, boolean provisionIfNull) {
         NetworkServices services = provider.getNetworkServices();
 

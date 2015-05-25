@@ -80,13 +80,9 @@ public class StatelessDCTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         try {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
+            testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
 
-            for( DataCenter dc : services.listDataCenters(tm.getContext().getRegionId()) ) {
-                if( testDataCenterId == null || dc.isActive() ) {
-                    testDataCenterId = dc.getProviderDataCenterId();
-                }
-            }
+            DataCenterServices services = tm.getProvider().getDataCenterServices();
 
             if (name.getMethodName().contains("Pool") && testDataCenterId != null) {
                 if (services.getCapabilities().supportsResourcePools()) {

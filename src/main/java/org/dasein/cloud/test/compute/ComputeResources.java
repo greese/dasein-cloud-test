@@ -67,7 +67,7 @@ public class ComputeResources {
     private final Map<String, String> testVolumes       = new HashMap<String, String>();
 
     //defaults
-    private String   testDataCenterId;
+    private String   testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
     private Platform testImagePlatform;
     private String   testVMProductId;
     private String   testVolumeProductId;
@@ -278,6 +278,7 @@ public class ComputeResources {
         if( testDataCenterId != null ) {
             return testDataCenterId;
         }
+
         if( stateless ) {
             try {
                 DataCenter defaultDC = null;

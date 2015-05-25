@@ -121,15 +121,9 @@ public class StatefulVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-
-        try {
-	        if (testDataCenterId == null)
-	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-	    } catch (Throwable ignore) {
-			// ignore
-		}
         assumeTrue(!tm.isTestSkipped());
+
+        testDataCenterId = tm.getTestDataCenterId(false);
 
         ComputeServices services = tm.getProvider().getComputeServices();
         if( services == null || services.getVirtualMachineSupport() == null ) {
