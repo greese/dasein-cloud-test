@@ -536,9 +536,6 @@ public class StatefulLoadBalancerTests {
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element",
                     lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
-        } else {
-            assertEquals("The LB health check 'providerLoadBalancerIds' should have 0 elements",
-                    lbhc.getProviderLoadBalancerIds().size(), 0);
         }
     }
 
