@@ -98,14 +98,9 @@ public class StatefulLoadBalancerTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-        try {
-            if( testDataCenterId == null )
-                testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-        }
-        catch( Throwable ignore ) {
-            // ignore
-        }
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(false);
+
         if( name.getMethodName().equals("removeLoadBalancer") ) {
             testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.REMOVED, tm.getUserName() + "-dsnlb", true, true);
         }

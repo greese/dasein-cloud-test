@@ -121,29 +121,23 @@ public class StatefulVMTests {
     @Before
     public void before() {
         tm.begin(name.getMethodName());
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-
-        try {
-	        if (testDataCenterId == null)
-	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-	    } catch (Throwable ignore) {
-			// ignore
-		}
         assumeTrue(!tm.isTestSkipped());
+
+        testDataCenterId = tm.getTestDataCenterId(false);
+
+        ComputeServices services = tm.getProvider().getComputeServices();
+        if( services == null || services.getVirtualMachineSupport() == null ) {
+            return;
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
         if( name.getMethodName().equals("filterVMs") ) {
-            ComputeServices services = tm.getProvider().getComputeServices();
+            try {
+                //noinspection ConstantConditions
+                testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "dasein-filter-test", "dsnfilter", testDataCenterId);
 
-            if( services != null ) {
-                VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                if( support != null ) {
-                    try {
-                        //noinspection ConstantConditions
-                        testVmId = DaseinTestManager.getComputeResources().provisionVM(support, "filter", "dasein-filter-test", "dsnfilter", testDataCenterId);
-                    } catch( Throwable t ) {
-                        tm.warn("Failed to provision VM for filter test: " + t.getMessage());
-                    }
-                }
+            } catch( Throwable t ) {
+                tm.warn("Failed to provision VM for filter test: " + t.getMessage());
             }
         }
         else if( name.getMethodName().equals("reboot") ) {
@@ -159,7 +153,24 @@ public class StatefulVMTests {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("modifyInstance") ) {
-            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.STOPPED, true, testDataCenterId);
+            VmState vmStateForAlter = null;
+            for( VmState state : VmState.values() ) {
+                try {
+                    if( support.getCapabilities().canAlter(state) ) {
+                        vmStateForAlter = state;
+                        break;
+                    }
+                }
+                catch( CloudException e ) {
+                }
+                catch( InternalException e ) {
+                }
+            }
+            if( vmStateForAlter == null ) {
+                tm.warn("Failed to find a supported VM state for modifyInstance state.");
+                return;
+            }
+            testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, vmStateForAlter, true, testDataCenterId);
         }
         else if( name.getMethodName().equals("pause") ) {
             testVmId = tm.getTestVMId(DaseinTestManager.STATEFUL, VmState.RUNNING, true, testDataCenterId);
@@ -904,7 +915,9 @@ public class StatefulVMTests {
             if( product.getProviderProductId().equals(currentProduct.getProviderProductId()) ) {
                 continue;
             }
-            if( product.getCpuCount() > currentProduct.getCpuCount() || product.getRamSize().intValue() > currentProduct.getRamSize().intValue() ) {
+            if( (product.getCpuCount() > currentProduct.getCpuCount()
+                    || product.getRamSize().intValue() > currentProduct.getRamSize().intValue())
+                    && product.getRootVolumeSize().longValue() > currentProduct.getRootVolumeSize().longValue() ) {
                 newProduct = product;
                 break;
             }

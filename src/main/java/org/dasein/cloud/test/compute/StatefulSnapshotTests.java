@@ -67,8 +67,6 @@ public class StatefulSnapshotTests {
     private String testSourceRegion;
     private String testVolumeId;
 	private String testDataCenterId;
-    private String testVmId;
-    private String snapshotId;
 
     static private int postfix = 1;
 
@@ -78,13 +76,9 @@ public class StatefulSnapshotTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-        try {
-	        if (testDataCenterId == null)
-	        	testDataCenterId = tm.getProvider().getDataCenterServices().listDataCenters(tm.getContext().getRegionId()).iterator().next().getProviderDataCenterId();
-	    } catch (Throwable ignore) {
-			// ignore
-		}
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(false);
+
         ComputeServices services = tm.getProvider().getComputeServices();
         SnapshotSupport support = null;
 

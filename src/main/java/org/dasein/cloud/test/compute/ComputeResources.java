@@ -67,7 +67,7 @@ public class ComputeResources {
     private final Map<String, String> testVolumes       = new HashMap<String, String>();
 
     //defaults
-    private String   testDataCenterId;
+    private String   testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
     private Platform testImagePlatform;
     private String   testVMProductId;
     private String   testVolumeProductId;
@@ -278,6 +278,7 @@ public class ComputeResources {
         if( testDataCenterId != null ) {
             return testDataCenterId;
         }
+
         if( stateless ) {
             try {
                 DataCenter defaultDC = null;
@@ -643,10 +644,6 @@ public class ComputeResources {
         testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
         testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
 
-        if (testImageId.equals("")) {
-            testImageId = null;
-        }
-
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -810,7 +807,8 @@ public class ComputeResources {
                     Volume defaultVolume = null;
 
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
+                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals
+                                (volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }

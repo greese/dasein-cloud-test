@@ -89,7 +89,9 @@ public class StatelessRDBMSTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
+
         testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATELESS, false, null);
     }
 

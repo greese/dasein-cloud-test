@@ -73,13 +73,7 @@ public class StatelessAffinityGroupTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
         try {
-            DataCenterServices services = tm.getProvider().getDataCenterServices();
-
-            for (DataCenter dc : services.listDataCenters(tm.getContext().getRegionId())) {
-                if (testDataCenterId == null || dc.isActive()) {
-                    testDataCenterId = dc.getProviderDataCenterId();
-                }
-            }
+            testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
 
             if (testDataCenterId != null) {
                 ComputeServices computeServices = tm.getProvider().getComputeServices();

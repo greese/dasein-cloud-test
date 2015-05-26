@@ -80,7 +80,7 @@ public class StatefulVLANTests {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
 
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(false);
 
         NetworkServices services = null;
         VLANSupport support = null;
