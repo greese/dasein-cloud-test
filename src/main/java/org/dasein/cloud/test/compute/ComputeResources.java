@@ -641,9 +641,10 @@ public class ComputeResources {
 
 
     public void init() {
-        testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
-        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
 
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
+        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
+        
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -805,7 +806,6 @@ public class ComputeResources {
             if( volumeSupport != null ) {
                 try {
                     Volume defaultVolume = null;
-
                     for( Volume volume : volumeSupport.listVolumes() ) {
                         if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals
                                 (volume.getCurrentState()) || defaultVolume == null )) {

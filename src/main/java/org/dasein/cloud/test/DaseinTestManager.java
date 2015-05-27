@@ -23,10 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.*;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
-import org.dasein.cloud.network.Firewall;
-import org.dasein.cloud.network.FirewallSupport;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.ci.CIResources;
@@ -924,4 +921,15 @@ public class DaseinTestManager {
         }
         return value;
     }
+
+    public static boolean supportsHttps(@Nonnull LoadBalancerSupport lbs) throws CloudException, InternalException {
+        boolean sslSupported = false;
+        for( LbProtocol proto : lbs.getCapabilities().listSupportedProtocols() ) {
+            if( LbProtocol.HTTPS.equals(proto) ) {
+                sslSupported = true;
+            }
+        }
+        return sslSupported;
+    }
+
 }

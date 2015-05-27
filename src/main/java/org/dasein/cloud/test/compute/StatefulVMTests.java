@@ -28,7 +28,9 @@ import org.dasein.cloud.dc.DataCenterServices;
 import org.dasein.cloud.dc.Folder;
 import org.dasein.cloud.dc.FolderType;
 import org.dasein.cloud.dc.StoragePool;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.network.NetworkResources;
 import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
@@ -284,6 +286,157 @@ public class StatefulVMTests {
         }
         else {
             tm.ok("No compute services in this cloud");
+        }
+    }
+
+    @Test
+    public void launchVMWithIP() throws CloudException, InternalException {
+        assumeTrue(!tm.isTestSkipped());
+
+        ComputeServices services = tm.getProvider().getComputeServices();
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support == null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+        if( !support.isSubscribed() ) {
+            try {
+                //noinspection ConstantConditions
+                DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+                fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+            } catch( CloudException ok ) {
+                tm.ok("Got exception when not subscribed: " + ok.getMessage());
+                return;
+            }
+        }
+
+        ComputeResources compute = DaseinTestManager.getComputeResources();
+        if( compute == null ) {
+            fail("Test compute resources aren't initialised. Panic!");
+        }
+        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+
+        assertNotNull("Unable to identify a test image for test launch", imageId);
+        String productId = tm.getTestVMProductId();
+
+        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnVmIp" + ( System.currentTimeMillis() % 10000 ), "Dasein Vm With IP Launch " + System.currentTimeMillis(), "Test launch for a VM with an IP");
+
+//        String testVmIp = "192.168.200.150";
+        String testVmIp = "192.168.101.100";
+        options.withPrivateIp(testVmIp);
+        options.withGatewayList("192.168.101.1");
+        options.withDnsServerList("192.168.101.1");
+        options.withMetaData("vSphereNetMaskNothingToSeeHere", "255.255.255.0");
+//        options.withDnsDomain("dasein.org");
+        String vlanId = tm.getTestVLANId(DaseinTestManager.STATELESS, true, options.getDataCenterId());
+        if( vlanId != null ) {
+            options.inVlan(null, testDataCenterId, vlanId);
+            NetworkServices networkServices = tm.getProvider().getNetworkServices();
+            if( networkServices == null ) {
+                fail("Test is inconsitent: vlanId is specified, but the cloud doesn't have network services");
+            }
+            VLANSupport vlanSupport = networkServices.getVlanSupport();
+            if( vlanSupport == null ) {
+                fail("Test is inconsitent: vlanId is specified, but the cloud doesn't have VLAN support");
+            }
+            VLAN vlan = vlanSupport.getVlan(vlanId);
+            if( vlan == null ) {
+                fail("Test is inconsitent: vlanId is specified, but VLAN is not found");
+            }
+            Iterable<Subnet> subnets = vlanSupport.listSubnets(vlanId);
+            for( Subnet subnet : subnets ) {
+                System.out.println(subnet.getName());
+            }
+//            options.withDnsServerList(vlan.getDnsServers());
+//            options.withDnsDomain(vlan.getDomainName());
+        }
+        String id = compute.provisionVM(support, "VmWithIpLaunch", options, options.getDataCenterId());
+
+        tm.out("Launched", id);
+        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+        VirtualMachine virtualMachine = support.getVirtualMachine(id);
+        assertNotNull("Could not find the newly created virtual machine", virtualMachine);
+        boolean ipFound = false;
+        for( RawAddress ra : virtualMachine.getPrivateAddresses() ) {
+            if( testVmIp.equals(ra.getIpAddress()) ) {
+                ipFound = true;
+                break;
+            }
+        }
+        if (support.getCapabilities().isUserDefinedPrivateIPSupported()) {
+            assertTrue("Expected IP not found " + testVmIp, ipFound);
+        }
+        else {
+            assertFalse("Private IP should not have been assigned, according to driver capabilities: " + testVmIp, ipFound);
+
+//=======
+//        if( services != null ) {
+//            VirtualMachineSupport support = services.getVirtualMachineSupport();
+//
+//            if( support != null ) {
+//                if( support.isSubscribed() ) {
+//
+//                    ComputeResources compute = DaseinTestManager.getComputeResources();
+//                    if( compute != null ) {
+//                        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+//
+//                        assertNotNull("Unable to identify a test image for test launch", imageId);
+//                        String productId = tm.getTestVMProductId();
+//
+//                        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnVmIp" + ( System.currentTimeMillis() % 10000 ), "Dasein Vm With IP Launch " + System.currentTimeMillis(), "Test launch for a VM with an IP");
+//
+//                        String testVmIp = "192.168.200.200";
+//                        options.withPrivateIp(testVmIp);
+//
+//                        String vlanId = tm.getTestVLANId(DaseinTestManager.STATELESS, true, options.getDataCenterId());
+//                        if( vlanId != null ) {
+//                            options.inVlan(null, testDataCenterId, vlanId);
+//                        }
+//                        String id = compute.provisionVM(support, "VmWithIpLaunch", options, options.getDataCenterId());
+//
+//                        tm.out("Launched", id);
+//                        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+//
+//                        VirtualMachine virtualMachine = support.getVirtualMachine(id);
+//                        assertNotNull("Could not find the newly created virtual machine", virtualMachine);
+//                        boolean ipFound = false;
+//                        for( RawAddress ra : virtualMachine.getPrivateAddresses() ) {
+//                            if( testVmIp.equals(ra.getIpAddress()) ) {
+//                                ipFound = true;
+//                                break;
+//                            }
+//                        }
+//                        if (support.getCapabilities().isUserDefinedPrivateIPSupported()) {
+//                            assertTrue("Expected IP not found " + testVmIp, ipFound);
+//                        }
+//                        else {
+//                            assertFalse("Private IP should not have been assigned, according to driver capabilities: " + testVmIp, ipFound);
+//                        }
+//                    }
+//                }
+//                else {
+//                    try {
+//                        //noinspection ConstantConditions
+//                        DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
+//                        fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+//                    } catch( CloudException ok ) {
+//                        tm.ok("Got exception when not subscribed: " + ok.getMessage());
+//                    }
+//                }
+//            }
+//            else {
+//                tm.ok("No virtual machine support in this cloud");
+//            }
+//        }
+//        else {
+//            tm.ok("No compute services in this cloud");
+//>>>>>>> cc2655c730441cf1e8ff17865d268876199d3bbb
         }
     }
 
