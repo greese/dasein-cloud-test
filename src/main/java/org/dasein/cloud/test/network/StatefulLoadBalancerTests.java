@@ -532,7 +532,8 @@ public class StatefulLoadBalancerTests {
         assertNotNull("The LB health check 'protocol' may not be null", lbhc.getProtocol());
         assertNotNull("The LB health check 'providerLoadBalancerIds' may not be null", lbhc.getProviderLoadBalancerIds());
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
-            assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element", lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
+            assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element",
+                    lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
         }
     }
 

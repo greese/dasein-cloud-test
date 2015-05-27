@@ -641,9 +641,10 @@ public class ComputeResources {
 
 
     public void init() {
+
         testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
         testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
-
+        
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
