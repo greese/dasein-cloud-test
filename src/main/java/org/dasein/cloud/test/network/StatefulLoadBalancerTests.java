@@ -41,16 +41,7 @@ import org.dasein.cloud.OperationNotSupportedException;
 import org.dasein.cloud.Requirement;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.network.HealthCheckOptions;
-import org.dasein.cloud.network.LbEndpointType;
-import org.dasein.cloud.network.LbListener;
-import org.dasein.cloud.network.LoadBalancer;
-import org.dasein.cloud.network.LoadBalancerEndpoint;
-import org.dasein.cloud.network.LoadBalancerHealthCheck;
-import org.dasein.cloud.network.LoadBalancerState;
-import org.dasein.cloud.network.LoadBalancerSupport;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.SSLCertificate;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -59,6 +50,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import javax.annotation.Nonnull;
 
 /**
  * Implements test cases against stateful load balancer functions.
@@ -327,6 +320,12 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         NetworkResources network = DaseinTestManager.getNetworkResources();
 
         if( network == null ) {
@@ -356,6 +355,11 @@ public class StatefulLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+        if( Requirement.REQUIRED.equals(support.getCapabilities().identifyListenersOnCreateRequirement()) && support.getCapabilities().getMaxPublicPorts() == 1 ) {
+            tm.ok(tm.getProvider().getCloudName() + " only supports a single listener per loadbalancer, skipping this test.");
+            return;
+        }
+
         NetworkResources network = DaseinTestManager.getNetworkResources();
 
         if( network == null ) {
@@ -467,7 +471,7 @@ public class StatefulLoadBalancerTests {
                 fail("Failed to initialize network capabilities for tests");
             }
 
-            HealthCheckOptions hcOpt = HealthCheckOptions.getInstance(null, null, null, null, LoadBalancerHealthCheck.HCProtocol.TCP, 9876, null, 10, 9, 5, 5);
+            HealthCheckOptions hcOpt = HealthCheckOptions.getInstance(null, null, null, null, LoadBalancerHealthCheck.HCProtocol.HTTP, 8091, null, 15, 9, 5, 5);
 
             String lbId = null;
             String lbhcId;
@@ -524,13 +528,11 @@ public class StatefulLoadBalancerTests {
         }
         assertThat("The LB health check 'healthyCount' should be greater than zero", lbhc.getHealthyCount(), greaterThan(0));
         assertThat("The LB health check 'unhealthyCount' should be greater than zero", lbhc.getUnhealthyCount(), greaterThan(0));
-        assertThat("The LB health check 'port' should be greater than zero", lbhc.getPort(), equalTo(NetworkResources.TEST_HC_PORT));
+        assertThat("The LB health check 'port' should be greater than zero", lbhc.getPort(), greaterThan(0));
         assertNotNull("The LB health check 'protocol' may not be null", lbhc.getProtocol());
-        // assertEquals("The LB health check 'protocol' is incorrect", NetworkResources.TEST_HC_PROTOCOL, lbhc.getProtocol());
         assertNotNull("The LB health check 'providerLoadBalancerIds' may not be null", lbhc.getProviderLoadBalancerIds());
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
-            assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element",
-                    lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
+            assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element", lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
         }
     }
 
@@ -1041,6 +1043,7 @@ public class StatefulLoadBalancerTests {
         }
     }
 
+
     @Test
     public void createSSLCertificate() throws CloudException, InternalException {
         NetworkServices services = tm.getProvider().getNetworkServices();
@@ -1055,6 +1058,12 @@ public class StatefulLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         NetworkResources network = DaseinTestManager.getNetworkResources();
 
         if( network == null ) {
@@ -1084,6 +1093,12 @@ public class StatefulLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         if( testSSLCertificateName != null ) {
             SSLCertificate certificate = support.getSSLCertificate(testSSLCertificateName);
 

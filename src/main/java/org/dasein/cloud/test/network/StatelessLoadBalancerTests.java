@@ -514,6 +514,11 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         SSLCertificate sslCertificate = support.getSSLCertificate(UUID.randomUUID().toString());
 
         tm.out("Bogus SSL certificate", sslCertificate);
@@ -534,6 +539,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         if( testSslCertificateName != null ) {
             SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
@@ -564,6 +575,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         if( testSslCertificateName != null ) {
             SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
@@ -602,6 +619,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         Iterable<SSLCertificate> certificates = support.listSSLCertificates();
         int count = 0;
 
