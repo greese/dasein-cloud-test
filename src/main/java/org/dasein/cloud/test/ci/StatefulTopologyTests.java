@@ -26,7 +26,7 @@ import org.dasein.cloud.ci.Topology;
 import org.dasein.cloud.ci.TopologyProvisionOptions;
 import org.dasein.cloud.ci.TopologyProvisionOptions.AccessConfig;
 import org.dasein.cloud.ci.TopologyProvisionOptions.DiskType;
-import org.dasein.cloud.ci.TopologyProvisionOptions.MaintenenceOption;
+import org.dasein.cloud.ci.TopologyProvisionOptions.MaintenanceOption;
 import org.dasein.cloud.ci.TopologySupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
@@ -174,7 +174,7 @@ public class StatefulTopologyTests {
                 withTopologyOptions = withTopologyOptions.withMetadata(metadata);
 
                 withTopologyOptions = withTopologyOptions.withAutomaticRestart(false);
-                withTopologyOptions = withTopologyOptions.withMaintenceOption(MaintenenceOption.TERMINATE_VM_INSTANCE);
+                withTopologyOptions = withTopologyOptions.withMaintenanceOption(MaintenanceOption.TERMINATE_VM_INSTANCE);
 
                 withTopologyOptions = withTopologyOptions.withTags(tags);
                 withTopologyOptions = withTopologyOptions.withNetworkInterface("name", "https://www.googleapis.com/compute/v1/projects/qa-project-2/global/networks/default", true); // ,accessConfigs);
@@ -213,7 +213,7 @@ public class StatefulTopologyTests {
                 withTopologyOptions = withTopologyOptions.withMetadata(metadata);
 
                 withTopologyOptions = withTopologyOptions.withAutomaticRestart(true);
-                withTopologyOptions = withTopologyOptions.withMaintenceOption(MaintenenceOption.MIGRATE_VM_INSTANCE);
+                withTopologyOptions = withTopologyOptions.withMaintenanceOption(MaintenanceOption.MIGRATE_VM_INSTANCE);
 
                 List<String> tags = new ArrayList<String>();
                 tags.add("http-server");
