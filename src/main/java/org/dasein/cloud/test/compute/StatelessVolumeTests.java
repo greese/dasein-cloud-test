@@ -76,6 +76,7 @@ public class StatelessVolumeTests {
 
     private String testProductId;
     private String testVolumeId;
+    private String testDataCenterId;
 
     public StatelessVolumeTests() { }
 
@@ -145,7 +146,10 @@ public class StatelessVolumeTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATELESS, false, null, null);
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
+
+        testVolumeId = tm.getTestVolumeId(DaseinTestManager.STATELESS, true, null, testDataCenterId);
         testProductId = tm.getTestVolumeProductId();
     }
 

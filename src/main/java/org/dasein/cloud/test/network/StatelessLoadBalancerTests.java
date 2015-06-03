@@ -43,8 +43,6 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.dasein.cloud.test.network.StatefulLoadBalancerTests.assertHealthCheck;
-import static org.hamcrest.Matchers.greaterThan;
-import static org.hamcrest.Matchers.lessThan;
 import static org.junit.Assert.*;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assume.assumeTrue;
@@ -82,7 +80,7 @@ public class StatelessLoadBalancerTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, tm.getUserName() + "-dsnlb", false);
+        testLoadBalancerId = tm.getTestLoadBalancerId(DaseinTestManager.STATELESS, "dsnlb", true, true); // totally need health checks.
         testSslCertificateName = tm.getTestSSLCertificateName(DaseinTestManager.STATELESS, false);
     }
 
@@ -517,6 +515,11 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         SSLCertificate sslCertificate = support.getSSLCertificate(UUID.randomUUID().toString());
 
         tm.out("Bogus SSL certificate", sslCertificate);
@@ -537,6 +540,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         if( testSslCertificateName != null ) {
             SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
@@ -567,6 +576,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("SSL certificates are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         if( testSslCertificateName != null ) {
             SSLCertificate certificate = support.getSSLCertificate(testSslCertificateName);
 
@@ -605,6 +620,12 @@ public class StatelessLoadBalancerTests {
             tm.ok("Load balancers are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+
+        if( !tm.supportsHttps(support) ) {
+            tm.ok(tm.getProvider().getCloudName() + " does not support SSL in load balancers, skipping test");
+            return;
+        }
+
         Iterable<SSLCertificate> certificates = support.listSSLCertificates();
         int count = 0;
 

@@ -23,10 +23,7 @@ import org.apache.log4j.Logger;
 import org.dasein.cloud.*;
 import org.dasein.cloud.compute.VmState;
 import org.dasein.cloud.compute.VolumeFormat;
-import org.dasein.cloud.network.Firewall;
-import org.dasein.cloud.network.FirewallSupport;
-import org.dasein.cloud.network.IPVersion;
-import org.dasein.cloud.network.NetworkServices;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.platform.DatabaseEngine;
 import org.dasein.cloud.storage.Blob;
 import org.dasein.cloud.test.ci.CIResources;
@@ -596,6 +593,10 @@ public class DaseinTestManager {
         return name;
     }
 
+    public @Nullable String getTestDataCenterId(boolean stateless) {
+        return (computeResources == null ? null : computeResources.getTestDataCenterId(stateless));
+    }
+
     public @Nullable String getTestAnyFirewallId(@Nonnull String label, boolean provisionIfNull) {
         NetworkServices services = provider.getNetworkServices();
 
@@ -896,4 +897,28 @@ public class DaseinTestManager {
     public String getUserName() {
     	return userName;
     }
+
+    /**
+     * Get environment property
+     * @param key
+     * @return environment property, null if missing or empty
+     */
+    public static @Nullable String getSystemProperty(@Nonnull String key) {
+        String value = System.getProperty(key);
+        if( value != null && value.trim().isEmpty() ) {
+            return null;
+        }
+        return value;
+    }
+
+    public static boolean supportsHttps(@Nonnull LoadBalancerSupport lbs) throws CloudException, InternalException {
+        boolean sslSupported = false;
+        for( LbProtocol proto : lbs.getCapabilities().listSupportedProtocols() ) {
+            if( LbProtocol.HTTPS.equals(proto) ) {
+                sslSupported = true;
+            }
+        }
+        return sslSupported;
+    }
+
 }

@@ -43,6 +43,8 @@ import org.dasein.util.CalendarWrapper;
 import org.dasein.util.uom.storage.Gigabyte;
 import org.dasein.util.uom.storage.Storage;
 
+import static org.junit.Assert.fail;
+
 /**
  * Handles the shared compute resources for executing various tests.
  * <p>Created by George Reese: 2/17/13 8:35 PM</p>
@@ -65,7 +67,7 @@ public class ComputeResources {
     private final Map<String, String> testVolumes       = new HashMap<String, String>();
 
     //defaults
-    private String   testDataCenterId;
+    private String   testDataCenterId = DaseinTestManager.getSystemProperty("test.dataCenter");
     private Platform testImagePlatform;
     private String   testVMProductId;
     private String   testVolumeProductId;
@@ -276,6 +278,7 @@ public class ComputeResources {
         if( testDataCenterId != null ) {
             return testDataCenterId;
         }
+
         if( stateless ) {
             try {
                 DataCenter defaultDC = null;
@@ -318,6 +321,10 @@ public class ComputeResources {
             }
         }
         return null;
+    }
+
+    public @Nullable Platform getTestImagePlatform() {
+        return testImagePlatform;
     }
 
     public @Nullable String getTestImageId( @Nonnull String label, boolean provisionIfNull ) {
@@ -414,7 +421,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVMs.get(label);
 
@@ -605,7 +611,6 @@ public class ComputeResources {
                     }
                 }
             }
-            return null;
         }
         String id = testVolumes.get(label);
 
@@ -634,10 +639,12 @@ public class ComputeResources {
         return testVolumeProductId;
     }
 
-    public void init() {
-        testDataCenterId = System.getProperty("test.dataCenter", null);
-        testImageId = System.getProperty("test.machineImage", null);
 
+    public void init() {
+
+        testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
+        testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
+        
         ComputeServices computeServices = provider.getComputeServices();
 
         // initialise available architectures
@@ -659,8 +666,15 @@ public class ComputeResources {
                         VirtualMachineProduct defaultProduct = null;
 
                         try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
-                            for( VirtualMachineProduct product : vmSupport.listProducts(options, architecture) ) {
+                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId).withArchitecture(architecture);
+                            Iterable<VirtualMachineProduct> products;
+                            if( testImageId != null ) {
+                                products = vmSupport.listProducts(testImageId);
+                            }
+                            else {
+                                products = vmSupport.listProducts(options);
+                            }
+                            for( VirtualMachineProduct product : products ) {
                                 if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
                                     continue;
                                 }
@@ -774,38 +788,9 @@ public class ComputeResources {
                 }
             }
 
+            testVolumeProductId = findTestVolumeProductId();
+
             VolumeSupport volumeSupport = computeServices.getVolumeSupport();
-
-            if( volumeSupport != null ) {
-                try {
-                    VolumeProduct defaultProduct = null;
-
-                    for( VolumeProduct product : volumeSupport.listVolumeProducts() ) {
-                        if( defaultProduct == null ) {
-                            defaultProduct = product;
-                        }
-                        else {
-                            if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
-                                if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
-                                    defaultProduct = product;
-                                }
-                            }
-                            else {
-                                if( product.getMonthlyGigabyteCost() > 0.00 ) {
-                                    if( product.getMonthlyGigabyteCost() < defaultProduct.getMonthlyGigabyteCost() ) {
-                                        defaultProduct = product;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if( defaultProduct != null ) {
-                        testVolumeProductId = defaultProduct.getProviderProductId();
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore me
-                }
-            }
             if( vmSupport != null ) {
                 try {
                     for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
@@ -821,9 +806,9 @@ public class ComputeResources {
             if( volumeSupport != null ) {
                 try {
                     Volume defaultVolume = null;
-
                     for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals(volume.getCurrentState()) || defaultVolume == null )) {
+                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals
+                                (volume.getCurrentState()) || defaultVolume == null )) {
                             if( defaultVolume == null || volume.isAttached() ) {
                                 defaultVolume = volume;
                             }
@@ -838,6 +823,61 @@ public class ComputeResources {
                 } catch( Throwable ignore ) {
                     // ignore
                 }
+            }
+        }
+    }
+
+    // Find a volume product id
+    private @Nullable String findTestVolumeProductId() {
+        ComputeServices computeServices = provider.getComputeServices();
+        if( computeServices == null ) {
+            return null;
+        }
+        VolumeSupport volumeSupport = computeServices.getVolumeSupport();
+
+        if( volumeSupport != null ) {
+            try {
+                VolumeProduct defaultProduct = null;
+
+                for( VolumeProduct product : volumeSupport.listVolumeProducts() ) {
+                    if( defaultProduct == null ) {
+                        defaultProduct = product;
+                    }
+                    else {
+                        if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
+                            if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
+                                defaultProduct = product;
+                            }
+                        }
+                        else {
+                            if( product.getMonthlyGigabyteCost() > 0.00 ) {
+                                if( product.getMonthlyGigabyteCost() < defaultProduct.getMonthlyGigabyteCost() ) {
+                                    defaultProduct = product;
+                                }
+                            }
+                        }
+                    }
+                }
+                if( defaultProduct != null ) {
+                    return defaultProduct.getProviderProductId();
+                }
+            } catch( Throwable ignore ) {
+                // ignore me
+            }
+        }
+        return null;
+    }
+
+    public void prepareVmForImaging(@Nonnull VirtualMachine vm, @Nonnull VirtualMachineSupport vmSupport, @Nonnull MachineImageSupport imageSupport) throws CloudException, InternalException {
+        if( !imageSupport.getCapabilities().canImage(vm.getCurrentState()) ) {
+            if( VmState.RUNNING.equals(vm.getCurrentState()) ) {
+                vmSupport.stop(vm.getProviderVirtualMachineId());
+            }
+            else if( VmState.STOPPED.equals(vm.getCurrentState()) ) {
+                vmSupport.start(vm.getProviderVirtualMachineId());
+            }
+            else {
+                fail("Image capture is not supported in started and stopped states, please go ahead and improve this test so that it works with your weird cloud.");
             }
         }
     }
@@ -868,6 +908,8 @@ public class ComputeResources {
         MachineImage image = support.getImage(imageId);
 
         if( image == null || support.getCapabilities().supportsImageCapture(image.getType()) ) {
+            prepareVmForImaging(vm, vmSupport, support);
+
             String id = ImageCreateOptions.getInstance(vm, namePrefix + ( System.currentTimeMillis() % 10000 ), "Test machine image with label " + label).build(provider);
 
             synchronized ( testMachineImages ) {
@@ -1079,7 +1121,7 @@ public class ComputeResources {
         if( options.getBootstrapUser() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyPasswordRequirement(testImagePlatform)) ) {
             options.withBootstrapUser("dasein", "x" + random.nextInt(100000) + System.currentTimeMillis());
         }
-        if( options.getBootstrapKey() == null && Requirement.REQUIRED.equals(support.getCapabilities().identifyShellKeyRequirement(testImagePlatform)) ) {
+        if( options.getBootstrapKey() == null && !Requirement.NONE.equals(support.getCapabilities().identifyShellKeyRequirement(testImagePlatform)) ) {
             IdentityResources identity = DaseinTestManager.getIdentityResources();
 
             if( identity != null ) {
@@ -1211,7 +1253,7 @@ public class ComputeResources {
             throw new CloudException("No test image exists for provisioning a virtual machine");
         }
         long now = System.currentTimeMillis();
-        String name = namePrefix + " " + now;
+        String name = namePrefix + "-" + now;
         String host = hostPrefix + ( now % 10000 );
 
         return provisionManyVMs(support, label, VMLaunchOptions.getInstance(testVMProductId, testImageId, name, host, "Test VM for stateful integration tests for Dasein Cloud").withExtendedAnalytics(), preferredDataCenter, count);

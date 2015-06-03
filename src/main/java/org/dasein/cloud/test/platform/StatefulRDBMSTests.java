@@ -101,7 +101,7 @@ public class StatefulRDBMSTests {
         if ( name.getMethodName().equals("listAccess") ||
                 name.getMethodName().equals("alterDatabase") ||
                 name.getMethodName().equals("checkAccess")) {
-            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, null);
+            testDatabaseId = tm.getTestRDBMSId(DaseinTestManager.STATEFUL, true, DatabaseEngine.MYSQL);
         }
     }
 
@@ -284,9 +284,16 @@ public class StatefulRDBMSTests {
             fail("The database instance is not in available state to run this test");
         }
         assertFalse("Was able to connect to the database server before access was granted, something is really really wrong", checkConnection(instance.getHostName(), instance.getHostPort()));
+
         support.addAccess(testDatabaseId, ourIp + "/32");
+        // let the cloud settle in
+        try { Thread.sleep(60000L); } catch( InterruptedException e ) {}
         assertTrue("Was unable to connect to the database server after access was granted", checkConnection(instance.getHostName(), instance.getHostPort()));
+
         support.revokeAccess(testDatabaseId, ourIp + "/32");
+        // let the cloud settle in
+        try { Thread.sleep(60000L); } catch( InterruptedException e ) {}
+
         assertFalse("Was able to connect to the database server after access was revoked", checkConnection(instance.getHostName(), instance.getHostPort()));
     }
 
@@ -298,15 +305,21 @@ public class StatefulRDBMSTests {
      */
     // TODO(stas): move out to a util class
     private boolean checkConnection(String host, int port) {
+        Socket socket = null;
         try {
-            Socket socket = new Socket(host, port);
-            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
-            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-            int data = in.read(); // -1 no data to read. 
-            socket.close();
+            socket = new Socket(host, port);
+            socket.setSoTimeout(2000);
+            final BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+            final int data = in.read(); // -1 no data to read.
             return (data != -1);
         }
         catch( IOException e ) {
+        }
+        finally {
+            if( socket != null ) {
+                try { socket.close(); } catch( IOException e ) {}
+            }
+
         }
         return false;
     }
@@ -317,25 +330,20 @@ public class StatefulRDBMSTests {
      */
     // TODO(stas): move out to a util class
     private @Nullable String getOurIp() {
-        HttpClient client = new DefaultHttpClient();
+        final HttpClient client = new DefaultHttpClient();
         HttpResponse response = null;
         try {
             response = client.execute(new HttpGet("http://ipinfo.io/ip"));
             if( response.getStatusLine().getStatusCode() == 200 ) {
-                BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+                final BufferedReader reader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
                 return reader.readLine();
             }
         }
         catch( IOException e ) {
-            e.printStackTrace();
         }
         finally {
             if( response != null ) {
-                try {
-                    response.getEntity().getContent().close();
-                }
-                catch( IOException ignore ) {
-                }
+                try { response.getEntity().getContent().close(); } catch( IOException ignore ) {}
             }
         }
         return null;
@@ -474,7 +482,7 @@ public class StatefulRDBMSTests {
         preferredMaintenanceWindow.setStartDayOfWeek(DayOfWeek.MONDAY);
         preferredMaintenanceWindow.setStartHour(3);
         preferredMaintenanceWindow.setStartMinute(0);
-        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.MONDAY);
+        preferredMaintenanceWindow.setEndDayOfWeek(DayOfWeek.SUNDAY);
         preferredMaintenanceWindow.setEndHour(5);
         preferredMaintenanceWindow.setEndMinute(0);
         TimeWindow preferredBackupWindow = new TimeWindow();

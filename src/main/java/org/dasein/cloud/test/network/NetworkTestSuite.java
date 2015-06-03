@@ -20,8 +20,6 @@
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.test.DaseinTestManager;
-import org.dasein.cloud.test.cloud.StatelessAuthenticationTests;
-import org.dasein.cloud.test.cloud.StatelessDCTests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;

@@ -19,6 +19,7 @@
 
 package org.dasein.cloud.test.identity;
 
+import org.apache.commons.codec.binary.Base64;
 import org.apache.log4j.Logger;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.CloudProvider;
@@ -34,6 +35,15 @@ import org.dasein.cloud.test.DaseinTestManager;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.interfaces.RSAPublicKey;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -58,6 +68,40 @@ public class IdentityResources {
 
     public IdentityResources(@Nonnull CloudProvider provider) {
         this.provider = provider;
+    }
+
+    private void write(byte[] str, OutputStream os) throws IOException {
+        for (int shift = 24; shift >= 0; shift -= 8)
+            os.write((str.length >>> shift) & 0xFF);
+        os.write(str);
+    }
+
+    /**
+     * @link http://stackoverflow.com/a/14582408/211197
+     * @return Encoded generated public key
+     */
+    private @Nullable String generateKey() {
+        KeyPairGenerator generator;
+        try {
+            generator = KeyPairGenerator.getInstance("RSA");
+            generator.initialize(2048);
+            KeyPair keyPair = generator.genKeyPair();
+            RSAPublicKey rsaPublicKey = (RSAPublicKey) keyPair.getPublic();
+            ByteArrayOutputStream byteOs = new ByteArrayOutputStream();
+            DataOutputStream dos = new DataOutputStream(byteOs);
+            dos.writeInt("ssh-rsa".getBytes().length);
+            dos.write("ssh-rsa".getBytes());
+            dos.writeInt(rsaPublicKey.getPublicExponent().toByteArray().length);
+            dos.write(rsaPublicKey.getPublicExponent().toByteArray());
+            dos.writeInt(rsaPublicKey.getModulus().toByteArray().length);
+            dos.write(rsaPublicKey.getModulus().toByteArray());
+            String publicKeyEncoded = new String(
+                    Base64.encodeBase64(byteOs.toByteArray()));
+            return "ssh-rsa " + publicKeyEncoded + " dasein";
+        }
+        catch( Throwable e ) {
+            return null;
+        }
     }
 
     public int close() {
@@ -374,10 +418,8 @@ public class IdentityResources {
     public @Nonnull String provisionKeypair(@Nonnull ShellKeySupport support, @Nonnull String label, @Nonnull String namePrefix) throws CloudException, InternalException {
         String id = null;
 
-        if( support.getKeyImportSupport().equals(Requirement.REQUIRED) ) {
-            String publicKey = null;
-
-            // TODO: generate key for import
+        if( support.getCapabilities().identifyKeyImportRequirement().equals(Requirement.REQUIRED) ) {
+            String publicKey = generateKey();
             if( publicKey != null ) {
                 id = support.importKeypair(namePrefix+ (System.currentTimeMillis()%10000), publicKey).getProviderKeypairId();
             }
