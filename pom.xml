@@ -19,7 +19,7 @@
 
   <groupId>org.dasein</groupId>
   <artifactId>dasein-cloud-test</artifactId>
-  <version>2015.05.1-SNAPSHOT</version>
+  <version>2015.09.1-SNAPSHOT</version>
   <packaging>jar</packaging>
 
     <name>dasein-cloud-test</name>
@@ -59,7 +59,7 @@
     <dependency>
         <groupId>org.dasein</groupId>
         <artifactId>dasein-cloud-core</artifactId>
-        <version>2015.05.1-SNAPSHOT</version>
+        <version>2015.09.1-SNAPSHOT</version>
         <scope>compile</scope>
         <optional>false</optional>
     </dependency>    
