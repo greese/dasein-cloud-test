@@ -1702,11 +1702,14 @@ public class NetworkResources {
             options.havingListeners(LbListener.getInstance(LbAlgorithm.LEAST_CONN, "cookie" , LbProtocol.HTTPS, x, x));
         }
 */
-        if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
+        LbListener lbListener = null;
+        if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED)
+                || withHealthCheck && support.getCapabilities().healthCheckRequiresListener()) {
             final int publicPort = 1024 + random.nextInt(10000);
             final int privatePort = 1024 + random.nextInt(10000);
             if ( !withHttps ) {
-                options.havingListeners(LbListener.getInstance(publicPort, privatePort));
+                //Aliyun requires health check has same protocol with listener
+                lbListener = LbListener.getInstance(LbProtocol.HTTP, publicPort, privatePort);
             } else {
                 String certificateName = provisionSSLCertificate("provision", "dsnssltest");
                 try {
@@ -1714,9 +1717,10 @@ public class NetworkResources {
                     Thread.sleep(5000L);
                 } catch( InterruptedException ignore ) {
                 }
-                options.havingListeners(LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
-                        certificateName));
+                lbListener = LbListener.getInstance(LbProtocol.HTTPS, publicPort, privatePort,
+                        certificateName);
             }
+            options.havingListeners(lbListener);
         }
         String[] dcIds = new String[2];
         String testSubnetId = null;
@@ -1827,8 +1831,15 @@ public class NetworkResources {
         }
 
         if( withHealthCheck ) {
-            options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 60, 3, 10)); // MAX for GCE is 60 sec
+            if (support.getCapabilities().healthCheckRequiresListener()) {
+                options.withHealthCheckOptions(HealthCheckOptions
+                        .getInstance(name, "lb desc", name, lbListener, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT,
+                                TEST_HC_PATH, 60, 60, 3, 10)); // MAX for GCE is 60 sec
+            } else {
+                options.withHealthCheckOptions(HealthCheckOptions
+                        .getInstance(name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH,
+                                60, 60, 3, 10)); // MAX for GCE is 60 sec
+            }
         }
 
         if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
