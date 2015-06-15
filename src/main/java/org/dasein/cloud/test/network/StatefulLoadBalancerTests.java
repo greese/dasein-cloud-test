@@ -427,7 +427,8 @@ public class StatefulLoadBalancerTests {
             }
 
             // Need to see whats the health check NEEDS to be created in here...
-            String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, false, true);
+            String id = network.provisionLoadBalancer("provision", tm.getUserName() + "-dsncrlbtest", false, false,
+                    true);
 
             tm.out("New Load Balancer", id);
             assertNotNull("The newly created load balancer ID was null", id);
@@ -435,8 +436,22 @@ public class StatefulLoadBalancerTests {
             LoadBalancer lb = support.getLoadBalancer(id);
             assertNotNull(String.format("Load Balancer %s failed to create.", id));
 
-            // lb.getProviderLBHealthCheckId() is null. why?
-            LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
+            LoadBalancerHealthCheck lbhc;
+            if (!support.getCapabilities().healthCheckRequiresListener()) {
+                // lb.getProviderLBHealthCheckId() is null. why?
+                lbhc = support.getLoadBalancerHealthCheck(lb.getProviderLBHealthCheckId(), id);
+            } else {
+                String healthCheckId = null;
+                for (LbListener lbListener : lb.getListeners()) {
+                    if (lbListener.getProviderLBHealthCheckId() != null &&
+                            !lbListener.getProviderLBHealthCheckId().isEmpty()) {
+                        healthCheckId = lbListener.getProviderLBHealthCheckId();
+                        break;
+                    }
+                }
+                assertNotNull("There should be at least one listener has health check.", healthCheckId);
+                lbhc = support.getLoadBalancerHealthCheck(healthCheckId, id);
+            }
             assertHealthCheck(id, support, lbhc);
         }
         else {
@@ -474,7 +489,7 @@ public class StatefulLoadBalancerTests {
             HealthCheckOptions hcOpt = HealthCheckOptions.getInstance(null, null, null, null, LoadBalancerHealthCheck.HCProtocol.HTTP, 8091, null, 15, 9, 5, 5);
 
             String lbId = null;
-            String lbhcId;
+            String lbhcId = null;
             if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
                 lbId = network.provisionLoadBalancer("provision", "dsnmodhctest", false, false, true);
 
@@ -483,13 +498,26 @@ public class StatefulLoadBalancerTests {
 
                 LoadBalancer lb = support.getLoadBalancer(lbId);
                 assertNotNull(String.format("Load Balancer %s failed to create.", lbId));
+
                 hcOpt.withProviderLoadBalancerId(lbId);
-                lbhcId = lb.getProviderLBHealthCheckId();
+                if (support.getCapabilities().healthCheckRequiresListener()) {
+                    for(LbListener lbListener : lb.getListeners()) {
+                        if (lbListener.getProviderLBHealthCheckId() != null) {
+                            hcOpt.setListener(lbListener);
+                            lbhcId = lbListener.getProviderLBHealthCheckId();
+                            break;
+                        }
+                    }
+                } else {
+                    lbhcId = lb.getProviderLBHealthCheckId();
+                }
             }
             else {
                 LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(null, null, null, LoadBalancerHealthCheck.HCProtocol.HTTP, 8090, null, 20, 15, 2, 2);
                 lbhcId = lbhc.getProviderLBHealthCheckId();
             }
+
+            assertNotNull("The target LB health check ID is null", lbhcId);
 
             LoadBalancerHealthCheck lbhc = support.getLoadBalancerHealthCheck(lbhcId, lbId);
             assertHealthCheck(lbId, support, lbhc);
@@ -503,7 +531,8 @@ public class StatefulLoadBalancerTests {
             assertCompareOptionsWithLBHC(hcOpt, lbhcModified);
         }
         else {
-            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            tm.ok("Health checks are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider()
+                    .getCloudName());
         }
     }
 
@@ -534,6 +563,10 @@ public class StatefulLoadBalancerTests {
         if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
             assertThat("The LB health check 'providerLoadBalancerIds' should have at least one element",
                     lbhc.getProviderLoadBalancerIds().size(), greaterThan(0));
+        }
+        if (support.getCapabilities().healthCheckRequiresListener()) {
+            assertThat("The LB health check 'listeners' should have at least one element", lbhc.getListeners().size(),
+                    greaterThan(0));
         }
     }
 
@@ -1018,14 +1051,30 @@ public class StatefulLoadBalancerTests {
             return;
         }
         if( support.getCapabilities().supportsMonitoring() ) {
+            LbListener lbListener = null;
+            if(support.getCapabilities().healthCheckRequiresListener()) {
+                LoadBalancer loadBalancer = support.getLoadBalancer(testLoadBalancerId);
+                for(LbListener listener : loadBalancer.getListeners()) {
+                    if (listener.getProviderLBHealthCheckId() == null) {
+                        lbListener = listener;
+                        break;
+                    }
+                }
+            }
             //TODO: Clean these values up
-            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3, 2, 2));
+            HealthCheckOptions healthCheckOptions = HealthCheckOptions.getInstance("foobar", "foobardesc",
+                    testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3,
+                    2, 2);
+            healthCheckOptions.withListener(lbListener);
+            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(healthCheckOptions);
+
 
             if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
-                if( testLoadBalancerId != null ) {
+                if(support.getCapabilities().healthCheckRequiresListener() && testLoadBalancerId != null && lbListener != null) {
                     assertNotNull("Could not create a healthcheck for loadbalancer", lbhc);
-                }
-                else {
+                } else if(!support.getCapabilities().healthCheckRequiresListener() && testLoadBalancerId != null){
+                    assertNotNull("Could not create a healthcheck for loadbalancer", lbhc);
+                } else {
                     if( support.isSubscribed() ) {
                         fail("No test load balancer for " + name.getMethodName());
                     }
