@@ -1062,7 +1062,12 @@ public class StatefulLoadBalancerTests {
                 }
             }
             //TODO: Clean these values up
-            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(HealthCheckOptions.getInstance("foobar", "foobardesc", testLoadBalancerId, lbListener, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3, 2, 2));
+            HealthCheckOptions healthCheckOptions = HealthCheckOptions.getInstance("foobar", "foobardesc",
+                    testLoadBalancerId, "www.mydomain.com", LoadBalancerHealthCheck.HCProtocol.HTTP, 80, "/ping", 30, 3,
+                    2, 2);
+            healthCheckOptions.withListener(lbListener);
+            LoadBalancerHealthCheck lbhc = support.createLoadBalancerHealthCheck(healthCheckOptions);
+
 
             if( support.getCapabilities().healthCheckRequiresLoadBalancer() ) {
                 if(support.getCapabilities().healthCheckRequiresListener() && testLoadBalancerId != null && lbListener != null) {

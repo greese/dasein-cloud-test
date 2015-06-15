@@ -1831,15 +1831,13 @@ public class NetworkResources {
         }
 
         if( withHealthCheck ) {
+            HealthCheckOptions healthCheckOptions = HealthCheckOptions
+                    .getInstance(name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60,
+                            60, 3, 10); // MAX for GCE is 60 sec
             if (support.getCapabilities().healthCheckRequiresListener()) {
-                options.withHealthCheckOptions(HealthCheckOptions
-                        .getInstance(name, "lb desc", name, lbListener, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT,
-                                TEST_HC_PATH, 60, 60, 3, 10)); // MAX for GCE is 60 sec
-            } else {
-                options.withHealthCheckOptions(HealthCheckOptions
-                        .getInstance(name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH,
-                                60, 60, 3, 10)); // MAX for GCE is 60 sec
+                healthCheckOptions.withListener(lbListener);
             }
+            options.withHealthCheckOptions(healthCheckOptions);
         }
 
         if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {
