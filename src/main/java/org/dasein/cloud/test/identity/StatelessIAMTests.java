@@ -99,9 +99,9 @@ public class StatelessIAMTests {
             return;
         }
         tm.out("Subscribed", support.isSubscribed());
-        tm.out("Supports Access Controls", support.supportsAccessControls());
-        tm.out("Supports API Access", support.supportsAPIAccess());
-        tm.out("Supports Console Access", support.supportsConsoleAccess());
+        tm.out("Supports Access Controls", support.getCapabilities().supportsAccessControls());
+        tm.out("Supports API Access", support.getCapabilities().supportsAPIAccess());
+        tm.out("Supports Console Access", support.getCapabilities().supportsConsoleAccess());
     }
 
     @Test
