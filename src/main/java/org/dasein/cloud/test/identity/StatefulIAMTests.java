@@ -19,6 +19,7 @@
 
 package org.dasein.cloud.test.identity;
 
+import org.dasein.cloud.Cloud;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.identity.CloudGroup;
@@ -37,6 +38,8 @@ import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+
+import javax.annotation.Nullable;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -136,7 +139,7 @@ public class StatefulIAMTests {
         else if( name.getMethodName().equals("removeGroup") ) {
             testGroupId = tm.getTestGroupId(DaseinTestManager.REMOVED, true);
         }
-        else if( name.getMethodName().equals("removeUser") ) {
+        else if( name.getMethodName().equals("removeUser") || name.getMethodName().equals("enableConsoleAccess") ) {
             testUserId = tm.getTestUserId(DaseinTestManager.REMOVED, true, null);
         }
         else if( name.getMethodName().equals("removeGroupPolicy") ) {
@@ -152,7 +155,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    String[] ids = support.saveGroupPolicy(testGroupId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+                    String[] ids = support.modifyGroupPolicy(testGroupId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
                     if( ids.length > 0 ) {
                         testPolicyId = ids[0];
@@ -176,7 +179,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    String[] ids = support.saveUserPolicy(testUserId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+                    String[] ids = support.modifyUserPolicy(testUserId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
                     if( ids.length > 0 ) {
                         testPolicyId = ids[0];
@@ -231,18 +234,9 @@ public class StatefulIAMTests {
 
     @Test
     public void createGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         IdentityResources identity = DaseinTestManager.getIdentityResources();
 
         assertNotNull("The tests failed to initialize a proper set of identity services", identity);
@@ -259,18 +253,9 @@ public class StatefulIAMTests {
 
     @Test
     public void saveGroupPolicy() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
             Iterable<CloudPolicy> policies = support.listPoliciesForGroup(testGroupId);
             boolean found = false;
@@ -291,7 +276,7 @@ public class StatefulIAMTests {
 
             String policyName = "DSN" + System.currentTimeMillis();
 
-            String[] ids = support.saveGroupPolicy(testGroupId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+            String[] ids = support.modifyGroupPolicy(testGroupId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
             policies = support.listPoliciesForGroup(testGroupId);
             tm.out("After", policies);
@@ -330,18 +315,9 @@ public class StatefulIAMTests {
 
     @Test
     public void removeGroupPolicy() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
             Iterable<CloudPolicy> policies = support.listPoliciesForGroup(testGroupId);
             boolean found = false;
@@ -397,18 +373,9 @@ public class StatefulIAMTests {
 
     @Test
     public void removeGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
             CloudGroup group = support.getGroup(testGroupId);
 
@@ -433,18 +400,9 @@ public class StatefulIAMTests {
 
     @Test
     public void createUser() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         IdentityResources identity = DaseinTestManager.getIdentityResources();
 
         assertNotNull("The tests failed to initialize a proper set of identity services", identity);
@@ -454,25 +412,37 @@ public class StatefulIAMTests {
         assertNotNull("The newly created user ID may not be null", userId);
 
         CloudUser user = support.getUser(userId);
-
+        support.enableConsoleAccess(userId, "Passw0rd".getBytes());
+        String console = support.getCapabilities().getConsoleUrl();
         assertNotNull("No user exists in the cloud for the new ID " + userId, user);
         assertEquals("The IDs for the requested user and the created user do not match", userId, user.getProviderUserId());
     }
 
     @Test
+    public void enableConsoleAccess() throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
+
+        if( support.getCapabilities().supportsAPIAccess() ) {
+            support.enableConsoleAccess(testUserId, ("dI(head{oab)Ju&w"+(System.currentTimeMillis()%10000)).getBytes());
+            tm.ok("Enabling console access was successful");
+        }
+        else {
+            try {
+                support.enableConsoleAccess(testUserId, ("dI(head{oab)Ju&w" + (System.currentTimeMillis() % 10000)).getBytes());
+                fail("Enabling console access is reported as not supported, however the method executes successfully");
+            }
+            catch(Throwable t) {
+                tm.ok("Enabling console access is reported as not supported, the method fails as expected");
+            }
+        }
+    }
+
+    @Test
     public void joinGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null && testGroupId != null ) {
             Iterable<CloudGroup> groups = support.listGroupsForUser(testUserId);
             boolean present = false;
@@ -518,18 +488,9 @@ public class StatefulIAMTests {
 
     @Test
     public void leaveGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null && testGroupId != null ) {
             Iterable<CloudGroup> groups = support.listGroupsForUser(testUserId);
             boolean present = false;
@@ -576,18 +537,9 @@ public class StatefulIAMTests {
 
     @Test
     public void saveUserPolicy() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
             Iterable<CloudPolicy> policies = support.listPoliciesForUser(testUserId);
             boolean found = false;
@@ -608,7 +560,7 @@ public class StatefulIAMTests {
 
             String policyName = "DSN" + System.currentTimeMillis();
 
-            String[] ids = support.saveUserPolicy(testUserId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+            String[] ids = support.modifyUserPolicy(testUserId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
             policies = support.listPoliciesForUser(testUserId);
             tm.out("After", policies);
@@ -647,18 +599,9 @@ public class StatefulIAMTests {
 
     @Test
     public void removeUserPolicy() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null && testPolicyId != null ) {
             Iterable<CloudPolicy> policies = support.listPoliciesForUser(testUserId);
             boolean found = false;
@@ -712,18 +655,9 @@ public class StatefulIAMTests {
 
     @Test
     public void removeUser() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
             CloudUser user = support.getUser(testUserId);
 
@@ -744,5 +678,24 @@ public class StatefulIAMTests {
                 fail("No test user exists for running the test " + name.getMethodName());
             }
         }
+    }
+
+    /**
+     * Common boilerplate code to initialise the support class, log if not supported
+     * @return support instance if available, else {@code null}
+     */
+    private @Nullable IdentityAndAccessSupport getIASupport() {
+        IdentityServices services = tm.getProvider().getIdentityServices();
+
+        if( services == null ) {
+            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return null;
+        }
+        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
+
+        if( support == null ) {
+            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+        }
+        return support;
     }
 }

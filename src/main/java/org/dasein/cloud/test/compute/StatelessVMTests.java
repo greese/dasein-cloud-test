@@ -437,8 +437,8 @@ public class StatelessVMTests {
      * This test is likely to fail most of the times, as password is not always available (e.g. in AWS
      * it's only available on clean Amazon images), and requires for instance to be up for some time for
      * password to be ready.
-     * <p/>
-     * TODO: This test needs more attention.
+     *
+     * <p>TODO: This test needs more attention.</p>
      *
      * @throws CloudException
      * @throws InternalException
