@@ -65,6 +65,8 @@ public class StatefulMQTests {
 
     @Rule
     public final TestName name = new TestName();
+    
+    public final int testMessageCount = 5;
 
     private String testQueueId;
 
@@ -76,16 +78,34 @@ public class StatefulMQTests {
         assumeTrue(!tm.isTestSkipped());
         if( name.getMethodName().equalsIgnoreCase("removeMessageQueue") ) {
             testQueueId = tm.getTestQueueId(DaseinTestManager.REMOVED, true);
-        }
+        } 
         else if( !name.getMethodName().equalsIgnoreCase("createMessageQueue") ) {
             testQueueId = tm.getTestQueueId(DaseinTestManager.STATEFUL, true);
+        }
+        
+        if (name.getMethodName().startsWith("receiveMessage")) {
+        	int count = 1;
+        	if (name.getMethodName().endsWith("s")) {
+        		count = testMessageCount;
+        	} 
+        	PlatformServices services = tm.getProvider().getPlatformServices();
+        	MQSupport support = services.getMessageQueueSupport();
+        	try {
+        		for (int i = 0; i < count; i++) {
+        			support.sendMessage(testQueueId, "send message to " + testQueueId + " for receive test");
+        		}
+			} catch (CloudException e) {
+				tm.warn("failed to send message to queue " + testQueueId + ", got exception: " + e.getMessage());
+			} catch (InternalException e) {
+				tm.warn("failed to send message to queue " + testQueueId + ", got exception: " + e.getMessage());
+			}
         }
     }
 
     @After
     public void after() throws CloudException, InternalException {
         try {
-            testQueueId = null;
+        	testQueueId = null;
         }
         finally {
             tm.end();
@@ -109,9 +129,9 @@ public class StatefulMQTests {
     	
     	PlatformResources resources = DaseinTestManager.getPlatformResources();
     	if (resources != null) {
-    		String mqId = resources.provisionMQ(support, "createMqs", "dsnmq");
-    		tm.out("New message queue", mqId);
-    		assertNotNull(mqId);
+    		testQueueId = resources.provisionMQ(support, "createMqs", "dsnmq");
+    		tm.out("New message queue", testQueueId);
+    		assertNotNull(testQueueId);
     	} else {
     		fail("No platform resources were initialized for the test run");
     	}
@@ -189,12 +209,6 @@ public class StatefulMQTests {
         
         if ( testQueueId != null ) {
         	MQMessageReceipt message = support.receiveMessage(testQueueId);
-        	if (message == null) {
-        		tm.warn("no message in queue " + testQueueId + " currently");
-        		MQMessageIdentifier identifier = support.sendMessage(testQueueId, "send message to " + testQueueId + " for receive test");
-        		tm.out("new message id ", identifier.getProviderMessageId());
-        		assertNotNull("send message to " + testQueueId + " failed", identifier);
-        	}
         	tm.ok("receive message " + message.getIdentifier().getProviderMessageId() + " from queue " + testQueueId + " successed");
         	assertNotNull("receive message from queue " + testQueueId + " failed", message.getIdentifier());
         } else {
@@ -209,10 +223,7 @@ public class StatefulMQTests {
     @Test
     public void receiveMessages() throws CloudException, InternalException {
     	
-    	final int testMessageCount = 5;
-    	@SuppressWarnings("unchecked")
-		final TimePeriod<Second> waitTime = (TimePeriod<Second>) TimePeriod.valueOf(5, "second");
-    	@SuppressWarnings("unchecked")
+		final TimePeriod<Second> waitTime = (TimePeriod<Second>) TimePeriod.valueOf(2, "second");
 		final TimePeriod<Second> visibilityTimeout = (TimePeriod<Second>) TimePeriod.valueOf(120, "second");
     	
     	PlatformServices services = tm.getProvider().getPlatformServices();
@@ -228,12 +239,6 @@ public class StatefulMQTests {
         }
         
         if ( testQueueId != null) {
-        	//send messages first
-        	for (int count = 0; count < testMessageCount; count++) {
-        		MQMessageIdentifier identifier = support.sendMessage(testQueueId, "send message to " + testQueueId + " for receive test");
-        		tm.out("new message id ", identifier.getProviderMessageId());
-        		assertNotNull("send message to " + testQueueId + " failed", identifier);
-        	}
         	Iterator<MQMessageReceipt> messageIter = support.receiveMessages(testQueueId, waitTime, testMessageCount, visibilityTimeout).iterator();
         	int count = 0;
         	for(; messageIter.hasNext(); count++) {
