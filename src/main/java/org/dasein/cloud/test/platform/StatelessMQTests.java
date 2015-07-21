@@ -22,6 +22,8 @@ package org.dasein.cloud.test.platform;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
+import org.dasein.cloud.platform.MQMessageIdentifier;
+import org.dasein.cloud.platform.MQMessageReceipt;
 import org.dasein.cloud.platform.MQSupport;
 import org.dasein.cloud.platform.MessageQueue;
 import org.dasein.cloud.platform.PlatformServices;
@@ -129,16 +131,23 @@ public class StatelessMQTests {
             tm.ok("Message queues are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        MessageQueue q = support.getMessageQueue(UUID.randomUUID().toString());
-
-        tm.out("Bogus Message Queue", q);
-        assertNull("Found a matching message queue for the randomly generated MQ ID", q);
+        
+        try {
+	        MessageQueue q = support.getMessageQueue(UUID.randomUUID().toString());
+	        
+	        tm.out("Bogus Message Queue", q);
+	        assertNull("Found a matching message queue for the randomly generated MQ ID", q);
+        } catch (CloudException e) {
+        	tm.out("No such message queue exist, got cloud exception: " + e.getMessage());
+        } catch (InternalException e) {
+        	tm.out("No such message queue exist, got internal exception: " + e.getMessage());
+        }
+        
     }
 
     @Test
     public void getQueue() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
-
         if( services == null ) {
             tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
@@ -154,8 +163,7 @@ public class StatelessMQTests {
 
             tm.out("Message Queue", q);
             assertNotNull("No message queue was found matching the test ID " + testMQId, q);
-        }
-        else {
+        } else {
             if( !support.isSubscribed() ) {
                 tm.ok("Not subscribed to MQ support so this test is invalid");
             }
@@ -336,4 +344,6 @@ public class StatelessMQTests {
         }
         tm.out("Matches");
     }
+    
+    
 }
