@@ -22,8 +22,6 @@ package org.dasein.cloud.test.platform;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.platform.MQMessageIdentifier;
-import org.dasein.cloud.platform.MQMessageReceipt;
 import org.dasein.cloud.platform.MQSupport;
 import org.dasein.cloud.platform.MessageQueue;
 import org.dasein.cloud.platform.PlatformServices;

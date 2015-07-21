@@ -28,11 +28,12 @@ import org.dasein.cloud.platform.MQMessageReceipt;
 import org.dasein.cloud.platform.MQSupport;
 import org.dasein.cloud.platform.PlatformServices;
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.util.uom.time.Second;
+import org.dasein.util.uom.time.TimePeriod;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -134,8 +135,8 @@ public class StatefulMQTests {
     	PlatformResources resources = DaseinTestManager.getPlatformResources();
     	if (resources != null) {
     		String mqId = resources.provisionMQ(support, "deleteMqs", "dsnmq");
-    		tm.out("Get test message queue", mqId);
-    		assertNotNull(mqId);
+    		tm.out("provision new message queue", mqId);
+    		assertNotNull("provision new message queue for test remove mq failed", mqId);
     		support.removeMessageQueue(mqId, "test remove message queue");
     		tm.out("Remove message queue", mqId);
     	} else {
@@ -172,8 +173,7 @@ public class StatefulMQTests {
     }
     
     @Test
-    @Ignore
-    public void recieveMessage() throws CloudException, InternalException {
+    public void receiveMessage() throws CloudException, InternalException {
     	
     	PlatformServices services = tm.getProvider().getPlatformServices();
         if( services == null ) {
@@ -188,16 +188,15 @@ public class StatefulMQTests {
         }
         
         if ( testQueueId != null ) {
-        	MQMessageReceipt message = null;
-        	message = support.receiveMessage(testQueueId);
+        	MQMessageReceipt message = support.receiveMessage(testQueueId);
         	if (message == null) {
-        		MQMessageIdentifier identifier = support.sendMessage(testQueueId, "queue message for stateful mq test");
-        		tm.ok("send a message for recieve first with id equals to " + identifier.getProviderMessageId());
-        		assertNotNull("send message to queue " + testQueueId + " failed", identifier);
-	        	message = support.receiveMessage(testQueueId);
+        		tm.warn("no message in queue " + testQueueId + " currently");
+        		MQMessageIdentifier identifier = support.sendMessage(testQueueId, "send message to " + testQueueId + " for receive test");
+        		tm.out("new message id ", identifier.getProviderMessageId());
+        		assertNotNull("send message to " + testQueueId + " failed", identifier);
         	}
-        	tm.ok("recieve message " + message.getIdentifier().getProviderMessageId() + " from queue " + testQueueId + " successed");
-        	assertNotNull("recieve message from queue " + testQueueId + " failed", message.getIdentifier());
+        	tm.ok("receive message " + message.getIdentifier().getProviderMessageId() + " from queue " + testQueueId + " successed");
+        	assertNotNull("receive message from queue " + testQueueId + " failed", message.getIdentifier());
         } else {
             if( !support.isSubscribed() ) {
                 tm.ok("Not subscribed to MQ support so this test is invalid");
@@ -205,6 +204,51 @@ public class StatefulMQTests {
                 fail("No test message queue was found to support this stateless test. Please create one and run again.");
             }
         }   
+    }
+    
+    @Test
+    public void receiveMessages() throws CloudException, InternalException {
+    	
+    	final int testMessageCount = 5;
+    	@SuppressWarnings("unchecked")
+		final TimePeriod<Second> waitTime = (TimePeriod<Second>) TimePeriod.valueOf(5, "second");
+    	@SuppressWarnings("unchecked")
+		final TimePeriod<Second> visibilityTimeout = (TimePeriod<Second>) TimePeriod.valueOf(120, "second");
+    	
+    	PlatformServices services = tm.getProvider().getPlatformServices();
+        if( services == null ) {
+            tm.ok("Platform services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        MQSupport support = services.getMessageQueueSupport();
+        if( support == null ) {
+            tm.ok("Message queues are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        
+        if ( testQueueId != null) {
+        	//send messages first
+        	for (int count = 0; count < testMessageCount; count++) {
+        		MQMessageIdentifier identifier = support.sendMessage(testQueueId, "send message to " + testQueueId + " for receive test");
+        		tm.out("new message id ", identifier.getProviderMessageId());
+        		assertNotNull("send message to " + testQueueId + " failed", identifier);
+        	}
+        	Iterator<MQMessageReceipt> messageIter = support.receiveMessages(testQueueId, waitTime, testMessageCount, visibilityTimeout).iterator();
+        	int count = 0;
+        	for(; messageIter.hasNext(); count++) {
+        		messageIter.next();
+        	}
+        	assertEquals("not receive all the sent messages", count, testMessageCount);
+        	
+        } else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to MQ support so this test is invalid");
+            } else {
+                fail("No test message queue was found to support this stateless test. Please create one and run again.");
+            }
+        }   
+    	
     }
     
 }
