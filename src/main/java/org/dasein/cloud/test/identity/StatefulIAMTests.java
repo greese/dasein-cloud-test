@@ -423,7 +423,7 @@ public class StatefulIAMTests {
         IdentityAndAccessSupport support = getIASupport();
         if( support == null ) { return; }
 
-        if( support.getCapabilities().supportsAPIAccess() ) {
+        if( support.getCapabilities().supportsApiAccess() ) {
             support.enableConsoleAccess(testUserId, ("dI(head{oab)Ju&w"+(System.currentTimeMillis()%10000)).getBytes());
             tm.ok("Enabling console access was successful");
         }
