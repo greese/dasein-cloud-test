@@ -46,7 +46,7 @@ import static org.junit.Assume.assumeTrue;
  * <p>Created by George Reese: 7/24/13 10:32 AM</p>
  * @author George Reese
  * @version 2013.07 initial version (issue #6)
- * @since 2013.07
+ * @version 2015.07 implement tests
  */
 public class StatefulMQTests {
     static private DaseinTestManager tm;
@@ -83,9 +83,10 @@ public class StatefulMQTests {
             testQueueId = tm.getTestQueueId(DaseinTestManager.STATEFUL, true);
         }
         
-        if (name.getMethodName().startsWith("receiveMessage")) {
+        if (name.getMethodName().equalsIgnoreCase("receiveMessage") || 
+        		name.getMethodName().equalsIgnoreCase("receiveMessages")) {
         	int count = 1;
-        	if (name.getMethodName().endsWith("s")) {
+        	if (name.getMethodName().equalsIgnoreCase("receiveMessages")) {
         		count = testMessageCount;
         	} 
         	PlatformServices services = tm.getProvider().getPlatformServices();
@@ -132,6 +133,7 @@ public class StatefulMQTests {
     		testQueueId = resources.provisionMQ(support, "createMqs", "dsnmq");
     		tm.out("New message queue", testQueueId);
     		assertNotNull(testQueueId);
+    		assertNotNull("cannot find created message queue from provider", support.getMessageQueue(testQueueId));
     	} else {
     		fail("No platform resources were initialized for the test run");
     	}
@@ -159,6 +161,13 @@ public class StatefulMQTests {
     		assertNotNull("provision new message queue for test remove mq failed", mqId);
     		support.removeMessageQueue(mqId, "test remove message queue");
     		tm.out("Remove message queue", mqId);
+    		try {
+    			assertNull("still can find removed message queue from provider", support.getMessageQueue(mqId));
+    		} catch (CloudException e) {
+    			tm.warn("find removed message queue from provider throw exception, " + e.getMessage());
+    		} catch (InternalException e) {
+    			tm.warn("find removed message queue from provider throw exception, " + e.getMessage());
+    		}
     	} else {
     		fail("No platform resources were initialized for the test run");
     	}
