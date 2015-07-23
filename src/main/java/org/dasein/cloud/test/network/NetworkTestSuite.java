@@ -20,6 +20,7 @@
 package org.dasein.cloud.test.network;
 
 import org.dasein.cloud.test.DaseinTestManager;
+import org.dasein.cloud.test.ci.StatefulCITests;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
@@ -45,7 +46,8 @@ import org.junit.runners.Suite;
         StatelessFirewallTests.class,
         StatelessStaticIPTests.class,
         StatelessNetworkFirewallTests.class,
-        StatelessDNSTests.class
+        StatelessDNSTests.class,
+        StatefulCITests.class
 })
 public class NetworkTestSuite {
     @BeforeClass
