@@ -442,6 +442,9 @@ public class StatefulRDBMSTests {
         if( support == null ) {
             tm.ok("Relational database support is not implemented for " + tm.getContext().getRegionId() + " in " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().supportsAlterDatabase() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support alter database");
+        	return;
         }
 
         assertNotNull("Test database instance is not available", testDatabaseId);
