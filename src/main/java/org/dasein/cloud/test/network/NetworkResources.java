@@ -49,13 +49,8 @@ public class NetworkResources {
 
     static private final Random random = new Random();
 
-    static public final String TEST_CIDR = "209.98.98.98/32";
-    static public final String TEST_HC_PATH = "/index.htm";
-    static public final LoadBalancerHealthCheck.HCProtocol TEST_HC_PROTOCOL = LoadBalancerHealthCheck.HCProtocol.HTTP;
-    static public final String TEST_HC_HOST = "localhost";
-    static public final int TEST_HC_PORT = 8080;
-
     private CloudProvider provider;
+    public final static String TEST_CIDR = "209.98.98.98/32";
 
     private final HashMap<String, String> testGeneralFirewalls = new HashMap<String, String>();
     private final HashMap<String, String> testIps4Free = new HashMap<String, String>();
@@ -71,6 +66,9 @@ public class NetworkResources {
     private final HashMap<String, String> testRouteTables = new HashMap<String, String>();
     private final HashMap<String, String> testVLANFirewalls = new HashMap<String, String>();
     private final HashMap<String, String> testZones = new HashMap<String, String>();
+    private HealthCheckOptions testHttpHealthCheckOptions;
+    private HealthCheckOptions testTcpHealthCheckOptions;
+
     // make subnet creation more predicatable
     private final String[] cidrs = new String[]{"192.168.1.0/28", "192.168.1.20/28", "192.168.1.40/28", "192.168.1.60/28", "192.168.1.80/28",
             "192.168.1.100/28", "192.168.1.120/28", "192.168.1.140/28", "192.168.1.160/28", "192.168.1.180/28", "192.168.1.200/28",
@@ -1059,6 +1057,23 @@ public class NetworkResources {
         return null;
     }
 
+    public @Nonnull HealthCheckOptions getTestHttpHealthCheckOptions() {
+        if( testHttpHealthCheckOptions == null ) {
+            testHttpHealthCheckOptions = HealthCheckOptions.getInstance(
+                    null, null, null, "localhost", LoadBalancerHealthCheck.HCProtocol.HTTP, 8080, "/index.htm", 60, 60, 3, 10);
+            // MAX for GCE is 60 sec
+        }
+        return testHttpHealthCheckOptions;
+    }
+
+    public @Nonnull HealthCheckOptions getTestTcpHealthCheckOptions() {
+        if( testTcpHealthCheckOptions == null ) {
+            testTcpHealthCheckOptions = HealthCheckOptions.getInstance(
+                    null, null, null, "localhost", LoadBalancerHealthCheck.HCProtocol.TCP, 999, null, 45, 45, 4, 9);
+        }
+        return testTcpHealthCheckOptions;
+    }
+
     public @Nullable String getTestLoadBalancerId(@Nonnull String label, @Nonnull String lbNamePrefix, boolean provisionIfNull, boolean withHealthCheck) {
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String, String> entry : testLBs.entrySet() ) {
@@ -1704,7 +1719,10 @@ public class NetworkResources {
 */
         if( support.getCapabilities().identifyListenersOnCreateRequirement().equals(Requirement.REQUIRED) ) {
             final int publicPort = 1024 + random.nextInt(10000);
-            final int privatePort = 1024 + random.nextInt(10000);
+            // make the listener port match that of healthcheck, this is not always important but with OS it is
+            // TODO: we might have to put a capability to declare whether the HC needs its own port and then it won't be
+            // so important for these to match
+            final int privatePort = getTestHttpHealthCheckOptions().getPort();
             if ( !withHttps ) {
                 options.havingListeners(LbListener.getInstance(publicPort, privatePort));
             } else {
@@ -1827,8 +1845,7 @@ public class NetworkResources {
         }
 
         if( withHealthCheck ) {
-            options.withHealthCheckOptions(HealthCheckOptions.getInstance(
-                    name, "lb desc", name, TEST_HC_HOST, TEST_HC_PROTOCOL, TEST_HC_PORT, TEST_HC_PATH, 60, 60, 3, 10)); // MAX for GCE is 60 sec
+            options.withHealthCheckOptions(getTestHttpHealthCheckOptions());
         }
 
         if( support.getCapabilities().identifyVlanOnCreateRequirement().equals(Requirement.REQUIRED) ) {

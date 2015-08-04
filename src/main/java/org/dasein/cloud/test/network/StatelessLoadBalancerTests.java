@@ -656,6 +656,11 @@ public class StatelessLoadBalancerTests {
             tm.ok("Network services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
+        NetworkResources resources = DaseinTestManager.getNetworkResources();
+        if( resources == null ) {
+            fail("Failed to initialize network resources for tests");
+        }
+
         LoadBalancerSupport support = services.getLoadBalancerSupport();
 
         if( support == null ) {
@@ -688,8 +693,8 @@ public class StatelessLoadBalancerTests {
             }
             boolean found = false;
             for( LoadBalancerHealthCheck lbhc : healthChecks ) {
-                if( NetworkResources.TEST_HC_PATH.equals(lbhc.getPath()) && NetworkResources.TEST_HC_PROTOCOL.equals(lbhc.getProtocol()) && NetworkResources.TEST_HC_PORT == lbhc.getPort() ) {
-                    assertHealthCheck(testLoadBalancerId, support, lbhc);
+                if( resources.getTestHttpHealthCheckOptions().getPath().equals(lbhc.getPath()) && resources.getTestHttpHealthCheckOptions().getProtocol().equals(lbhc.getProtocol()) && resources.getTestHttpHealthCheckOptions().getPort() == lbhc.getPort() ) {
+                    assertHealthCheck(support, lbhc);
                     found = true;
                     break;
                 }

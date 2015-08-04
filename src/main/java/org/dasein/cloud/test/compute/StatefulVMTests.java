@@ -1017,7 +1017,7 @@ public class StatefulVMTests {
                     }
                 }
                 else {
-                    tm.warn("No test virtual machine was found for this test");
+                    fail("No test virtual machine was found for this test");
                 }
             }
             else {
