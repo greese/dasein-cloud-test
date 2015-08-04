@@ -24,7 +24,7 @@ import org.dasein.cloud.network.VPNCapabilities;
 import org.dasein.cloud.network.VPNConnection;
 import org.dasein.cloud.network.VPNGateway;
 import org.dasein.cloud.network.VPNGatewayState;
-import org.dasein.cloud.network.VPNLaunchOptions;
+import org.dasein.cloud.network.VpnLaunchOptions;
 import org.dasein.cloud.network.VPNProtocol;
 import org.dasein.cloud.network.VPNState;
 import org.dasein.cloud.network.VPNSupport;
@@ -131,20 +131,20 @@ public class StatefulVPNTests {
 
             for (VPNProtocol protocol : supportedProtocols) {
                 tm.out("Testing VPN protocol: " + protocol);
-                VPNLaunchOptions vpnLaunchOptions1 = VPNLaunchOptions.getInstance("vpn1", "vpn1", protocol);
+                VpnLaunchOptions vpnLaunchOptions1 = VpnLaunchOptions.getInstance("vpn1", "vpn1", protocol);
                 if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                     vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1");
                 }
                 VPN vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
 
-                VPNLaunchOptions vpnLaunchOptions2 = VPNLaunchOptions.getInstance("vpn2", "vpn2", protocol);
+                VpnLaunchOptions vpnLaunchOptions2 = VpnLaunchOptions.getInstance("vpn2", "vpn2", protocol);
                 if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                     vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2");
                 }
                 VPN vpn2 = vpnSupport.createVPN(vpnLaunchOptions2);
 
-                VPNGateway result1 = vpnSupport.connectToVPNGateway(vpn1.getName(), vpn2.getProviderVpnIP(), "vpn1-tunnel", vpn1.getDescription(), vpn2.getProtocol(), "googtest", "192.168.1.0/24");
-                VPNGateway result2 = vpnSupport.connectToVPNGateway(vpn2.getName(), vpn1.getProviderVpnIP(), "vpn2-tunnel", vpn2.getDescription(), vpn1.getProtocol(), "googtest", "10.240.0.0/16");
+                VPNGateway result1 = vpnSupport.connectToVPNGateway(vpn1.getName(), vpn2.getProviderVpnIp(), "vpn1-tunnel", vpn1.getDescription(), vpn2.getProtocol(), "googtest", "192.168.1.0/24");
+                VPNGateway result2 = vpnSupport.connectToVPNGateway(vpn2.getName(), vpn1.getProviderVpnIp(), "vpn2-tunnel", vpn2.getDescription(), vpn1.getProtocol(), "googtest", "10.240.0.0/16");
 
                 int vpnCount = 0;
                 Iterable<VPN> vpns = vpnSupport.listVPNs();
