@@ -639,190 +639,184 @@ public class ComputeResources {
         return testVolumeProductId;
     }
 
+    private @Nullable VirtualMachineProduct getMinimalProductForImageId(@Nonnull String imageId) {
+        VirtualMachineProduct currentProduct = null;
+        if( provider.hasComputeServices() && provider.getComputeServices().hasVirtualMachineSupport() ) {
+            VirtualMachineSupport vmSupport = provider.getComputeServices().getVirtualMachineSupport();
+            try {
+                VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId);
+                Iterable<VirtualMachineProduct> products = vmSupport.listProducts(imageId, options);
+                for( VirtualMachineProduct product : products ) {
+                    if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
+                        continue;
+                    }
+                    if( currentProduct == null ) {
+                        currentProduct = product;
+                    }
+                    else if( currentProduct.getRamSize().intValue() > product.getRamSize().intValue() ) {
+                        if( product.getRamSize().intValue() > 1000 ) {
+                            currentProduct = product;
+                        }
+                    }
+                    else {
+                        if( currentProduct.getRamSize().intValue() < 1024 && product.getRamSize().intValue() < 2200 ) {
+                            currentProduct = product;
+                        }
+                        else if( currentProduct.getCpuCount() > product.getCpuCount() ) {
+                            if( ( currentProduct.getRamSize().intValue() * 2 ) > product.getRamSize().intValue() ) {
+                                currentProduct = product;
+                            }
+                        }
+                    }
+                }
+            } catch( Throwable ignore ) {
+                // ignore
+            }
+        }
+        return currentProduct;
+    }
 
     public void init() {
 
+        ComputeServices computeServices = provider.getComputeServices();
+        if( computeServices == null ) {
+            logger.warn("Unable initialise compute resources as compute services are not supported in " + provider.getProviderName());
+            return;
+        }
+
         testDataCenterId = DaseinTestManager.getDefaultDataCenterId(true);
         testImageId = DaseinTestManager.getSystemProperty("test.machineImage");
-        
-        ComputeServices computeServices = provider.getComputeServices();
 
-        // initialise available architectures
-        Iterable<Architecture> architectures = Collections.emptyList();
-        if( computeServices != null && computeServices.getVirtualMachineSupport() != null ) {
+        VirtualMachineProduct currentProduct = null;
+
+        MachineImageSupport imageSupport = computeServices.getImageSupport();
+
+        if( imageSupport != null ) {
+            // let's make sure we find the test image (if required via "test.machineImage" env parameter)
+            if( testImageId != null ) {
+                try {
+                    currentProduct = getMinimalProductForImageId(testImageId);
+
+                    MachineImage image = imageSupport.getImage(testImageId);
+                    if (image != null && MachineImageState.ACTIVE.equals(image.getCurrentState())) {
+                        testImagePlatform = image.getPlatform(); // need this for provisioning requirements
+                        testMachineImages.put(DaseinTestManager.STATELESS, testImageId);
+                        if( currentProduct != null ) {
+                            testVMProductId = currentProduct.getProviderProductId();
+                        }
+                        if( testDataCenterId == null ) {
+                            testDataCenterId = image.getProviderDataCenterId();
+                        }
+                    }
+                } catch (Throwable ignore) {
+                }
+            }
+
+            boolean volumeBased = false;
+
             try {
-                architectures = computeServices.getVirtualMachineSupport().getCapabilities().listSupportedArchitectures();
-            } catch( InternalException e ) {
-            } catch( CloudException e ) {
+                for( MachineImageType type : imageSupport.getCapabilities().listSupportedImageTypes() ) {
+                    if( type.equals(MachineImageType.VOLUME) ) {
+                        volumeBased = true;
+                        break;
+                    }
+                }
+            } catch( Throwable ignore ) {
+                // ignore
+            }
+
+            final Platform[] searchPlatforms = new Platform[]{Platform.UBUNTU, Platform.WINDOWS, Platform.COREOS, Platform.CENT_OS, Platform.RHEL};
+            // test product is still not found, let's find a test image in our private images
+            if( testVMProductId == null ) {
+                for( Platform platform : searchPlatforms ) {
+                    ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(platform);
+
+                    try {
+                        for (MachineImage image : imageSupport.listImages(options)) {
+                            if (MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware())) {
+                                currentProduct = getMinimalProductForImageId(image.getProviderMachineImageId());
+                                if( currentProduct != null ) {
+                                    testVMProductId = currentProduct.getProviderProductId();
+                                    testMachineImages.put(DaseinTestManager.STATELESS, image.getProviderMachineImageId());
+                                    testImagePlatform = image.getPlatform();
+                                    if (!volumeBased || image.getType().equals(MachineImageType.VOLUME)) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Throwable ignore) {
+                        // ignore
+                    }
+                    if (testVMProductId != null) {
+                        break;
+                    }
+                }
+            }
+
+            // test product is still not found, let's find a test image in public images
+            if( testVMProductId == null ) {
+                for( Platform platform : searchPlatforms ) {
+                    ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).onPlatform(platform);
+
+                    try {
+                        for (MachineImage image : imageSupport.searchPublicImages(options)) {
+                            if (MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware())) {
+                                currentProduct = getMinimalProductForImageId(image.getProviderMachineImageId());
+                                if( currentProduct != null ) {
+                                    testVMProductId = currentProduct.getProviderProductId();
+                                    testMachineImages.put(DaseinTestManager.STATELESS, image.getProviderMachineImageId());
+                                    testImagePlatform = image.getPlatform();
+                                    if (!volumeBased || image.getType().equals(MachineImageType.VOLUME)) {
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    } catch (Throwable ignore) {
+                        // ignore
+                    }
+                    if (testVMProductId != null) {
+                        break;
+                    }
+                }
+            }
+
+        }
+        testVolumeProductId = findTestVolumeProductId();
+
+        if( computeServices.hasVirtualMachineSupport() ) {
+            try {
+                for( VirtualMachine vm : computeServices.getVirtualMachineSupport().listVirtualMachines() ) {
+                    if (( testDataCenterId == null || vm.getProviderDataCenterId().equals(testDataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
+                        testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
+                        break;
+                    }
+                }
+            } catch( Throwable ignore ) {
+                // ignore
             }
         }
 
-        if( computeServices != null ) {
-            Map<Architecture, VirtualMachineProduct> productMap = new HashMap<Architecture, VirtualMachineProduct>();
-            VirtualMachineSupport vmSupport = computeServices.getVirtualMachineSupport();
-            if( vmSupport != null ) {
-                try {
-                    for( Architecture architecture : architectures ) {
-                        VirtualMachineProduct defaultProduct = null;
-
-                        try {
-                            VirtualMachineProductFilterOptions options = VirtualMachineProductFilterOptions.getInstance().withDataCenterId(testDataCenterId).withArchitecture(architecture);
-                            Iterable<VirtualMachineProduct> products;
-                            if( testImageId != null ) {
-                                products = vmSupport.listProducts(testImageId);
-                            }
-                            else {
-                                products = vmSupport.listProducts(options);
-                            }
-                            for( VirtualMachineProduct product : products ) {
-                                if( !product.getStatus().equals(VirtualMachineProduct.Status.CURRENT) ) {
-                                    continue;
-                                }
-                                if( defaultProduct == null ) {
-                                    defaultProduct = product;
-                                }
-                                else if( defaultProduct.getRamSize().intValue() > product.getRamSize().intValue() ) {
-                                    if( product.getRamSize().intValue() > 1000 ) {
-                                        defaultProduct = product;
-                                    }
-                                }
-                                else {
-                                    if( defaultProduct.getRamSize().intValue() < 1024 && product.getRamSize().intValue() < 2200 ) {
-                                        defaultProduct = product;
-                                    }
-                                    else if( defaultProduct.getCpuCount() > product.getCpuCount() ) {
-                                        if( ( defaultProduct.getRamSize().intValue() * 2 ) > product.getRamSize().intValue() ) {
-                                            defaultProduct = product;
-                                        }
-                                    }
-                                }
-                            }
-                        } catch( Throwable ignore ) {
-                            // ignore
+        if( computeServices.hasVolumeSupport() ) {
+            try {
+                Volume defaultVolume = null;
+                for( Volume volume : computeServices.getVolumeSupport().listVolumes() ) {
+                    if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals
+                            (volume.getCurrentState()) || defaultVolume == null )) {
+                        if( defaultVolume == null || volume.isAttached() ) {
+                            defaultVolume = volume;
                         }
-                        productMap.put(architecture, defaultProduct);
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore
-                }
-            }
-
-            MachineImageSupport imageSupport = computeServices.getImageSupport();
-
-            if( imageSupport != null ) {
-                boolean volumeBased = false;
-
-                try {
-                    for( MachineImageType type : imageSupport.getCapabilities().listSupportedImageTypes() ) {
-                        if( type.equals(MachineImageType.VOLUME) ) {
-                            volumeBased = true;
-                            break;
-                        }
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore
-                }
-                // let's make sure we find the test image (if required via "test.machineImage" env parameter)
-                if( testImageId != null ) {
-                    try {
-                        MachineImage image = imageSupport.getImage(testImageId);
-                        if( image != null && MachineImageState.ACTIVE.equals(image.getCurrentState()) ) {
-                            testImagePlatform = image.getPlatform();
-                            testMachineImages.put(DaseinTestManager.STATELESS, testImageId);
-                            VirtualMachineProduct product = productMap.get(image.getArchitecture());
-                            if( product != null ) {
-                                testVMProductId = product.getProviderProductId();
-                            }
-                            if( testDataCenterId == null ) {
-                                testDataCenterId = image.getProviderDataCenterId();
-                            }
-                        }
-                    }
-                    catch( Throwable ignore ) { }
-                }
-                for( Architecture architecture : architectures ) {
-                    VirtualMachineProduct currentProduct = productMap.get(architecture);
-
-                    if( currentProduct != null ) {
-                        // Let WINDOWS come first for a greater chance of StatelessVMTests#getVMPassword to work
-                        for( Platform platform : new Platform[]{Platform.UBUNTU, Platform.WINDOWS, Platform.COREOS, Platform.CENT_OS, Platform.RHEL} ) {
-                            ImageFilterOptions options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
-
-                            try {
-                                for( MachineImage image : imageSupport.listImages(options) ) {
-                                    if( MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware()) ) {
-                                        testVMProductId = currentProduct.getProviderProductId();
-                                        testMachineImages.put(DaseinTestManager.STATELESS, image.getProviderMachineImageId());
-                                        testImagePlatform = image.getPlatform();
-                                        if( !volumeBased || image.getType().equals(MachineImageType.VOLUME) ) {
-                                            break;
-                                        }
-                                    }
-                                }
-                            } catch( Throwable ignore ) {
-                                // ignore
-                            }
-                            if( testVMProductId != null ) {
-                                break;
-                            }
-                            options = ImageFilterOptions.getInstance(ImageClass.MACHINE).withArchitecture(architecture).onPlatform(platform);
-                            try {
-                                for( MachineImage image : imageSupport.searchPublicImages(options) ) {
-                                    if( MachineImageState.ACTIVE.equals(image.getCurrentState()) && "".equals(image.getSoftware()) ) {
-                                        testVMProductId = currentProduct.getProviderProductId();
-                                        testMachineImages.put(DaseinTestManager.STATELESS, image.getProviderMachineImageId());
-                                        testImagePlatform = image.getPlatform();
-                                        if( !volumeBased || image.getType().equals(MachineImageType.VOLUME) ) {
-                                            break;
-                                        }
-                                    }
-                                }
-                            } catch( Throwable ignore ) {
-                                // ignore
-                            }
-                        }
-                        if( testVMProductId != null ) {
+                        if( VolumeState.AVAILABLE.equals(defaultVolume.getCurrentState()) && defaultVolume.isAttached() ) {
                             break;
                         }
                     }
                 }
-            }
-
-            testVolumeProductId = findTestVolumeProductId();
-
-            VolumeSupport volumeSupport = computeServices.getVolumeSupport();
-            if( vmSupport != null ) {
-                try {
-                    for( VirtualMachine vm : vmSupport.listVirtualMachines() ) {
-                        if (( testDataCenterId == null || vm.getProviderDataCenterId().equals(testDataCenterId)) && ( VmState.RUNNING.equals(vm.getCurrentState()) )) { // no guarantee of being in the same datacenter
-                            testVMs.put(DaseinTestManager.STATELESS, vm.getProviderVirtualMachineId());
-                            break;
-                        }
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore
+                if( defaultVolume != null ) {
+                    testVolumes.put(DaseinTestManager.STATELESS, defaultVolume.getProviderVolumeId());
                 }
-            }
-            if( volumeSupport != null ) {
-                try {
-                    Volume defaultVolume = null;
-                    for( Volume volume : volumeSupport.listVolumes() ) {
-                        if (( testDataCenterId == null || volume.getProviderDataCenterId().equals(testDataCenterId)) && ( VolumeState.AVAILABLE.equals
-                                (volume.getCurrentState()) || defaultVolume == null )) {
-                            if( defaultVolume == null || volume.isAttached() ) {
-                                defaultVolume = volume;
-                            }
-                            if( VolumeState.AVAILABLE.equals(defaultVolume.getCurrentState()) && defaultVolume.isAttached() ) {
-                                break;
-                            }
-                        }
-                    }
-                    if( defaultVolume != null ) {
-                        testVolumes.put(DaseinTestManager.STATELESS, defaultVolume.getProviderVolumeId());
-                    }
-                } catch( Throwable ignore ) {
-                    // ignore
-                }
+            } catch( Throwable ignore ) {
+                // ignore
             }
         }
     }
