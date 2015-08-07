@@ -348,10 +348,6 @@ public class StatefulVMTests {
             if( vlan == null ) {
                 fail("Test is inconsitent: vlanId is specified, but VLAN is not found");
             }
-            Iterable<Subnet> subnets = vlanSupport.listSubnets(vlanId);
-            for( Subnet subnet : subnets ) {
-                System.out.println(subnet.getName());
-            }
 //            options.withDnsServerList(vlan.getDnsServers());
 //            options.withDnsDomain(vlan.getDomainName());
         }
@@ -485,85 +481,87 @@ public class StatefulVMTests {
         assumeTrue(!tm.isTestSkipped());
 
         DataCenterServices dcServices = tm.getProvider().getDataCenterServices();
-        if (dcServices != null) {
-            if (dcServices.getCapabilities().supportsResourcePools()) {
-                ComputeServices services = tm.getProvider().getComputeServices();
-
-                if( services != null ) {
-                    VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-                    if( support != null ) {
-                        if( support.isSubscribed() ) {
-                            ComputeResources compute = DaseinTestManager.getComputeResources();
-                            String productId = null;
-                            if( compute != null ) {
-                                boolean foundResourcePool = false;
-                                for (Architecture a : support.getCapabilities().listSupportedArchitectures()) {
-                                    Iterable<VirtualMachineProduct> products = support.listProducts(a);
-                                    for (VirtualMachineProduct p : products) {
-                                        //this may not work for clouds other than vsphere so be aware
-                                        //currently vsphere is the only cloud with resource pool support
-                                        if (p.getProviderProductId().split(":").length==3) {
-                                            //found a product that also hold resource pool info
-                                            productId = p.getProviderProductId();
-                                            foundResourcePool = true;
-                                            break;
-                                        }
-                                    }
-                                    if (foundResourcePool) {
-                                        break;
-                                    }
-                                }
-                                if (foundResourcePool) {
-                                    testResourcePoolId = productId.split(":")[0];
-                                }
-
-                                assertNotNull("Unable to identify a VM product for test launch", productId);
-                                assertNotNull("Unable to identify a resource pool for test launch", testResourcePoolId);
-                                String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
-
-                                assertNotNull("Unable to identify a test image for test launch", imageId);
-
-
-                                VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnrespool" + ( System.currentTimeMillis() % 10000 ), "Dasein Resource Pool Launch " + System.currentTimeMillis(), "Test launch for a VM in a resource pool");
-                                options.inDataCenter(testDataCenterId);
-                                options.withResourcePoolId(testResourcePoolId);
-                                String id = compute.provisionVM(support, "resourcePoolLaunch", options, options.getDataCenterId());
-
-                                tm.out("Launched", id);
-                                assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
-
-                                VirtualMachine virtualMachine = support.getVirtualMachine(id);
-                                tm.out("In resource pool", virtualMachine.getResourcePoolId());
-                                assertNotNull("Could not find the newly created virtual machine", virtualMachine);
-                                assertEquals("Expected resource pool not found "+testResourcePoolId, testResourcePoolId, virtualMachine.getResourcePoolId());
-                            }
-                        }
-                        else {
-                            try {
-                                //noinspection ConstantConditions
-                                DaseinTestManager.getComputeResources().provisionVM(support, "failure", "Should Fail", "failure", null);
-                                fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
-                            } catch( CloudException ok ) {
-                                tm.ok("Got exception when not subscribed: " + ok.getMessage());
-                            }
-                        }
-                    }
-                    else {
-                        tm.ok("No virtual machine support in this cloud");
-                    }
-                }
-                else {
-                    tm.ok("No compute services in this cloud");
-                }
-            }
-            else {
-                tm.ok("Resource pools not supported in this cloud");
-            }
-        }
-        else{
+        if (dcServices == null) {
             tm.ok("No datacenter services in this cloud");
+            return;
         }
+
+        if (!dcServices.getCapabilities().supportsResourcePools()) {
+            tm.ok("Resource pools not supported in this cloud");
+            return;
+        }
+
+        ComputeServices services = tm.getProvider().getComputeServices();
+
+        if( services == null ) {
+            tm.ok("No compute services in this cloud");
+            return;
+        }
+
+        VirtualMachineSupport support = services.getVirtualMachineSupport();
+
+        if( support != null ) {
+            tm.ok("No virtual machine support in this cloud");
+            return;
+        }
+
+        ComputeResources compute = DaseinTestManager.getComputeResources();
+        if( compute == null ) {
+            fail("Failed to initialise compute resources for " + tm.getProvider().getCloudName());
+        }
+
+        if( !support.isSubscribed() ) {
+            try {
+                //noinspection ConstantConditions
+                compute.provisionVM(support, "failure", "Should Fail", "failure", null);
+                fail("Attempt to launch VM should not succeed when the account is not subscribed to virtual machine services");
+            } catch( CloudException ok ) {
+                tm.ok("Got exception when not subscribed: " + ok.getMessage());
+            }
+            return;
+        }
+
+        String imageId = tm.getTestImageId(DaseinTestManager.STATELESS, false);
+        assertNotNull("Unable to identify a test image for test launch", imageId);
+
+        String productId = null;
+        boolean foundResourcePool = false;
+        for (Architecture a : support.getCapabilities().listSupportedArchitectures()) {
+            Iterable<VirtualMachineProduct> products = support.listProducts(imageId, null);
+            for (VirtualMachineProduct p : products) {
+                //this may not work for clouds other than vsphere so be aware
+                //currently vsphere is the only cloud with resource pool support
+                if (p.getProviderProductId().split(":").length==3) {
+                    //found a product that also hold resource pool info
+                    productId = p.getProviderProductId();
+                    foundResourcePool = true;
+                    break;
+                }
+            }
+            if (foundResourcePool) {
+                break;
+            }
+        }
+        if (foundResourcePool) {
+            testResourcePoolId = productId.split(":")[0];
+        }
+
+        assertNotNull("Unable to identify a VM product for test launch", productId);
+        assertNotNull("Unable to identify a resource pool for test launch", testResourcePoolId);
+
+
+        VMLaunchOptions options = VMLaunchOptions.getInstance(productId, imageId, "dsnrespool" + ( System.currentTimeMillis() % 10000 ), "Dasein Resource Pool Launch " + System.currentTimeMillis(), "Test launch for a VM in a resource pool");
+        options.inDataCenter(testDataCenterId);
+        options.withResourcePoolId(testResourcePoolId);
+        String id = compute.provisionVM(support, "resourcePoolLaunch", options, options.getDataCenterId());
+
+        tm.out("Launched", id);
+        assertNotNull("Attempts to provisionVM a virtual machine MUST return a valid ID", id);
+
+        VirtualMachine virtualMachine = support.getVirtualMachine(id);
+        tm.out("In resource pool", virtualMachine.getResourcePoolId());
+        assertNotNull("Could not find the newly created virtual machine", virtualMachine);
+        assertEquals("Expected resource pool not found "+testResourcePoolId, testResourcePoolId, virtualMachine.getResourcePoolId());
     }
 
     @Test
@@ -1017,7 +1015,7 @@ public class StatefulVMTests {
                     }
                 }
                 else {
-                    tm.warn("No test virtual machine was found for this test");
+                    fail("No test virtual machine was found for this test");
                 }
             }
             else {
@@ -1063,8 +1061,7 @@ public class StatefulVMTests {
         VirtualMachineProduct currentProduct = support.getProduct(vm.getProductId());
         tm.out("Before", vm.getProductId());
         VirtualMachineProduct newProduct = null;
-        Iterable<VirtualMachineProduct> products = support.listProducts(vm.getArchitecture());
-        for( VirtualMachineProduct product : support.listProducts(vm.getArchitecture()) ) {
+        for( VirtualMachineProduct product : support.listProducts(vm.getProviderMachineImageId(), null) ) {
             if( product.getProviderProductId().equals(currentProduct.getProviderProductId()) ) {
                 continue;
             }

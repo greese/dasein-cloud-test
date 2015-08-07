@@ -316,54 +316,6 @@ public class StatelessVMTests {
         }
     }
 
-    @Test
-    public void listVMProducts() throws CloudException, InternalException {
-        assumeTrue(!tm.isTestSkipped());
-        ComputeServices services = tm.getProvider().getComputeServices();
-
-        if( services != null ) {
-            VirtualMachineSupport support = services.getVirtualMachineSupport();
-
-            if( support != null ) {
-                boolean found = false;
-                int total = 0;
-
-                for( Architecture architecture : support.getCapabilities().listSupportedArchitectures() ) {
-                    Iterable<VirtualMachineProduct> products = support.listProducts(architecture);
-                    int count = 0;
-
-                    assertNotNull("listProducts() must return at least an empty collections and may not be null", products);
-                    for( VirtualMachineProduct product : products ) {
-                        count++;
-                        total++;
-                        tm.out("VM Product [" + architecture.name() + "]", product);
-                        if( testProductId != null && testProductId.equals(product.getProviderProductId()) ) {
-                            found = true;
-                        }
-                    }
-                    tm.out("Total " + architecture.name() + " Product Count", count);
-                }
-                if( total < 1 && support.isSubscribed() ) {
-                    if( testProductId == null ) {
-                        tm.warn("No products were listed and thus the test may be in error");
-                    }
-                    else {
-                        fail("Should have found test product " + testProductId + ", but none were found");
-                    }
-                }
-                else if( testProductId != null ) {
-                    assertTrue("Failed to find test product " + testProductId + " among the listed products", found);
-                }
-            }
-            else {
-                tm.ok("No virtual machine support in this cloud");
-            }
-        }
-        else {
-            tm.ok("No compute services in this cloud");
-        }
-    }
-
     // TODO(stas): this is a bare-bones test that doesn't test anything specific to
     // listProducts(String imageId) so it will need further work.
     @Test
@@ -388,26 +340,15 @@ public class StatelessVMTests {
         }
         assertNotNull("No test imageId for the test", testImageId);
 
-        boolean found = false;
-
-        MachineImage image = imageSupport.getImage(testImageId);
-        Iterator<VirtualMachineProduct> productsByArch = support.listProducts(VirtualMachineProductFilterOptions.getInstance().withArchitecture(image.getArchitecture())).iterator();
-        int totalByArch = 0;
-        for( ; productsByArch.hasNext(); productsByArch.next() ) {
-            totalByArch++;
-        }
-        tm.out("Total Product Count Filtered by Architecture", totalByArch);
-
-        Iterable<VirtualMachineProduct> products = support.listProducts(testImageId);
+        Iterable<VirtualMachineProduct> products = support.listProducts(testImageId, null);
         int totalByImage = 0;
 
         assertNotNull("listProducts() must return at least an empty collections and may not be null", products);
         for( VirtualMachineProduct product : products ) {
             totalByImage++;
-            // TODO: check that the product is the same architecture as the image at the very least
         }
         tm.out("Total Product Count Filtered by Image", totalByImage);
-        assertThat("Number of products filtered by image should be lesser than or equal to the number of products filtered by this image's architecture alone", totalByImage, lessThanOrEqualTo(totalByArch));
+        assertThat("Number of products filtered by image should be greater than zero", totalByImage, greaterThan(0));
     }
 
     @Test
