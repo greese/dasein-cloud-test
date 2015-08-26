@@ -16,7 +16,6 @@ import org.dasein.cloud.ResourceStatus;
 import org.dasein.cloud.dc.DataCenter;
 import org.dasein.cloud.dc.Region;
 import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Subnet;
 import org.dasein.cloud.network.VLAN;
 import org.dasein.cloud.network.VLANSupport;
 import org.dasein.cloud.network.VPN;
@@ -24,11 +23,10 @@ import org.dasein.cloud.network.VPNCapabilities;
 import org.dasein.cloud.network.VPNConnection;
 import org.dasein.cloud.network.VPNGateway;
 import org.dasein.cloud.network.VPNGatewayState;
-import org.dasein.cloud.network.VpnLaunchOptions;
+import org.dasein.cloud.network.VpnCreateOptions;
 import org.dasein.cloud.network.VPNProtocol;
 import org.dasein.cloud.network.VPNState;
 import org.dasein.cloud.network.VPNSupport;
-import org.dasein.cloud.network.VlanCreateOptions;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -131,13 +129,13 @@ public class StatefulVPNTests {
 
             for (VPNProtocol protocol : supportedProtocols) {
                 tm.out("Testing VPN protocol: " + protocol);
-                VpnLaunchOptions vpnLaunchOptions1 = VpnLaunchOptions.getInstance("vpn1", "vpn1", protocol);
+                VpnCreateOptions vpnLaunchOptions1 = VpnCreateOptions.getInstance("vpn1", "vpn1", protocol);
                 if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                     vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1");
                 }
                 VPN vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
 
-                VpnLaunchOptions vpnLaunchOptions2 = VpnLaunchOptions.getInstance("vpn2", "vpn2", protocol);
+                VpnCreateOptions vpnLaunchOptions2 = VpnCreateOptions.getInstance("vpn2", "vpn2", protocol);
                 if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                     vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2");
                 }
