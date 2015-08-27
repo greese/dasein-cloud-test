@@ -22,6 +22,7 @@ import org.dasein.cloud.network.VPN;
 import org.dasein.cloud.network.VPNCapabilities;
 import org.dasein.cloud.network.VPNConnection;
 import org.dasein.cloud.network.VPNGateway;
+import org.dasein.cloud.network.VPNGatewayCreateOptions;
 import org.dasein.cloud.network.VPNGatewayState;
 import org.dasein.cloud.network.VpnCreateOptions;
 import org.dasein.cloud.network.VPNProtocol;
@@ -79,8 +80,8 @@ public class StatefulVPNTests {
     public void createNetworks() {
         NetworkServices networkServices = tm.getProvider().getNetworkServices();
 
-        String testVpnId1 = "vpn1";
-        String testVpnId2 = "vpn2";
+        String testVpnId1 = "vpn1-network";
+        String testVpnId2 = "vpn2-network";
         VLANSupport vlanSupport = networkServices.getVlanSupport();
 
         try {
@@ -127,73 +128,74 @@ public class StatefulVPNTests {
         if (null != vpnCapabilities) {
             Iterable<VPNProtocol> supportedProtocols = vpnCapabilities.listSupportedVPNProtocols();
 
-            for (VPNProtocol protocol : supportedProtocols) {
-                tm.out("Testing VPN protocol: " + protocol);
-                VpnCreateOptions vpnLaunchOptions1 = VpnCreateOptions.getInstance("vpn1", "vpn1", protocol);
-                if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
-                    vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1");
-                }
-                VPN vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
-
-                VpnCreateOptions vpnLaunchOptions2 = VpnCreateOptions.getInstance("vpn2", "vpn2", protocol);
-                if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
-                    vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2");
-                }
-                VPN vpn2 = vpnSupport.createVPN(vpnLaunchOptions2);
-
-                VPNGateway result1 = vpnSupport.connectToVPNGateway(vpn1.getName(), vpn2.getProviderVpnIp(), "vpn1-tunnel", vpn1.getDescription(), vpn2.getProtocol(), "googtest", "192.168.1.0/24");
-                VPNGateway result2 = vpnSupport.connectToVPNGateway(vpn2.getName(), vpn1.getProviderVpnIp(), "vpn2-tunnel", vpn2.getDescription(), vpn1.getProtocol(), "googtest", "10.240.0.0/16");
-
-                int vpnCount = 0;
-                Iterable<VPN> vpns = vpnSupport.listVPNs();
-                if (null != vpns) {
-                    for (VPN vpn : vpns) {
-                        vpnCount++;
-                    }
-                }
-                assertTrue("listVPNs() should return > 0 result", (vpnCount >0));
-
-                int vpnConnectionsCount = 0;
-                Iterable<VPNConnection> vpnConnections = vpnSupport.listVPNConnections(vpn1.getName());
-                if (null != vpnConnections) {
-                    for (VPNConnection vpnConnection : vpnConnections) {
-                        vpnConnectionsCount++;
-                    }
-                }
-                assertTrue("listVPNConnections() should return > 0 result", (vpnConnectionsCount >0));
-
-                Iterable<ResourceStatus> allVpnStatus = vpnSupport.listVPNStatus();
-                if (null != allVpnStatus) {
-                    for (ResourceStatus vpnStatus : allVpnStatus) {
-                        tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
-                        assertConnected(vpnStatus, Arrays.asList(VPNState.PENDING, VPNState.AVAILABLE));
-                    }
-                }
-
-                tm.out("SLEEPING 60seconds....");
-                try {
-                    Thread.sleep(60000L);
-                } catch ( InterruptedException e ) { }
-
-                allVpnStatus = vpnSupport.listVPNStatus();
-                if (null != allVpnStatus) {
-                    for (ResourceStatus vpnStatus : allVpnStatus) {
-                        tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
-                        assertConnected(vpnStatus, Arrays.asList(VPNState.AVAILABLE));
-                    }
-                }
-
-                VPNGateway vpnGateway1 = vpnSupport.getGateway(result1.getName());
-                assertVpnGateway(vpnGateway1);
-                VPNGateway vpnGateway2 = vpnSupport.getGateway(result2.getName());
-                assertVpnGateway(vpnGateway2);
-
-                vpnSupport.deleteVPNGateway(result1.getName());
-                vpnSupport.deleteVPNGateway(result2.getName());
-
-                vpnSupport.deleteVPN(vpn1.getName());
-                vpnSupport.deleteVPN(vpn2.getName());
+            VPNProtocol protocol = supportedProtocols.iterator().next();
+            tm.out("Testing VPN protocol: " + protocol);
+            VpnCreateOptions vpnLaunchOptions1 = VpnCreateOptions.getInstance("vpn1", "vpn1", protocol);
+            if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
+                vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1-network");
             }
+            VPN vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
+
+            VpnCreateOptions vpnLaunchOptions2 = VpnCreateOptions.getInstance("vpn2", "vpn2", protocol);
+            if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
+                vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2-network");
+            }
+            VPN vpn2 = vpnSupport.createVPN(vpnLaunchOptions2);
+            
+            VPNGateway result1 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn1-tunnel", vpn1.getDescription(), vpn1.getProtocol(), vpn2.getProviderVpnIp()).withCidr("192.168.1.0/24").withSharedSecret("googtest").withVlanName("vpn1-network").withVpnName("vpn1"));
+            VPNGateway result2 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn2-tunnel", vpn2.getDescription(), vpn2.getProtocol(), vpn1.getProviderVpnIp()).withCidr("10.240.0.0/16").withSharedSecret("googtest").withVlanName("vpn2-network").withVpnName("vpn2"));
+            //VPNGateway result1 = vpnSupport.connectToVPNGateway(vpnLaunchOptions1.getProviderVlanId(), vpn2.getProviderVpnIp(), "vpn1-tunnel", vpn1.getDescription(), vpn2.getProtocol(), "googtest", "192.168.1.0/24");
+            //VPNGateway result2 = vpnSupport.connectToVPNGateway(vpnLaunchOptions2.getProviderVlanId(), vpn1.getProviderVpnIp(), "vpn2-tunnel", vpn2.getDescription(), vpn1.getProtocol(), "googtest", "10.240.0.0/16");
+
+            int vpnCount = 0;
+            Iterable<VPN> vpns = vpnSupport.listVPNs();
+            if (null != vpns) {
+                for (VPN vpn : vpns) {
+                    vpnCount++;
+                }
+            }
+            assertTrue("listVPNs() should return > 0 result", (vpnCount >0));
+
+            int vpnConnectionsCount = 0;
+            Iterable<VPNConnection> vpnConnections = vpnSupport.listVPNConnections(vpn1.getName());
+            if (null != vpnConnections) {
+                for (VPNConnection vpnConnection : vpnConnections) {
+                    vpnConnectionsCount++;
+                }
+            }
+            assertTrue("listVPNConnections() should return > 0 result", (vpnConnectionsCount >0));
+
+            Iterable<ResourceStatus> allVpnStatus = vpnSupport.listVPNStatus();
+            if (null != allVpnStatus) {
+                for (ResourceStatus vpnStatus : allVpnStatus) {
+                    tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
+                    assertConnected(vpnStatus, Arrays.asList(VPNState.PENDING, VPNState.AVAILABLE));
+                }
+            }
+
+            tm.out("SLEEPING 60seconds....");
+            try {
+                Thread.sleep(60000L);
+            } catch ( InterruptedException e ) { }
+
+            allVpnStatus = vpnSupport.listVPNStatus();
+            if (null != allVpnStatus) {
+                for (ResourceStatus vpnStatus : allVpnStatus) {
+                    tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
+                    assertConnected(vpnStatus, Arrays.asList(VPNState.AVAILABLE));
+                }
+            }
+
+            VPNGateway vpnGateway1 = vpnSupport.getGateway(result1.getName());
+            assertVpnGateway(vpnGateway1);
+            VPNGateway vpnGateway2 = vpnSupport.getGateway(result2.getName());
+            assertVpnGateway(vpnGateway2);
+
+            vpnSupport.deleteVPNGateway(result1.getName());
+            vpnSupport.deleteVPNGateway(result2.getName());
+
+            vpnSupport.deleteVPN(vpn1.getName());
+            vpnSupport.deleteVPN(vpn2.getName());
         }
     }
 
