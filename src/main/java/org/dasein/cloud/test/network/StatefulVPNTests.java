@@ -144,8 +144,6 @@ public class StatefulVPNTests {
             
             VPNGateway result1 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn1-tunnel", vpn1.getDescription(), vpn1.getProtocol(), vpn2.getProviderVpnIp()).withCidr("192.168.1.0/24").withSharedSecret("googtest").withVlanName("vpn1-network").withVpnName("vpn1"));
             VPNGateway result2 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn2-tunnel", vpn2.getDescription(), vpn2.getProtocol(), vpn1.getProviderVpnIp()).withCidr("10.240.0.0/16").withSharedSecret("googtest").withVlanName("vpn2-network").withVpnName("vpn2"));
-            //VPNGateway result1 = vpnSupport.connectToVPNGateway(vpnLaunchOptions1.getProviderVlanId(), vpn2.getProviderVpnIp(), "vpn1-tunnel", vpn1.getDescription(), vpn2.getProtocol(), "googtest", "192.168.1.0/24");
-            //VPNGateway result2 = vpnSupport.connectToVPNGateway(vpnLaunchOptions2.getProviderVlanId(), vpn1.getProviderVpnIp(), "vpn2-tunnel", vpn2.getDescription(), vpn1.getProtocol(), "googtest", "10.240.0.0/16");
 
             int vpnCount = 0;
             Iterable<VPN> vpns = vpnSupport.listVPNs();
