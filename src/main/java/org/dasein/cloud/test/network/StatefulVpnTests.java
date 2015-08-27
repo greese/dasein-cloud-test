@@ -37,20 +37,15 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
-public class StatefulVPNTests {
+public class StatefulVpnTests {
     private VLAN testVlan1 = null;
     private VLAN testVlan2 = null;
-    /*
-     * vpn1 10.240.0.0/16   10.240.0.1  0
-     * vpn2    192.168.1.0/24  192.168.1.1 0
-     * vpn-1   vpn1    us-central1 146.148.35.118       130.211.188.232
-     * vpn-2   vpn2    us-central1 130.211.188.232      146.148.35.118
-     */
+
     private static DaseinTestManager tm;
 
     @BeforeClass
     static public void configure() {
-        tm = new DaseinTestManager(StatefulVPNTests.class);
+        tm = new DaseinTestManager(StatefulVpnTests.class);
     }
 
     @AfterClass
@@ -63,7 +58,7 @@ public class StatefulVPNTests {
     @Rule
     public final TestName name = new TestName();
 
-    public StatefulVPNTests() { }
+    public StatefulVpnTests() { }
 
     @Before
     public void before() {
@@ -72,9 +67,6 @@ public class StatefulVPNTests {
         NetworkServices network = tm.getProvider().getNetworkServices();
 
         createNetworks();
-        //if (name.getMethodName().equals("createFirewall")) {
-        //    testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-        //}
     }
 
     public void createNetworks() {
@@ -98,9 +90,6 @@ public class StatefulVPNTests {
             removeNetworks();
             testVlan1 = null;
             testVlan2 = null;
-            //testVLANId = null;
-            //testFirewallId = null;
-            //testRuleId = null;
         }
         finally {
             tm.end();
@@ -126,27 +115,48 @@ public class StatefulVPNTests {
         VpnCapabilities vpnCapabilities = vpnSupport.getCapabilities();
 
         if (null != vpnCapabilities) {
-            Iterable<VpnProtocol> supportedProtocols = vpnCapabilities.listSupportedVPNProtocols();
+            Iterable<VpnProtocol> supportedProtocols = vpnCapabilities.listSupportedVpnProtocols();
 
             VpnProtocol protocol = supportedProtocols.iterator().next();
             tm.out("Testing VPN protocol: " + protocol);
             VpnCreateOptions vpnLaunchOptions1 = VpnCreateOptions.getInstance("vpn1", "vpn1", protocol);
-            if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
-                vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1-network");
-            }
-            Vpn vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
-
             VpnCreateOptions vpnLaunchOptions2 = VpnCreateOptions.getInstance("vpn2", "vpn2", protocol);
-            if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
+
+            if (vpnCapabilities.identifyVlanIdRequirement() == Requirement.REQUIRED) {
+                vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1-network");
                 vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2-network");
             }
-            Vpn vpn2 = vpnSupport.createVPN(vpnLaunchOptions2);
 
-            VpnGateway result1 = vpnSupport.createVPNGateway(VpnGatewayCreateOptions.getInstance("vpn1-tunnel", vpn1.getDescription(), vpn1.getProtocol(), vpn2.getProviderVpnIp()).withCidr("192.168.1.0/24").withSharedSecret("googtest").withVlanName("vpn1-network").withVpnName("vpn1"));
-            VpnGateway result2 = vpnSupport.createVPNGateway(VpnGatewayCreateOptions.getInstance("vpn2-tunnel", vpn2.getDescription(), vpn2.getProtocol(), vpn1.getProviderVpnIp()).withCidr("10.240.0.0/16").withSharedSecret("googtest").withVlanName("vpn2-network").withVpnName("vpn2"));
+            Vpn vpn1 = vpnSupport.createVpn(vpnLaunchOptions1);
+            Vpn vpn2 = vpnSupport.createVpn(vpnLaunchOptions2);
+
+            VpnGatewayCreateOptions vpn1options = VpnGatewayCreateOptions.getInstance("vpn1-tunnel", vpn1.getDescription(), vpn1.getProtocol(), vpn2.getProviderVpnIp());
+            VpnGatewayCreateOptions vpn2options = VpnGatewayCreateOptions.getInstance("vpn2-tunnel", vpn2.getDescription(), vpn2.getProtocol(), vpn1.getProviderVpnIp());
+
+            if (vpnCapabilities.identifyGatewaySharedSecretRequirement() == Requirement.REQUIRED) {
+                vpn1options = vpn1options.withSharedSecret("googtest");
+                vpn2options = vpn2options.withSharedSecret("googtest");
+            }
+
+            if (vpnCapabilities.identifyGatewayVlanNameRequirement() == Requirement.REQUIRED) {
+                vpn1options = vpn1options.withVlanName("vpn1-network");
+                vpn2options = vpn2options.withVlanName("vpn2-network");
+            }
+            if (vpnCapabilities.identifyGatewayVpnNameRequirement() == Requirement.REQUIRED) {
+                vpn1options = vpn1options.withVpnName("vpn1");
+                vpn2options = vpn2options.withVpnName("vpn2");
+            }
+
+            if (vpnCapabilities.identifyGatewayCidrRequirement() == Requirement.REQUIRED) {
+                vpn1options = vpn1options.withCidr("192.168.1.0/24");
+                vpn2options = vpn2options.withCidr("10.240.0.0/16");
+            }
+
+            VpnGateway result1 = vpnSupport.createVpnGateway(vpn1options);
+            VpnGateway result2 = vpnSupport.createVpnGateway(vpn2options);
 
             int vpnCount = 0;
-            Iterable<Vpn> vpns = vpnSupport.listVPNs();
+            Iterable<Vpn> vpns = vpnSupport.listVpns();
             if (null != vpns) {
                 for (Vpn vpn : vpns) {
                     vpnCount++;
@@ -155,7 +165,7 @@ public class StatefulVPNTests {
             assertTrue("listVPNs() should return > 0 result", (vpnCount >0));
 
             int vpnConnectionsCount = 0;
-            Iterable<VpnConnection> vpnConnections = vpnSupport.listVPNConnections(vpn1.getName());
+            Iterable<VpnConnection> vpnConnections = vpnSupport.listVpnConnections(vpn1.getName());
             if (null != vpnConnections) {
                 for (VpnConnection vpnConnection : vpnConnections) {
                     vpnConnectionsCount++;
@@ -163,7 +173,7 @@ public class StatefulVPNTests {
             }
             assertTrue("listVPNConnections() should return > 0 result", (vpnConnectionsCount >0));
 
-            Iterable<ResourceStatus> allVpnStatus = vpnSupport.listVPNStatus();
+            Iterable<ResourceStatus> allVpnStatus = vpnSupport.listVpnStatus();
             if (null != allVpnStatus) {
                 for (ResourceStatus vpnStatus : allVpnStatus) {
                     tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
@@ -176,7 +186,7 @@ public class StatefulVPNTests {
                 Thread.sleep(60000L);
             } catch ( InterruptedException e ) { }
 
-            allVpnStatus = vpnSupport.listVPNStatus();
+            allVpnStatus = vpnSupport.listVpnStatus();
             if (null != allVpnStatus) {
                 for (ResourceStatus vpnStatus : allVpnStatus) {
                     tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
@@ -189,11 +199,11 @@ public class StatefulVPNTests {
             VpnGateway vpnGateway2 = vpnSupport.getGateway(result2.getName());
             assertVpnGateway(vpnGateway2);
 
-            vpnSupport.deleteVPNGateway(result1.getName());
-            vpnSupport.deleteVPNGateway(result2.getName());
+            vpnSupport.deleteVpnGateway(result1.getName());
+            vpnSupport.deleteVpnGateway(result2.getName());
 
-            vpnSupport.deleteVPN(vpn1.getName());
-            vpnSupport.deleteVPN(vpn2.getName());
+            vpnSupport.deleteVpn(vpn1.getName());
+            vpnSupport.deleteVpn(vpn2.getName());
         }
     }
 
