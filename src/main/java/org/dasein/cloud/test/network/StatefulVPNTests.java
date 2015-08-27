@@ -24,7 +24,7 @@ import org.dasein.cloud.network.VPNConnection;
 import org.dasein.cloud.network.VPNGateway;
 import org.dasein.cloud.network.VPNGatewayCreateOptions;
 import org.dasein.cloud.network.VPNGatewayState;
-import org.dasein.cloud.network.VpnCreateOptions;
+import org.dasein.cloud.network.VPNCreateOptions;
 import org.dasein.cloud.network.VPNProtocol;
 import org.dasein.cloud.network.VPNState;
 import org.dasein.cloud.network.VPNSupport;
@@ -130,18 +130,18 @@ public class StatefulVPNTests {
 
             VPNProtocol protocol = supportedProtocols.iterator().next();
             tm.out("Testing VPN protocol: " + protocol);
-            VpnCreateOptions vpnLaunchOptions1 = VpnCreateOptions.getInstance("vpn1", "vpn1", protocol);
+            VPNCreateOptions vpnLaunchOptions1 = VPNCreateOptions.getInstance("vpn1", "vpn1", protocol);
             if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                 vpnLaunchOptions1 = vpnLaunchOptions1.withProviderVlanId("vpn1-network");
             }
             VPN vpn1 = vpnSupport.createVPN(vpnLaunchOptions1);
 
-            VpnCreateOptions vpnLaunchOptions2 = VpnCreateOptions.getInstance("vpn2", "vpn2", protocol);
+            VPNCreateOptions vpnLaunchOptions2 = VPNCreateOptions.getInstance("vpn2", "vpn2", protocol);
             if (vpnCapabilities.getVPNVLANConstraint() == Requirement.REQUIRED) {
                 vpnLaunchOptions2 = vpnLaunchOptions2.withProviderVlanId("vpn2-network");
             }
             VPN vpn2 = vpnSupport.createVPN(vpnLaunchOptions2);
-            
+
             VPNGateway result1 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn1-tunnel", vpn1.getDescription(), vpn1.getProtocol(), vpn2.getProviderVpnIp()).withCidr("192.168.1.0/24").withSharedSecret("googtest").withVlanName("vpn1-network").withVpnName("vpn1"));
             VPNGateway result2 = vpnSupport.createVPNGateway(VPNGatewayCreateOptions.getInstance("vpn2-tunnel", vpn2.getDescription(), vpn2.getProtocol(), vpn1.getProviderVpnIp()).withCidr("10.240.0.0/16").withSharedSecret("googtest").withVlanName("vpn2-network").withVpnName("vpn2"));
 
