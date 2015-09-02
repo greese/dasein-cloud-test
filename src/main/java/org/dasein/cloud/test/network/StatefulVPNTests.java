@@ -1,34 +1,23 @@
 package org.dasein.cloud.test.network;
 
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.CloudProvider;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ProviderContext;
-import org.dasein.cloud.Requirement;
-import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.dc.DataCenter;
+import co.freeside.betamax.Betamax;
+import co.freeside.betamax.Recorder;
+import co.freeside.betamax.httpclient.BetamaxHttpsSupport;
+import co.freeside.betamax.httpclient.BetamaxRoutePlanner;
+import org.apache.http.impl.client.AbstractHttpClient;
+import org.dasein.cloud.*;
+import org.dasein.cloud.aws.AWSCloud;
 import org.dasein.cloud.dc.Region;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.Subnet;
-import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.network.VLANSupport;
-import org.dasein.cloud.network.VPN;
-import org.dasein.cloud.network.VPNCapabilities;
-import org.dasein.cloud.network.VPNConnection;
-import org.dasein.cloud.network.VPNGateway;
-import org.dasein.cloud.network.VPNGatewayState;
-import org.dasein.cloud.network.VpnLaunchOptions;
-import org.dasein.cloud.network.VPNProtocol;
-import org.dasein.cloud.network.VPNState;
-import org.dasein.cloud.network.VPNSupport;
-import org.dasein.cloud.network.VlanCreateOptions;
+import org.dasein.cloud.network.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -39,8 +28,14 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 public class StatefulVPNTests {
-    private VLAN testVlan1 = null;
-    private VLAN testVlan2 = null;
+    private String testVlanId1;
+    private String testVlanId2;
+    private String testDataCenterId;
+    private String testVpnId;
+    private NetworkServices networkServices;
+    private VPNSupport vpnSupport;
+    private NetworkResources networkResources;
+
     /*
      * vpn1 10.240.0.0/16   10.240.0.1  0
      * vpn2    192.168.1.0/24  192.168.1.1 0
@@ -70,55 +65,139 @@ public class StatefulVPNTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        NetworkServices network = tm.getProvider().getNetworkServices();
 
-        createNetworks();
-        //if (name.getMethodName().equals("createFirewall")) {
-        //    testVLANId = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, null);
-        //}
-    }
+        // initialise interface classes
+        networkServices = tm.getProvider().getNetworkServices();
+        if( networkServices == null ) {
+            return; // no network services, no point continuing
+        }
+        vpnSupport = networkServices.getVpnSupport();
+        if( vpnSupport == null ) {
+            return; // no vpn support, no point continuing
+        }
+        networkResources = DaseinTestManager.getNetworkResources();
+        if( networkResources == null ) {
+            tm.warn("Failed to initialise network resources");
+        }
+        if( name.getMethodName().equalsIgnoreCase("createInternalVPN") ) {
 
-    public void createNetworks() {
-        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+            testDataCenterId = DaseinTestManager.getDefaultDataCenterId(false);
+            testVlanId1 = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, testDataCenterId);
+            NetworkResources networkResources = DaseinTestManager.getNetworkResources();
+            if( networkResources != null ) {
+                try {
+                    testVlanId2 = networkResources.provisionVLAN(networkServices.getVlanSupport(), DaseinTestManager.STATEFUL, "vpn", testDataCenterId);
+                } catch (CloudException e) {
+                } catch (InternalException e) {
+                }
+            }
+        }
+        else if ( name.getMethodName().equalsIgnoreCase("removeVpn") ) {
+            testVpnId = tm.getTestVpnId(DaseinTestManager.REMOVED, true, testDataCenterId);
+            // wait...
+            try {
+                Thread.sleep(5000L);
+            } catch( InterruptedException ignore ) {
+            }
+            if( testVpnId == null ) {
+                testVpnId = tm.getTestVpnId(DaseinTestManager.STATELESS, false, testDataCenterId);
+            }
+            if( testVpnId == null ) {
+                testVpnId = tm.getTestVpnId(DaseinTestManager.STATEFUL, false, testDataCenterId);
+            }
+            if( testVpnId == null ) {
+                testVpnId = tm.getTestVpnId(DaseinTestManager.STATEFUL, true, testDataCenterId);
+                // wait...
+                try {
+                    Thread.sleep(5000L);
+                } catch( InterruptedException ignore ) {
+                }
+            }
 
-        String testVpnId1 = "vpn1";
-        String testVpnId2 = "vpn2";
-        VLANSupport vlanSupport = networkServices.getVlanSupport();
-
-        try {
-            testVlan1 = vlanSupport.createVlan("10.240.0.0/16", testVpnId1, testVpnId1, null, null, null);
-            testVlan2 = vlanSupport.createVlan("192.168.1.0/24", testVpnId2, testVpnId2, null, null, null);
-        } catch( Throwable t ) {
-            tm.warn("Failed to provision vlans " + t.getMessage());
         }
     }
+
+//    public void createNetworks() {
+//        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+//
+//        String testVpnId1 = "vpn1";
+//        String testVpnId2 = "vpn2";
+//        VLANSupport vlanSupport = networkServices.getVlanSupport();
+//
+//        try {
+//            testVlanId1 = vlanSupport.createVlan("10.240.0.0/16", testVpnId1, testVpnId1, null, null, null);
+//            testVlanId2 = vlanSupport.createVlan("192.168.1.0/24", testVpnId2, testVpnId2, null, null, null);
+//        } catch( Throwable t ) {
+//            tm.warn("Failed to provision vlans " + t.getMessage());
+//        }
+//    }
 
     @After
     public void after() {
         try {
-            removeNetworks();
-            testVlan1 = null;
-            testVlan2 = null;
-            //testVLANId = null;
-            //testFirewallId = null;
-            //testRuleId = null;
+            testVlanId1 = null;
+            testVlanId2 = null;
         }
         finally {
             tm.end();
         }
     }
 
-    private void removeNetworks() {
-        NetworkServices networkServices = tm.getProvider().getNetworkServices();
-
-        VLANSupport vlanSupport = networkServices.getVlanSupport();
-        try {
-            vlanSupport.removeVlan(testVlan1.getName());
-            vlanSupport.removeVlan(testVlan2.getName());
-        } catch( Throwable t ) {
-            tm.warn("Failed to remove VLANS " + t.getMessage());
+    @Rule public Recorder recorder = new Recorder();
+    @Betamax(tape="vpn")
+    @Test
+    public void createVpn() throws InternalException, CloudException {
+        if( tm.getProvider() instanceof AWSCloud ) {
+            BetamaxRoutePlanner.configure((AbstractHttpClient) ((AWSCloud) tm.getProvider()).getClient());
+            BetamaxHttpsSupport.configure(((AWSCloud) tm.getProvider()).getClient());
+            recorder.setSslSupport(true);
         }
+        assumeNotNull(networkServices);
+        assumeNotNull(networkResources);
+        assumeNotNull(vpnSupport);
+        String id = networkResources.provisionVpn(DaseinTestManager.STATEFUL, "crt", testDataCenterId);
+        assertNotNull("Unable to create VPN, VPN ID cannot be null", id);
+        VPN vpn = networkServices.getVpnSupport().getVPN(id);
+        assertNotNull("Unable find newly created VPN "+id, vpn);
     }
+
+    @Test
+    public void removeVpn() throws InternalException, CloudException {
+        assumeNotNull(networkServices);
+        assumeNotNull(vpnSupport);
+        VPN vpn = vpnSupport.getVPN(testVpnId);
+
+        tm.out("Before", vpn);
+        assertNotNull("Test VPN no longer exists, cannot test removing it", vpn);
+        tm.out("State", vpn.getCurrentState());
+        vpnSupport.deleteVPN(testVpnId); // TODO: core - rename to removeVpn in line with removeSubnet etc
+        int tries = 0;
+        do {
+            try {
+                Thread.sleep(5000L);
+                tries++;
+            } catch (InterruptedException ignore) {
+            }
+            vpn = vpnSupport.getVPN(testVpnId);
+        } while( tries < 10 && vpn != null && VPNState.DELETING.equals(vpn.getCurrentState()) );
+
+        tm.out("After", vpn);
+        tm.out("State", (vpn == null || VPNState.DELETED.equals(vpn.getCurrentState()) ? "DELETED" : vpn.getCurrentState()));
+        assertTrue("The VPN remains available", vpn == null || VPNState.DELETED.equals(vpn.getCurrentState()));
+
+    }
+
+//    private void removeNetworks() {
+//        NetworkServices networkServices = tm.getProvider().getNetworkServices();
+//
+//        VLANSupport vlanSupport = networkServices.getVlanSupport();
+//        try {
+//            vlanSupport.removeVlan(testVlanId1.getName());
+//            vlanSupport.removeVlan(testVlanId2.getName());
+//        } catch( Throwable t ) {
+//            tm.warn("Failed to remove VLANS " + t.getMessage());
+//        }
+//    }
 
     @Test
     public void createInternalVPN() throws CloudException, InternalException {
