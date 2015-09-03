@@ -428,17 +428,17 @@ public class NetworkResources {
                     }
                 }
 
-                VPNSupport vpnSupport = networkServices.getVpnSupport();
+                VpnSupport vpnSupport = networkServices.getVpnSupport();
 
                 if( vpnSupport != null ) {
                     try {
                         for( Map.Entry<String, String> entry : testVpns.entrySet() ) {
                             if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
-                                VPN v = vpnSupport.getVPN(entry.getValue());
+                                Vpn v = vpnSupport.getVpn(entry.getValue());
 
                                 if( v != null ) {
                                     try {
-                                        vpnSupport.deleteVPN(v.getProviderVpnId());
+                                        vpnSupport.deleteVpn(v.getProviderVpnId());
                                     } catch( Throwable t ) {
                                         logger.warn("Failed to remove VPN " + v + ":" + t.getMessage());
                                     }
@@ -1556,14 +1556,14 @@ public class NetworkResources {
         NetworkServices services = provider.getNetworkServices();
         String id;
         if( services != null ) {
-            VPNSupport support = services.getVpnSupport();
+            VpnSupport support = services.getVpnSupport();
             if( support != null ) {
                 if( label.equals(DaseinTestManager.STATELESS) ) {
                     for( Map.Entry<String, String> entry : testVpns.entrySet() ) {
                         if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
                             id = entry.getValue();
                             try {
-                                VPN vpn = support.getVPN(id);
+                                Vpn vpn = support.getVpn(id);
                                 if( vpn != null ) {
                                     return id;
                                 }
@@ -1576,7 +1576,7 @@ public class NetworkResources {
                 id = testVpns.get(label);
                 if( id != null ) {
                     try {
-                        VPN vpn = support.getVPN(id);
+                        Vpn vpn = support.getVpn(id);
                         if (vpn != null) {
                             return id;
                         }
@@ -2166,13 +2166,13 @@ public class NetworkResources {
         if( networkServices == null ) {
             throw new CloudException("This cloud doesn't support network services");
         }
-        VPNSupport vpnSupport = networkServices.getVpnSupport();
+        VpnSupport vpnSupport = networkServices.getVpnSupport();
         if( vpnSupport == null ) {
             throw new CloudException("This cloud doesn't have VPN support");
         }
         String name = namePrefix + ( System.currentTimeMillis() % 10000 );
-        VPNProtocol protocol = vpnSupport.getCapabilities().listSupportedVPNProtocols().iterator().next();
-        VPN vpn = vpnSupport.createVPN(VpnLaunchOptions.getInstance(name, name, protocol));
+        VpnProtocol protocol = vpnSupport.getCapabilities().listSupportedVpnProtocols().iterator().next();
+        Vpn vpn = vpnSupport.createVpn(VpnCreateOptions.getInstance(name, name, protocol));
         synchronized ( testVpns ) {
             while( testVpns.containsKey(label) ) {
                 label = label + random.nextInt(9);

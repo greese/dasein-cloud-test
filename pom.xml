@@ -129,10 +129,16 @@
                 <configuration>
                     <encoding>utf-8</encoding>
                     <quiet>true</quiet>
-                    <links>
-                        <link>http://java.sun.com/javase/6/docs/api/</link>
-                        <link>http://java.sun.com/javaee/6/docs/api/</link>
-                    </links>
+                    <javaApiLinks>
+                        <property>
+                            <name>api_1.7</name>
+                            <value>http://download.java.net/jdk7/docs/api/</value>
+                        </property>
+                        <property>
+                            <name>dasein-utils</name>
+                            <value>http://www.dasein.org/api/dasein-utils/</value>
+                        </property>
+                    </javaApiLinks>
                     <stylesheetfile>dasein-javadoc.css</stylesheetfile>
                     <footer/>
                 </configuration>
