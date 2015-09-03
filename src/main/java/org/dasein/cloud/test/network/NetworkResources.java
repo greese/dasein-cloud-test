@@ -52,20 +52,21 @@ public class NetworkResources {
     private CloudProvider provider;
     public final static String TEST_CIDR = "209.98.98.98/32";
 
-    private final HashMap<String, String> testGeneralFirewalls = new HashMap<String, String>();
-    private final HashMap<String, String> testIps4Free = new HashMap<String, String>();
-    private final HashMap<String, String> testIps6Free = new HashMap<String, String>();
-    private final HashMap<String, String> testIps4VLAN = new HashMap<String, String>();
-    private final HashMap<String, String> testIps6VLAN = new HashMap<String, String>();
-    private final HashMap<String, String> testLBs = new HashMap<String, String>();
-    private final HashMap<String, String> testSSLCertificates = new HashMap<String, String>();
-    private final HashMap<String, String> testNetworkFirewalls = new HashMap<String, String>();
-    private final HashMap<String, String> testSubnets = new HashMap<String, String>();
-    private final HashMap<String, String> testInternetGateways = new HashMap<String, String>();
-    private final HashMap<String, String> testVLANs = new HashMap<String, String>();
-    private final HashMap<String, String> testRouteTables = new HashMap<String, String>();
-    private final HashMap<String, String> testVLANFirewalls = new HashMap<String, String>();
-    private final HashMap<String, String> testZones = new HashMap<String, String>();
+    private final Map<String, String> testGeneralFirewalls = new HashMap<String, String>();
+    private final Map<String, String> testIps4Free = new HashMap<String, String>();
+    private final Map<String, String> testIps6Free = new HashMap<String, String>();
+    private final Map<String, String> testIps4VLAN = new HashMap<String, String>();
+    private final Map<String, String> testIps6VLAN = new HashMap<String, String>();
+    private final Map<String, String> testLBs = new HashMap<String, String>();
+    private final Map<String, String> testSSLCertificates = new HashMap<String, String>();
+    private final Map<String, String> testNetworkFirewalls = new HashMap<String, String>();
+    private final Map<String, String> testSubnets = new HashMap<String, String>();
+    private final Map<String, String> testInternetGateways = new HashMap<String, String>();
+    private final Map<String, String> testVLANs = new HashMap<String, String>();
+    private final Map<String, String> testRouteTables = new HashMap<String, String>();
+    private final Map<String, String> testVLANFirewalls = new HashMap<String, String>();
+    private final Map<String, String> testZones = new HashMap<String, String>();
+    private final Map<String, String> testVpns = new HashMap<String, String>();
     private HealthCheckOptions testHttpHealthCheckOptions;
     private HealthCheckOptions testTcpHealthCheckOptions;
 
@@ -419,6 +420,28 @@ public class NetworkResources {
                                     }
                                 } catch( Throwable t ) {
                                     logger.warn("Failed to de-provision static IP " + entry.getValue() + " post-test: " + t.getMessage());
+                                }
+                            }
+                        }
+                    } catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+
+                VPNSupport vpnSupport = networkServices.getVpnSupport();
+
+                if( vpnSupport != null ) {
+                    try {
+                        for( Map.Entry<String, String> entry : testVpns.entrySet() ) {
+                            if( !entry.getKey().equals(DaseinTestManager.STATELESS) ) {
+                                VPN v = vpnSupport.getVPN(entry.getValue());
+
+                                if( v != null ) {
+                                    try {
+                                        vpnSupport.deleteVPN(v.getProviderVpnId());
+                                    } catch( Throwable t ) {
+                                        logger.warn("Failed to remove VPN " + v + ":" + t.getMessage());
+                                    }
                                 }
                             }
                         }
@@ -1021,7 +1044,7 @@ public class NetworkResources {
     }
 
     public @Nullable String getTestFirewallId(@Nonnull String label, boolean provisionIfNull, @Nullable String vlanId) {
-        HashMap<String, String> map = ( vlanId == null ? testGeneralFirewalls : testVLANFirewalls );
+        Map<String, String> map = ( vlanId == null ? testGeneralFirewalls : testVLANFirewalls );
         if( label.equalsIgnoreCase(DaseinTestManager.STATELESS) ) {
             for( Map.Entry<String, String> entry : map.entrySet() ) {
                 if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
@@ -1529,6 +1552,50 @@ public class NetworkResources {
         return null;
     }
 
+    public @Nullable String getTestVpnId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        NetworkServices services = provider.getNetworkServices();
+        String id;
+        if( services != null ) {
+            VPNSupport support = services.getVpnSupport();
+            if( support != null ) {
+                if( label.equals(DaseinTestManager.STATELESS) ) {
+                    for( Map.Entry<String, String> entry : testVpns.entrySet() ) {
+                        if( !entry.getKey().equals(DaseinTestManager.REMOVED) ) {
+                            id = entry.getValue();
+                            try {
+                                VPN vpn = support.getVPN(id);
+                                if( vpn != null ) {
+                                    return id;
+                                }
+                            } catch( Exception e ) {
+                                // ignore
+                            }
+                        }
+                    }
+                }
+                id = testVpns.get(label);
+                if( id != null ) {
+                    try {
+                        VPN vpn = support.getVPN(id);
+                        if (vpn != null) {
+                            return id;
+                        }
+                    } catch (Exception e) {
+                        // ignore
+                    }
+                }
+                if( provisionIfNull ) {
+                    try {
+                        return provisionVpn(label, "dsnvpn", preferredDataCenterId);
+                    } catch( Throwable ignore ) {
+                        // ignore
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
     public @Nonnull String provisionAddress(@Nonnull IpAddressSupport support, @Nonnull String label, @Nullable IPVersion version, @Nullable String vlanId) throws CloudException, InternalException {
         if( version == null ) {
             for( IPVersion v : support.getCapabilities().listSupportedIPVersions() ) {
@@ -2004,7 +2071,7 @@ public class NetworkResources {
         if( preferredDataCenterId == null ) {
             options = SubnetCreateOptions.getInstance(vlanId, cidrs[cidrCount], namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Cloud Integration test subnet");
         } else {
-            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, cidrs[cidrCount], namePrefix + ( System.currentTimeMillis() % 10000 ), "Dasein Cloud Integration test subnet");
+            options = SubnetCreateOptions.getInstance(vlanId, preferredDataCenterId, cidrs[cidrCount], namePrefix + (System.currentTimeMillis() % 10000), "Dasein Cloud Integration test subnet");
         }
         cidrCount++;
         HashMap<String, Object> tags = new HashMap<String, Object>();
@@ -2092,5 +2159,26 @@ public class NetworkResources {
             testZones.put(label, id);
         }
         return id;
+    }
+
+    public @Nonnull String provisionVpn(String label, @Nonnull String namePrefix, String testDataCenterId) throws CloudException, InternalException {
+        NetworkServices networkServices = provider.getNetworkServices();
+        if( networkServices == null ) {
+            throw new CloudException("This cloud doesn't support network services");
+        }
+        VPNSupport vpnSupport = networkServices.getVpnSupport();
+        if( vpnSupport == null ) {
+            throw new CloudException("This cloud doesn't have VPN support");
+        }
+        String name = namePrefix + ( System.currentTimeMillis() % 10000 );
+        VPNProtocol protocol = vpnSupport.getCapabilities().listSupportedVPNProtocols().iterator().next();
+        VPN vpn = vpnSupport.createVPN(VpnLaunchOptions.getInstance(name, name, protocol));
+        synchronized ( testVpns ) {
+            while( testVpns.containsKey(label) ) {
+                label = label + random.nextInt(9);
+            }
+            testVpns.put(label, vpn.getProviderVpnId());
+        }
+        return vpn.getProviderVpnId();
     }
 }

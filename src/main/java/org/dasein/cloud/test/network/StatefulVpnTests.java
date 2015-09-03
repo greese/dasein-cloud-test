@@ -1,45 +1,28 @@
 package org.dasein.cloud.test.network;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeTrue;
+import org.dasein.cloud.*;
+import org.dasein.cloud.dc.Region;
+import org.dasein.cloud.network.*;
+import org.dasein.cloud.test.DaseinTestManager;
+import org.junit.*;
+import org.junit.rules.TestName;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 
-import org.dasein.cloud.CloudException;
-import org.dasein.cloud.CloudProvider;
-import org.dasein.cloud.InternalException;
-import org.dasein.cloud.ProviderContext;
-import org.dasein.cloud.Requirement;
-import org.dasein.cloud.ResourceStatus;
-import org.dasein.cloud.dc.DataCenter;
-import org.dasein.cloud.dc.Region;
-import org.dasein.cloud.network.NetworkServices;
-import org.dasein.cloud.network.VLAN;
-import org.dasein.cloud.network.VLANSupport;
-import org.dasein.cloud.network.Vpn;
-import org.dasein.cloud.network.VpnCapabilities;
-import org.dasein.cloud.network.VpnConnection;
-import org.dasein.cloud.network.VpnGateway;
-import org.dasein.cloud.network.VpnGatewayCreateOptions;
-import org.dasein.cloud.network.VpnGatewayState;
-import org.dasein.cloud.network.VpnCreateOptions;
-import org.dasein.cloud.network.VpnProtocol;
-import org.dasein.cloud.network.VpnState;
-import org.dasein.cloud.network.VpnSupport;
-import org.dasein.cloud.test.DaseinTestManager;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeNotNull;
+import static org.junit.Assume.assumeTrue;
 
 public class StatefulVpnTests {
-    private VLAN testVlan1 = null;
-    private VLAN testVlan2 = null;
+    private String testVlanId1;
+    private String testVlanId2;
+    private String testDataCenterId;
+    private String testVpnId;
+    private NetworkServices networkServices;
+    private VpnSupport vpnSupport;
+    private NetworkResources networkResources;
 
     private static DaseinTestManager tm;
 
@@ -64,52 +47,105 @@ public class StatefulVpnTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
-        NetworkServices network = tm.getProvider().getNetworkServices();
 
-        createNetworks();
-    }
-
-    public void createNetworks() {
-        NetworkServices networkServices = tm.getProvider().getNetworkServices();
-
-        String testVpnId1 = "vpn1-network";
-        String testVpnId2 = "vpn2-network";
-        VLANSupport vlanSupport = networkServices.getVlanSupport();
-
-        try {
-            testVlan1 = vlanSupport.createVlan("10.240.0.0/16", testVpnId1, testVpnId1, null, null, null);
-            testVlan2 = vlanSupport.createVlan("192.168.1.0/24", testVpnId2, testVpnId2, null, null, null);
-        } catch( Throwable t ) {
-            tm.warn("Failed to provision vlans " + t.getMessage());
+        // initialise interface classes
+        networkServices = tm.getProvider().getNetworkServices();
+        if( networkServices == null ) {
+            return; // no network services, no point continuing
         }
+        vpnSupport = networkServices.getVpnSupport();
+        if( vpnSupport == null ) {
+            return; // no vpn support, no point continuing
+        }
+        networkResources = DaseinTestManager.getNetworkResources();
+        if( networkResources == null ) {
+            tm.warn("Failed to initialise network resources");
+        }
+
+        switch(name.getMethodName()) {
+            case "createInternalVpn":
+                testDataCenterId = DaseinTestManager.getDefaultDataCenterId(false);
+                testVlanId1 = tm.getTestVLANId(DaseinTestManager.STATEFUL, true, testDataCenterId);
+                NetworkResources networkResources = DaseinTestManager.getNetworkResources();
+                if( networkResources != null ) {
+                    try {
+                        testVlanId2 = networkResources.provisionVLAN(networkServices.getVlanSupport(), DaseinTestManager.STATEFUL, "vpn", testDataCenterId);
+                    } catch (CloudException|InternalException e) {
+                    }
+                }
+                break;
+            case "removeVpn":
+                testVpnId = tm.getTestVpnId(DaseinTestManager.REMOVED, true, testDataCenterId);
+                // wait...
+                try {
+                    Thread.sleep(5000L);
+                } catch( InterruptedException ignore ) {
+                }
+                if( testVpnId == null ) testVpnId = tm.getTestVpnId(DaseinTestManager.STATELESS, false, testDataCenterId);
+                if( testVpnId == null ) testVpnId = tm.getTestVpnId(DaseinTestManager.STATEFUL, false, testDataCenterId);
+                if( testVpnId == null ) {
+                    testVpnId = tm.getTestVpnId(DaseinTestManager.STATEFUL, true, testDataCenterId);
+                    // wait...
+                    try {
+                        Thread.sleep(5000L);
+                    } catch( InterruptedException ignore ) {
+                    }
+                }
+                break;
+        }
+
     }
 
     @After
     public void after() {
         try {
-            removeNetworks();
-            testVlan1 = null;
-            testVlan2 = null;
+            testVlanId1 = null;
+            testVlanId2 = null;
         }
         finally {
             tm.end();
         }
     }
 
-    private void removeNetworks() {
-        NetworkServices networkServices = tm.getProvider().getNetworkServices();
-
-        VLANSupport vlanSupport = networkServices.getVlanSupport();
-        try {
-            vlanSupport.removeVlan(testVlan1.getName());
-            vlanSupport.removeVlan(testVlan2.getName());
-        } catch( Throwable t ) {
-            tm.warn("Failed to remove VLANS " + t.getMessage());
-        }
+    @Test
+    public void createVpn() throws InternalException, CloudException {
+        assumeNotNull(networkServices);
+        assumeNotNull(networkResources);
+        assumeNotNull(vpnSupport);
+        String id = networkResources.provisionVpn(DaseinTestManager.STATEFUL, "crt", testDataCenterId);
+        assertNotNull("Unable to create VPN, VPN ID cannot be null", id);
+        Vpn vpn = networkServices.getVpnSupport().getVpn(id);
+        assertNotNull("Unable find newly created VPN "+id, vpn);
     }
 
     @Test
-    public void createInternalVPN() throws CloudException, InternalException {
+    public void removeVpn() throws InternalException, CloudException {
+        assumeNotNull(networkServices);
+        assumeNotNull(vpnSupport);
+        Vpn vpn = vpnSupport.getVpn(testVpnId);
+
+        tm.out("Before", vpn);
+        assertNotNull("Test VPN no longer exists, cannot test removing it", vpn);
+        tm.out("State", vpn.getCurrentState());
+        vpnSupport.deleteVpn(testVpnId); // TODO: core - rename to removeVpn in line with removeSubnet etc
+        int tries = 0;
+        do {
+            try {
+                Thread.sleep(5000L);
+                tries++;
+            } catch (InterruptedException ignore) {
+            }
+            vpn = vpnSupport.getVpn(testVpnId);
+        } while( tries < 10 && vpn != null && VpnState.DELETING.equals(vpn.getCurrentState()) );
+
+        tm.out("After", vpn);
+        tm.out("State", (vpn == null || VpnState.DELETED.equals(vpn.getCurrentState()) ? "DELETED" : vpn.getCurrentState()));
+        assertTrue("The VPN remains available", vpn == null || VpnState.DELETED.equals(vpn.getCurrentState()));
+
+    }
+
+    @Test
+    public void createInternalVpn() throws CloudException, InternalException {
         CloudProvider provider = tm.getProvider();
         VpnSupport vpnSupport = provider.getNetworkServices().getVpnSupport();
         VpnCapabilities vpnCapabilities = vpnSupport.getCapabilities();
@@ -167,7 +203,7 @@ public class StatefulVpnTests {
             int vpnConnectionsCount = 0;
             Iterable<VpnConnection> vpnConnections = vpnSupport.listVpnConnections(vpn1.getName());
             if (null != vpnConnections) {
-                for (VpnConnection vpnConnection : vpnConnections) {
+                for (VpnConnection _ : vpnConnections) {
                     vpnConnectionsCount++;
                 }
             }
@@ -208,10 +244,10 @@ public class StatefulVpnTests {
     }
 
     private void assertVpnGateway(VpnGateway vpnGateway) {
-        assertTrue("Name should not be null", null != vpnGateway.getName());
-        assertTrue("Description should not be null", null != vpnGateway.getDescription());
+        assertNotNull("Name should not be null", vpnGateway.getName());
+        assertNotNull("Description should not be null", vpnGateway.getDescription());
         assertTrue("State not in set of possible states.", Arrays.asList(VpnGatewayState.values()).contains(vpnGateway.getCurrentState()));
-        assertTrue("Endpoint should not be null", null != vpnGateway.getEndpoint());
+        assertNotNull("Endpoint should not be null", vpnGateway.getEndpoint());
         assertTrue("Protocol not in set of possible protocols.", Arrays.asList(VpnProtocol.values()).contains(vpnGateway.getProtocol()));
 
         Iterable<Region> regions;
