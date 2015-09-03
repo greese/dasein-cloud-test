@@ -381,8 +381,8 @@ public class StatelessVMTests {
      *
      * <p>TODO: This test needs more attention.</p>
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void getVMPassword() throws CloudException, InternalException {
@@ -416,8 +416,8 @@ public class StatelessVMTests {
      * This test should performed outside virtualMachineContent() test as getUserData()
      * is a separate call.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void getVMUserData() throws CloudException, InternalException {

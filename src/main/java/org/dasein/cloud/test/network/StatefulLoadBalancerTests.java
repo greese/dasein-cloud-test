@@ -442,8 +442,8 @@ public class StatefulLoadBalancerTests {
 
     /**
      * @see org.dasein.cloud.network.LoadBalancerSupport#modifyHealthCheck(String, org.dasein.cloud.network.HealthCheckOptions)
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void modifyHealthCheck() throws CloudException, InternalException {
@@ -534,8 +534,8 @@ public class StatefulLoadBalancerTests {
      * Assert health check instance is valid
      * @param support
      * @param lbhc health check instance under inspection
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     static void assertHealthCheck( LoadBalancerSupport support, LoadBalancerHealthCheck lbhc ) throws CloudException, InternalException {
         assertNotNull("The LB health check 'ID' may not be null", lbhc.getProviderLBHealthCheckId());

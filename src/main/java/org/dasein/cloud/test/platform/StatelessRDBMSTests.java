@@ -493,9 +493,12 @@ public class StatelessRDBMSTests {
             tm.ok("Database does not support backups.");
     }
 
-/**
- * TODO: The tests below appear to have preconditions: it only ever supposed to work with Cloud SQL, and relies on a certain named db instance being present. This needs to be changed so it works with other drivers or that other drivers can bail out successfully.
- */
+    /**
+     * TEST: createFromLatest
+     * TODO: The tests below appear to have preconditions: it only ever supposed to work with Cloud SQL, and relies on a certain named db instance being present. This needs to be changed so it works with other drivers or that other drivers can bail out successfully.
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
+     */
 //    @Test DISABLED
     public void createFromLatest() throws CloudException, InternalException {
         PlatformServices services = tm.getProvider().getPlatformServices();
@@ -535,8 +538,8 @@ public class StatelessRDBMSTests {
      * 
      * NOTE: requires a database be present named statelessTestDatabase
      * 
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     // @Test DISABLED
     public void listBackups() throws CloudException, InternalException {
@@ -576,8 +579,8 @@ public class StatelessRDBMSTests {
      * TEST: restartDatabase
      * @author Roger Unwin
      * 
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     // @Test DISABLED
     public void restartDatabase() throws CloudException, InternalException {
