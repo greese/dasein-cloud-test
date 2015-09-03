@@ -16,6 +16,7 @@ import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 public class StatefulVpnTests {
+    // TODO: does Roger need these two?
     private String testVlanId1;
     private String testVlanId2;
     private String testDataCenterId;
