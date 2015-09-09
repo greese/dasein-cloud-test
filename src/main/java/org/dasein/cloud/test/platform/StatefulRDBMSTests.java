@@ -145,8 +145,8 @@ public class StatefulRDBMSTests {
      * Notes: GCE does not support deleting backups. 
      * Left that for the first person to run this whose database supports backups...
      * 
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test 
     public void deleteBackup() throws CloudException, InternalException {
@@ -178,8 +178,8 @@ public class StatefulRDBMSTests {
      * Notes: GCE does not support manually creating backups. 
      * Left that for the first person to run this whose database supports backups...
      * 
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test 
     public void createBackup() throws CloudException, InternalException {
@@ -256,8 +256,8 @@ public class StatefulRDBMSTests {
 
     /**
      * Authorize our IP and verify we can connect
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void checkAccess() throws CloudException, InternalException {
@@ -426,8 +426,8 @@ public class StatefulRDBMSTests {
      * We will add configuration modification testing later on as better support for database configuration
      * is added to core.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void alterDatabase() throws CloudException, InternalException {
@@ -514,6 +514,8 @@ public class StatefulRDBMSTests {
      * successfully in a test context, which doesn't mean the implementation is wrong. We should think how to improve
      * this test. Also we don't need to test against all combinations of all engines: we are testing the API, not the
      * cloud itself.
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
 //    @Test DISABLED
     public void createDatabaseMultiple() throws CloudException, InternalException {
@@ -554,8 +556,8 @@ public class StatefulRDBMSTests {
     /**
      * This test will only execute where Oracle SE1 is available
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void createOracleDatabase() throws CloudException, InternalException {

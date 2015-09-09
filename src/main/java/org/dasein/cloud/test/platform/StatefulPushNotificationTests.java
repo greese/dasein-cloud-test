@@ -121,8 +121,8 @@ public class StatefulPushNotificationTests {
     /**
      * Requires {@link #addTestTopic()} ()} to be run first.
      *
-     * @throws org.dasein.cloud.CloudException
-     * @throws org.dasein.cloud.InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testListTopics() throws CloudException, InternalException {
@@ -142,8 +142,8 @@ public class StatefulPushNotificationTests {
     /**
      * Requires {@link #addTestTopic()} ()} to be run first.
      *
-     * @throws org.dasein.cloud.CloudException
-     * @throws org.dasein.cloud.InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testGetTopic() throws CloudException, InternalException {
@@ -177,8 +177,8 @@ public class StatefulPushNotificationTests {
     /**
      * Requires {@link #addTestTopic()} to be run first.
      *
-     * @throws org.dasein.cloud.CloudException
-     * @throws org.dasein.cloud.InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testRemoveTopic() throws CloudException, InternalException {

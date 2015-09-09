@@ -170,8 +170,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #setAvailableMetricProperties()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testListMetricsWithFilter() throws CloudException, InternalException {
@@ -211,8 +211,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #addTestAlarm()} ()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testListAlarms() throws CloudException, InternalException {
@@ -232,8 +232,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #setAvailableMetricProperties()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testListAlarmsWithFilter() throws CloudException, InternalException {
@@ -253,8 +253,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #setAvailableMetricProperties()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testAddAlarm() throws CloudException, InternalException {
@@ -277,8 +277,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #addTestAlarm()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testRemoveAlarms() throws CloudException, InternalException {
@@ -298,8 +298,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #addTestAlarm()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testEnableAlarmActions() throws CloudException, InternalException {
@@ -319,8 +319,8 @@ public class StatefulMonitoringTests {
     /**
      * Requires {@link #addTestAlarm()} to be run first.
      *
-     * @throws CloudException
-     * @throws InternalException
+     * @throws CloudException an error occurred in the cloud provider
+     * @throws InternalException an error occurred within the Dasein Cloud API implementation
      */
     @Test
     public void testDisableAlarmActions() throws CloudException, InternalException {
