@@ -798,6 +798,10 @@ public class DaseinTestManager {
         return (networkResources == null ? null : networkResources.getTestZoneId(label, provisionIfNull));
     }
 
+    public @Nullable String getTestVpnId(@Nonnull String label, boolean provisionIfNull, @Nullable String preferredDataCenterId) {
+        return (networkResources == null ? null : networkResources.getTestVpnId(label, provisionIfNull, preferredDataCenterId));
+    }
+
     public @Nonnull CloudProvider getProvider() {
         return provider;
     }
