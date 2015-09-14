@@ -513,7 +513,9 @@ public class StatelessDCTests {
             tm.out("VM folder ID", folder.getId());
             tm.out("Name", folder.getName());
             tm.out("Type", folder.getType());
-            tm.out("Parent", folder.getParent().getName());
+            if (folder.getParent() != null) {
+                tm.out("Parent", folder.getParent().getName());
+            }
 
             List<Folder> children = folder.getChildren();
             for (Folder child : children) {
@@ -522,7 +524,6 @@ public class StatelessDCTests {
             assertNotNull("VM folder ID must not be null", folder.getId());
             assertNotNull("VM folder name must not be null", folder.getName());
             assertNotNull("Type must not be null", folder.getType());
-            assertNotNull("Parent must not be null", folder.getParent());
         }
         else {
             if (services.getCapabilities().supportsFolders()) {
