@@ -21,11 +21,7 @@ package org.dasein.cloud.test.identity;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.identity.CloudGroup;
-import org.dasein.cloud.identity.CloudPolicy;
-import org.dasein.cloud.identity.CloudUser;
-import org.dasein.cloud.identity.IdentityAndAccessSupport;
-import org.dasein.cloud.identity.IdentityServices;
+import org.dasein.cloud.identity.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -332,8 +328,10 @@ public class StatelessIAMTests {
         assertNotNull("The policy ID may not be null", policy.getProviderPolicyId());
         assertNotNull("The policy name may not be null", policy.getName());
         assertEquals("The policy isManaged flag is wrong", managed, policy.isManaged());
-        if( !managed ) {
-            assertNotNull("The cloud permission may not be null", policy.getPermission());
+        assertNotNull("The policy rules may not be null", policy.getRules());
+        for( CloudPolicyRule rule : policy.getRules() ) {
+            assertNotNull("The policy rule permission may not be null", rule.getPermission());
+            assertNotNull("The policy rule actions may not be null", rule.getActions());
         }
     }
 
