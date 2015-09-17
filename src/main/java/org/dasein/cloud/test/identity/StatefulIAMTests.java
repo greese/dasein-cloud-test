@@ -22,12 +22,7 @@ package org.dasein.cloud.test.identity;
 import org.dasein.cloud.Cloud;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.identity.CloudGroup;
-import org.dasein.cloud.identity.CloudPermission;
-import org.dasein.cloud.identity.CloudPolicy;
-import org.dasein.cloud.identity.CloudUser;
-import org.dasein.cloud.identity.IdentityAndAccessSupport;
-import org.dasein.cloud.identity.IdentityServices;
+import org.dasein.cloud.identity.*;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -40,6 +35,8 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nullable;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -263,11 +260,13 @@ public class StatefulIAMTests {
             tm.out("Before", policies);
 
             for( CloudPolicy policy : policies ) {
-                if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                    if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                        if( policy.getResourceId() == null ) {
-                            found = true;
-                            break;
+                for( CloudPolicyRule rule : policy.getRules() ) {
+                    if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                        if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                            if (rule.getResourceId() == null) {
+                                found = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -291,11 +290,13 @@ public class StatefulIAMTests {
                     }
                 }
                 if( matches ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -326,11 +327,13 @@ public class StatefulIAMTests {
 
             for( CloudPolicy policy : policies ) {
                 if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -348,11 +351,13 @@ public class StatefulIAMTests {
 
             for( CloudPolicy policy : policies ) {
                 if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -547,11 +552,13 @@ public class StatefulIAMTests {
             tm.out("Before", policies);
 
             for( CloudPolicy policy : policies ) {
-                if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                    if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                        if( policy.getResourceId() == null ) {
-                            found = true;
-                            break;
+                for( CloudPolicyRule rule : policy.getRules() ) {
+                    if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                        if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                            if (rule.getResourceId() == null) {
+                                found = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -575,11 +582,13 @@ public class StatefulIAMTests {
                     }
                 }
                 if( matches ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0 ) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -609,12 +618,14 @@ public class StatefulIAMTests {
             tm.out("Before", policies);
 
             for( CloudPolicy policy : policies ) {
-                if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                if (policy.getProviderPolicyId().equals(testPolicyId)) {
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
@@ -631,11 +642,13 @@ public class StatefulIAMTests {
 
             for( CloudPolicy policy : policies ) {
                 if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
+                    for( CloudPolicyRule rule : policy.getRules() ) {
+                        if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                            if (Arrays.binarySearch(rule.getActions(), FirewallSupport.CREATE_FIREWALL) > 0) {
+                                if (rule.getResourceId() == null) {
+                                    found = true;
+                                    break;
+                                }
                             }
                         }
                     }
