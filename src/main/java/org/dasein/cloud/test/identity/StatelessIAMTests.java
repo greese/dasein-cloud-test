@@ -32,6 +32,7 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.UUID;
 
@@ -207,7 +208,7 @@ public class StatelessIAMTests {
         assumeNotNull(identityAndAccessSupport);
 
         if( testGroupId != null ) {
-            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPoliciesForGroup(testGroupId);
+            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             int count = 0;
 
             assertNotNull("The policies listing may not be null regardless of subscription level or requested group", policies);
@@ -238,11 +239,11 @@ public class StatelessIAMTests {
 
 
     @Test
-    public void listPolicies() throws CloudException, InternalException {
+    public void listAccountManagedPolicies() throws CloudException, InternalException {
         assumeNotNull(identityServices);
         assumeNotNull(identityAndAccessSupport);
 
-        Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies();
+        Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
         int count = 0;
 
         assertNotNull("The policies listing may not be null regardless of subscription level", policies);
@@ -252,12 +253,54 @@ public class StatelessIAMTests {
             tm.out("Managed Policy", policy);
         }
         tm.out("Total Managed Policy Count", count);
+        boolean supportsAccountManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.ACCOUNT_MANAGED_POLICY.equals(type) ) {
+                supportsAccountManagedPolicies = true;
+                break;
+            }
+        }
         if( count < 1 ) {
             if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services, so no policies exist");
             }
-            else if (identityAndAccessSupport.getCapabilities().supportsManagedPolicies()) {
-                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for managed policies, however there were no policies returned");
+            else if( supportsAccountManagedPolicies ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
+            }
+            else {
+                tm.warn("No policies were returned so this test may be invalid");
+            }
+        }
+    }
+
+    @Test
+    public void listPolicies() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+
+        Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY));
+        int count = 0;
+
+        assertNotNull("The policies listing may not be null regardless of subscription level", policies);
+
+        for( CloudPolicy policy : policies ) {
+            count++;
+            tm.out("Managed Policy", policy);
+        }
+        tm.out("Total Managed Policy Count", count);
+        boolean supportsProviderManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.PROVIDER_MANAGED_POLICY.equals(type) ) {
+                supportsProviderManagedPolicies = true;
+                break;
+            }
+        }
+        if( count < 1 ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services, so no policies exist");
+            }
+            else if( supportsProviderManagedPolicies ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
             }
             else {
                 tm.warn("No policies were returned so this test may be invalid");
@@ -301,18 +344,26 @@ public class StatelessIAMTests {
     public void getPolicy() throws CloudException, InternalException {
         assumeNotNull(identityServices);
         assumeNotNull(identityAndAccessSupport);
-        if( identityAndAccessSupport.getCapabilities().supportsManagedPolicies() ) {
-            Iterator<CloudPolicy> policiesIterator = identityAndAccessSupport.listPolicies().iterator();
+        boolean supportsProviderManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.PROVIDER_MANAGED_POLICY.equals(type) ) {
+                supportsProviderManagedPolicies = true;
+                break;
+            }
+        }
+
+        if( supportsProviderManagedPolicies ) {
+            Iterator<CloudPolicy> policiesIterator = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY)).iterator();
             assertTrue("List of policies must include at least one policy", policiesIterator.hasNext());
             String testPolicyId = policiesIterator.next().getProviderPolicyId();
             CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId);
             tm.out("Policy", policy);
             assertNotNull("No policy was found under the test policy ID [" + testPolicyId + "]", policy);
-            assertPolicy(policy, true);
+            assertPolicy(policy, CloudPolicyType.PROVIDER_MANAGED_POLICY);
         }
         else {
             try {
-                Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies();
+                Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY));
                 assertNotNull("List of policies may not be null", policies);
                 assertFalse("List of policies should be empty since managed policies are declared as not supported",
                         policies.iterator().hasNext()
@@ -324,10 +375,10 @@ public class StatelessIAMTests {
         }
     }
 
-    private void assertPolicy(@Nonnull CloudPolicy policy, boolean managed) {
+    private void assertPolicy(@Nonnull CloudPolicy policy, CloudPolicyType type) {
         assertNotNull("The policy ID may not be null", policy.getProviderPolicyId());
         assertNotNull("The policy name may not be null", policy.getName());
-        assertEquals("The policy isManaged flag is wrong", managed, policy.isManaged());
+        assertEquals("The policy type is wrong", type, policy.getType());
         assertNotNull("The policy rules may not be null", policy.getRules());
         for( CloudPolicyRule rule : policy.getRules() ) {
             assertNotNull("The policy rule permission may not be null", rule.getPermission());
@@ -472,7 +523,7 @@ public class StatelessIAMTests {
         assumeNotNull(identityAndAccessSupport);
 
         if( testUserId != null ) {
-            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPoliciesForUser(testUserId);
+            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             int count = 0;
 
             assertNotNull("The policies listing may not be null regardless of subscription level or requested user", policies);
@@ -480,7 +531,7 @@ public class StatelessIAMTests {
             for( CloudPolicy policy : policies ) {
                 count++;
                 tm.out(testUserId + " User Policy", policy);
-                assertPolicy(policy, false);
+                assertPolicy(policy, CloudPolicyType.INLINE_POLICY);
             }
             tm.out("Total Policy Count in " + testUserId, count);
             if( count < 1 ) {
