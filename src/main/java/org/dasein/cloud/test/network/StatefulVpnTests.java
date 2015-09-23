@@ -194,28 +194,22 @@ public class StatefulVpnTests {
 
             int vpnCount = 0;
             Iterable<Vpn> vpns = vpnSupport.listVpns();
-            if (null != vpns) {
-                for (Vpn vpn : vpns) {
-                    vpnCount++;
-                }
+            for (Vpn vpn : vpns) {
+                vpnCount++;
             }
             assertTrue("listVPNs() should return > 0 result", (vpnCount >0));
 
             int vpnConnectionsCount = 0;
             Iterable<VpnConnection> vpnConnections = vpnSupport.listVpnConnections(vpn1.getName());
-            if (null != vpnConnections) {
-                for (VpnConnection _ : vpnConnections) {
-                    vpnConnectionsCount++;
-                }
+            for (VpnConnection _ : vpnConnections) {
+                vpnConnectionsCount++;
             }
             assertTrue("listVPNConnections() should return > 0 result", (vpnConnectionsCount >0));
 
             Iterable<ResourceStatus> allVpnStatus = vpnSupport.listVpnStatus();
-            if (null != allVpnStatus) {
-                for (ResourceStatus vpnStatus : allVpnStatus) {
-                    tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
-                    assertConnected(vpnStatus, Arrays.asList(VpnState.PENDING, VpnState.AVAILABLE));
-                }
+            for (ResourceStatus vpnStatus : allVpnStatus) {
+                tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
+                assertConnected(vpnStatus, Arrays.asList(VpnState.PENDING, VpnState.AVAILABLE));
             }
 
             tm.out("SLEEPING 60seconds....");
@@ -224,11 +218,9 @@ public class StatefulVpnTests {
             } catch ( InterruptedException e ) { }
 
             allVpnStatus = vpnSupport.listVpnStatus();
-            if (null != allVpnStatus) {
-                for (ResourceStatus vpnStatus : allVpnStatus) {
-                    tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
-                    assertConnected(vpnStatus, Arrays.asList(VpnState.AVAILABLE));
-                }
+            for (ResourceStatus vpnStatus : allVpnStatus) {
+                tm.out("VPN STATUS = " + vpnStatus.getProviderResourceId() + " STATUS:" + vpnStatus.getResourceStatus());
+                assertConnected(vpnStatus, Arrays.asList(VpnState.AVAILABLE));
             }
 
             VpnGateway vpnGateway1 = vpnSupport.getGateway(result1.getName());

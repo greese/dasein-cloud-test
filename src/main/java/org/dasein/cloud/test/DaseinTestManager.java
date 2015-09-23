@@ -75,12 +75,12 @@ public class DaseinTestManager {
     }
 
     static public @Nonnull CloudProvider constructProvider(@Nullable String overrideAccount, @Nullable String overrideShared, @Nullable String overrideSecret) {
-        String cname = System.getProperty("providerClass");
-        CloudProvider provider = null;
-
+        String cname = getSystemProperty("providerClass");
         if( cname == null ) {
-            throw new RuntimeException("Invalid class name for provider: " + cname);
+            throw new RuntimeException("Provider class name (env.providerClass) is not set, make sure to specify it manually or via a Maven profile");
         }
+
+        CloudProvider provider = null;
 
         try{
             String prop, account = "", cloudName = "", endpoint = "", regionId = "", providerName = "", userName = "";

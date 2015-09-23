@@ -22,12 +22,7 @@ package org.dasein.cloud.test.identity;
 import org.dasein.cloud.Cloud;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.identity.CloudGroup;
-import org.dasein.cloud.identity.CloudPermission;
-import org.dasein.cloud.identity.CloudPolicy;
-import org.dasein.cloud.identity.CloudUser;
-import org.dasein.cloud.identity.IdentityAndAccessSupport;
-import org.dasein.cloud.identity.IdentityServices;
+import org.dasein.cloud.identity.*;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
@@ -39,7 +34,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
+
+import java.util.Arrays;
 
 import static org.junit.Assert.*;
 import static org.junit.Assume.assumeTrue;
@@ -146,7 +144,7 @@ public class StatefulIAMTests {
             testGroupId = tm.getTestGroupId(DaseinTestManager.STATEFUL, true);
             if( testGroupId != null && support != null ) {
                 try {
-                    for( CloudPolicy policy : support.listPoliciesForGroup(testGroupId) ) {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)) ) {
                         try { support.removeGroupPolicy(testGroupId, policy.getProviderPolicyId()); }
                         catch( Throwable ignore ) { }
                     }
@@ -170,7 +168,7 @@ public class StatefulIAMTests {
             testUserId = tm.getTestUserId(DaseinTestManager.STATEFUL, true, null);
             if( testUserId != null && support != null ) {
                 try {
-                    for( CloudPolicy policy : support.listPoliciesForUser(testUserId) ) {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)) ) {
                         try { support.removeUserPolicy(testUserId, policy.getProviderPolicyId()); }
                         catch( Throwable ignore ) { }
                     }
@@ -194,7 +192,7 @@ public class StatefulIAMTests {
             testGroupId = tm.getTestGroupId(DaseinTestManager.STATEFUL, true);
             if( testGroupId != null && support != null ) {
                 try {
-                    for( CloudPolicy policy : support.listPoliciesForGroup(testGroupId) ) {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)) ) {
                         try { support.removeGroupPolicy(testGroupId, policy.getProviderPolicyId()); }
                         catch( Throwable ignore ) { }
                     }
@@ -208,7 +206,7 @@ public class StatefulIAMTests {
             testUserId = tm.getTestUserId(DaseinTestManager.STATEFUL, true, null);
             if( testUserId != null && support != null ) {
                 try {
-                    for( CloudPolicy policy : support.listPoliciesForUser(testUserId) ) {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)) ) {
                         try { support.removeUserPolicy(testUserId, policy.getProviderPolicyId()); }
                         catch( Throwable ignore ) { }
                     }
@@ -251,57 +249,47 @@ public class StatefulIAMTests {
         assertEquals("The IDs for the requested group and the created group do not match", groupId, group.getProviderGroupId());
     }
 
+    private boolean findPolicyWithAction(@Nonnull Iterable<CloudPolicy> policies,
+                                         @Nullable String[] matchProviderPolicyIds,
+                                         @Nonnull ServiceAction action) {
+        for( CloudPolicy policy : policies ) {
+            if( matchProviderPolicyIds == null ||
+                    Arrays.binarySearch(matchProviderPolicyIds, policy.getProviderPolicyId()) >= 0 ) {
+                for (CloudPolicyRule rule : policy.getRules()) {
+                    if (rule.getPermission().equals(CloudPermission.ALLOW)) {
+                        if (Arrays.binarySearch(rule.getActions(), action) >= 0) {
+                            if (rule.getResourceId() == null) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     @Test
     public void saveGroupPolicy() throws CloudException, InternalException {
         IdentityAndAccessSupport support = getIASupport();
         if( support == null ) { return; }
 
         if( testGroupId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForGroup(testGroupId);
-            boolean found = false;
-
+            Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("Before", policies);
 
-            for( CloudPolicy policy : policies ) {
-                if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                    if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                        if( policy.getResourceId() == null ) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            assertFalse("Test policy exists before the start of the test", found);
+            assertFalse("Test policy exists before the start of the test",
+                    findPolicyWithAction(policies, null, FirewallSupport.CREATE_FIREWALL));
 
             String policyName = "DSN" + System.currentTimeMillis();
 
             String[] ids = support.modifyGroupPolicy(testGroupId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
-            policies = support.listPoliciesForGroup(testGroupId);
+            policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("After", policies);
 
-            for( CloudPolicy policy : policies ) {
-                boolean matches = false;
-
-                for( String id : ids ) {
-                    if( id.equals(policy.getProviderPolicyId()) ) {
-                        matches = true;
-                        break;
-                    }
-                }
-                if( matches ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            assertTrue("Unable to find new group permission", found);
+            assertTrue("Unable to find new group permission",
+                    findPolicyWithAction(policies, ids, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -319,46 +307,18 @@ public class StatefulIAMTests {
         if( support == null ) { return; }
 
         if( testGroupId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForGroup(testGroupId);
-            boolean found = false;
-
+            Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("Before", policies);
 
-            for( CloudPolicy policy : policies ) {
-                if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            assertTrue("Unable to find new group permission", found);
+            assertTrue("Unable to find new group permission", findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
 
             support.removeGroupPolicy(testGroupId, testPolicyId);
 
-            policies = support.listPoliciesForGroup(testGroupId);
+            policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("After", policies);
 
-            found = false;
-
-            for( CloudPolicy policy : policies ) {
-                if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            assertFalse("Test policy exists before the start of the test", found);
+            assertFalse("Test policy exists still exists after being removed",
+                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -541,51 +501,23 @@ public class StatefulIAMTests {
         if( support == null ) { return; }
 
         if( testUserId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForUser(testUserId);
+            Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             boolean found = false;
 
             tm.out("Before", policies);
 
-            for( CloudPolicy policy : policies ) {
-                if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                    if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                        if( policy.getResourceId() == null ) {
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-            }
-            assertFalse("Test policy exists before the start of the test", found);
+            assertFalse("Test policy exists before the start of the test",
+                    findPolicyWithAction(policies, null, FirewallSupport.CREATE_FIREWALL));
 
             String policyName = "DSN" + System.currentTimeMillis();
 
             String[] ids = support.modifyUserPolicy(testUserId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
 
-            policies = support.listPoliciesForUser(testUserId);
+            policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             tm.out("After", policies);
 
-            for( CloudPolicy policy : policies ) {
-                boolean matches = false;
-
-                for( String id : ids ) {
-                    if( id.equals(policy.getProviderPolicyId()) ) {
-                        matches = true;
-                        break;
-                    }
-                }
-                if( matches ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            assertTrue("Unable to find new user permission", found);
+            assertTrue("Unable to find new user permission",
+                    findPolicyWithAction(policies, ids, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -603,45 +535,19 @@ public class StatefulIAMTests {
         if( support == null ) { return; }
 
         if( testUserId != null && testPolicyId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForUser(testUserId);
-            boolean found = false;
-
+            Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             tm.out("Before", policies);
 
-            for( CloudPolicy policy : policies ) {
-                if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-
-            assertTrue("Unable to find user permission before removal", found);
+            assertTrue("Unable to find user permission before removal",
+                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
 
             support.removeUserPolicy(testUserId, testPolicyId);
 
-            found = false;
-            policies = support.listPoliciesForUser(testUserId);
+            policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             tm.out("After", policies);
 
-            for( CloudPolicy policy : policies ) {
-                if( policy.getProviderPolicyId().equals(testPolicyId) ) {
-                    if( policy.getPermission().equals(CloudPermission.ALLOW) ) {
-                        if( FirewallSupport.CREATE_FIREWALL.equals(policy.getAction()) ) {
-                            if( policy.getResourceId() == null ) {
-                                found = true;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            assertFalse("Test policy exists even after removal", found);
+            assertFalse("Test policy exists even after removal",
+                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {

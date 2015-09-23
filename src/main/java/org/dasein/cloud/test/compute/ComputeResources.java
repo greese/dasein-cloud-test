@@ -839,7 +839,7 @@ public class ComputeResources {
                     }
                     else {
                         if( volumeSupport.getCapabilities().isVolumeSizeDeterminedByProduct() ) {
-                            if( product.getVolumeSize().intValue() < defaultProduct.getVolumeSize().intValue() && product.getVolumeSize().intValue() >= 20 ) {
+                            if( product.getMinVolumeSize().intValue() < defaultProduct.getMinVolumeSize().intValue() && product.getMinVolumeSize().intValue() >= 20 ) {
                                 defaultProduct = product;
                             }
                         }
@@ -1014,7 +1014,7 @@ public class ComputeResources {
                 String keypairId = identity.getTestKeypairId(DaseinTestManager.STATEFUL, true);
 
                 if( keypairId != null ) {
-                    options.withBoostrapKey(keypairId);
+                    options.withBootstrapKey(keypairId);
                 }
             }
         }
@@ -1280,7 +1280,7 @@ public class ComputeResources {
                     }
                 }
                 if( prd != null ) {
-                    size = prd.getVolumeSize();
+                    size = prd.getMinVolumeSize();
                     if( size == null ) {
                         size = support.getCapabilities().getMinimumVolumeSize();
                     }

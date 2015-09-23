@@ -21,11 +21,7 @@ package org.dasein.cloud.test.identity;
 
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
-import org.dasein.cloud.identity.CloudGroup;
-import org.dasein.cloud.identity.CloudPolicy;
-import org.dasein.cloud.identity.CloudUser;
-import org.dasein.cloud.identity.IdentityAndAccessSupport;
-import org.dasein.cloud.identity.IdentityServices;
+import org.dasein.cloud.identity.*;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -36,9 +32,12 @@ import org.junit.Test;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
+import java.util.Arrays;
+import java.util.Iterator;
 import java.util.UUID;
 
 import static org.junit.Assert.*;
+import static org.junit.Assume.assumeNotNull;
 import static org.junit.Assume.assumeTrue;
 
 /**
@@ -68,6 +67,8 @@ public class StatelessIAMTests {
 
     private String testGroupId;
     private String testUserId;
+    private IdentityServices identityServices;
+    private IdentityAndAccessSupport identityAndAccessSupport;
 
     public StatelessIAMTests() { }
 
@@ -75,6 +76,18 @@ public class StatelessIAMTests {
     public void before() {
         tm.begin(name.getMethodName());
         assumeTrue(!tm.isTestSkipped());
+        identityServices = tm.getProvider().getIdentityServices();
+
+        if( identityServices == null ) {
+            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+        identityAndAccessSupport = identityServices.getIdentityAndAccessSupport();
+        if( identityAndAccessSupport == null ) {
+            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
+            return;
+        }
+
         testGroupId = tm.getTestGroupId(DaseinTestManager.STATELESS, false);
         testUserId = tm.getTestUserId(DaseinTestManager.STATELESS, false, testGroupId);
     }
@@ -86,39 +99,23 @@ public class StatelessIAMTests {
 
     @Test
     public void checkMetaData() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
-
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
+        assumeNotNull(identityServices);
+        if( identityAndAccessSupport == null ) {
             tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
         }
-        tm.out("Subscribed", support.isSubscribed());
-        tm.out("Supports Access Controls", support.getCapabilities().supportsAccessControls());
-        tm.out("Supports API Access", support.getCapabilities().supportsApiAccess());
-        tm.out("Supports Console Access", support.getCapabilities().supportsConsoleAccess());
+        tm.out("Subscribed", identityAndAccessSupport.isSubscribed());
+        tm.out("Supports Access Controls", identityAndAccessSupport.getCapabilities().supportsAccessControls());
+        tm.out("Supports API Access", identityAndAccessSupport.getCapabilities().supportsApiAccess());
+        tm.out("Supports Console Access", identityAndAccessSupport.getCapabilities().supportsConsoleAccess());
     }
 
     @Test
     public void getBogusGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        CloudGroup group = support.getGroup(UUID.randomUUID().toString());
+        CloudGroup group = identityAndAccessSupport.getGroup(UUID.randomUUID().toString());
 
         tm.out("Bogus Group", group);
         assertNull("A bogus group was found with a random UUID as an identifier", group);
@@ -126,26 +123,17 @@ public class StatelessIAMTests {
 
     @Test
     public void getGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
-            CloudGroup group = support.getGroup(testGroupId);
+            CloudGroup group = identityAndAccessSupport.getGroup(testGroupId);
 
             tm.out("Group", group);
             assertNotNull("No group was found under the test group ID", group);
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -162,20 +150,11 @@ public class StatelessIAMTests {
 
     @Test
     public void groupContent() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
-            CloudGroup group = support.getGroup(testGroupId);
+            CloudGroup group = identityAndAccessSupport.getGroup(testGroupId);
 
             assertNotNull("No group was found under the test group ID", group);
             tm.out("Group ID", group.getProviderGroupId());
@@ -186,7 +165,7 @@ public class StatelessIAMTests {
             assertEquals("ID does not match requested group", testGroupId, group.getProviderGroupId());
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -197,19 +176,10 @@ public class StatelessIAMTests {
 
     @Test
     public void listGroups() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        Iterable<CloudGroup> groups = support.listGroups(null);
+        Iterable<CloudGroup> groups = identityAndAccessSupport.listGroups(null);
         int count = 0;
 
         assertNotNull("The groups listing may not be null regardless of subscription level or requested path base", groups);
@@ -220,7 +190,7 @@ public class StatelessIAMTests {
         }
         tm.out("Total Group Count", count);
         if( count < 1 ) {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services, so no groups exist");
             }
             else {
@@ -234,20 +204,11 @@ public class StatelessIAMTests {
 
     @Test
     public void listGroupPolicies() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForGroup(testGroupId);
+            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             int count = 0;
 
             assertNotNull("The policies listing may not be null regardless of subscription level or requested group", policies);
@@ -258,7 +219,7 @@ public class StatelessIAMTests {
             }
             tm.out("Total Group Policy Count in " + testGroupId, count);
             if( count < 1 ) {
-                if( !support.isSubscribed() ) {
+                if( !identityAndAccessSupport.isSubscribed() ) {
                     tm.ok("Not subscribed to IAM services, so no policies exist");
                 }
                 else {
@@ -267,7 +228,7 @@ public class StatelessIAMTests {
             }
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -278,20 +239,81 @@ public class StatelessIAMTests {
 
 
     @Test
+    public void listAccountManagedPolicies() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+
+        Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+        int count = 0;
+
+        assertNotNull("The policies listing may not be null regardless of subscription level", policies);
+
+        for( CloudPolicy policy : policies ) {
+            count++;
+            tm.out("Managed Policy", policy);
+        }
+        tm.out("Total Managed Policy Count", count);
+        boolean supportsAccountManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.ACCOUNT_MANAGED_POLICY.equals(type) ) {
+                supportsAccountManagedPolicies = true;
+                break;
+            }
+        }
+        if( count < 1 ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services, so no policies exist");
+            }
+            else if( supportsAccountManagedPolicies ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
+            }
+            else {
+                tm.warn("No policies were returned so this test may be invalid");
+            }
+        }
+    }
+
+    @Test
+    public void listPolicies() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+
+        Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY));
+        int count = 0;
+
+        assertNotNull("The policies listing may not be null regardless of subscription level", policies);
+
+        for( CloudPolicy policy : policies ) {
+            count++;
+            tm.out("Managed Policy", policy);
+        }
+        tm.out("Total Managed Policy Count", count);
+        boolean supportsProviderManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.PROVIDER_MANAGED_POLICY.equals(type) ) {
+                supportsProviderManagedPolicies = true;
+                break;
+            }
+        }
+        if( count < 1 ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services, so no policies exist");
+            }
+            else if( supportsProviderManagedPolicies ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
+            }
+            else {
+                tm.warn("No policies were returned so this test may be invalid");
+            }
+        }
+    }
+
+    @Test
     public void getBogusUser() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        CloudUser user = support.getUser(UUID.randomUUID().toString());
+        CloudUser user = identityAndAccessSupport.getUser(UUID.randomUUID().toString());
 
         tm.out("Bogus User", user);
         assertNull("A bogus user was found with a random UUID as an identifier", user);
@@ -299,31 +321,68 @@ public class StatelessIAMTests {
 
     @Test
     public void getUser() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
-            CloudUser user = support.getUser(testUserId);
+            CloudUser user = identityAndAccessSupport.getUser(testUserId);
 
             tm.out("User", user);
             assertNotNull("No user was found under the test user ID", user);
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
                 fail("No test user exists for running " + name.getMethodName());
             }
+        }
+    }
+
+    @Test
+    public void getPolicy() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+        boolean supportsProviderManagedPolicies = false;
+        for( CloudPolicyType type : identityAndAccessSupport.getCapabilities().listSupportedPolicyTypes() ) {
+            if( CloudPolicyType.PROVIDER_MANAGED_POLICY.equals(type) ) {
+                supportsProviderManagedPolicies = true;
+                break;
+            }
+        }
+
+        if( supportsProviderManagedPolicies ) {
+            Iterator<CloudPolicy> policiesIterator = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY)).iterator();
+            assertTrue("List of policies must include at least one policy", policiesIterator.hasNext());
+            String testPolicyId = policiesIterator.next().getProviderPolicyId();
+            CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId);
+            tm.out("Policy", policy);
+            assertNotNull("No policy was found under the test policy ID [" + testPolicyId + "]", policy);
+            assertPolicy(policy, CloudPolicyType.PROVIDER_MANAGED_POLICY);
+        }
+        else {
+            try {
+                Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY));
+                assertNotNull("List of policies may not be null", policies);
+                assertFalse("List of policies should be empty since managed policies are declared as not supported",
+                        policies.iterator().hasNext()
+                );
+            }
+            catch(CloudException|InternalException e) {
+                tm.ok("Managed policies are not supported");
+            }
+        }
+    }
+
+    private void assertPolicy(@Nonnull CloudPolicy policy, CloudPolicyType type) {
+        assertNotNull("The policy ID may not be null", policy.getProviderPolicyId());
+        assertNotNull("The policy name may not be null", policy.getName());
+        assertEquals("The policy type is wrong", type, policy.getType());
+        assertNotNull("The policy rules may not be null", policy.getRules());
+        for( CloudPolicyRule rule : policy.getRules() ) {
+            assertNotNull("The policy rule permission may not be null", rule.getPermission());
+            assertNotNull("The policy rule actions may not be null", rule.getActions());
         }
     }
 
@@ -335,20 +394,11 @@ public class StatelessIAMTests {
 
     @Test
     public void userContent() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
-            CloudUser user = support.getUser(testUserId);
+            CloudUser user = identityAndAccessSupport.getUser(testUserId);
 
             assertNotNull("No user was found under the test user ID", user);
             tm.out("User ID", user.getProviderUserId());
@@ -360,7 +410,7 @@ public class StatelessIAMTests {
             assertEquals("The ID for the returned user does not match the one requested", testUserId, user.getProviderUserId());
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -371,19 +421,10 @@ public class StatelessIAMTests {
 
     @Test
     public void listUsersInPath() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        Iterable<CloudUser> users = support.listUsersInPath(null);
+        Iterable<CloudUser> users = identityAndAccessSupport.listUsersInPath(null);
         int count = 0;
 
         assertNotNull("The users listing may not be null regardless of subscription level or requested path base", users);
@@ -394,7 +435,7 @@ public class StatelessIAMTests {
         }
         tm.out("Total User Count", count);
         if( count < 1 ) {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services, so no users exist");
             }
             else {
@@ -408,20 +449,11 @@ public class StatelessIAMTests {
 
     @Test
     public void listUsersInGroup() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testGroupId != null ) {
-            Iterable<CloudUser> users = support.listUsersInGroup(testGroupId);
+            Iterable<CloudUser> users = identityAndAccessSupport.listUsersInGroup(testGroupId);
             int count = 0;
 
             assertNotNull("The users listing may not be null regardless of subscription level or requested group", users);
@@ -432,7 +464,7 @@ public class StatelessIAMTests {
             }
             tm.out("Total User Count in " + testGroupId, count);
             if( count < 1 ) {
-                if( !support.isSubscribed() ) {
+                if( !identityAndAccessSupport.isSubscribed() ) {
                     tm.ok("Not subscribed to IAM services, so no users exist");
                 }
                 else {
@@ -441,7 +473,7 @@ public class StatelessIAMTests {
             }
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -452,20 +484,11 @@ public class StatelessIAMTests {
 
     @Test
     public void listGroupsForUser() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
-            Iterable<CloudGroup> groups = support.listGroupsForUser(testUserId);
+            Iterable<CloudGroup> groups = identityAndAccessSupport.listGroupsForUser(testUserId);
             int count = 0;
 
             assertNotNull("The groups listing may not be null regardless of subscription level or requested user", groups);
@@ -476,7 +499,7 @@ public class StatelessIAMTests {
             }
             tm.out("Total Group Count for " + testUserId, count);
             if( count < 1 ) {
-                if( !support.isSubscribed() ) {
+                if( !identityAndAccessSupport.isSubscribed() ) {
                     tm.ok("Not subscribed to IAM services, so no groups exist");
                 }
                 else {
@@ -485,7 +508,7 @@ public class StatelessIAMTests {
             }
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
@@ -496,20 +519,11 @@ public class StatelessIAMTests {
 
     @Test
     public void listUserPolicies() throws CloudException, InternalException {
-        IdentityServices services = tm.getProvider().getIdentityServices();
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
 
-        if( services == null ) {
-            tm.ok("Identity services are not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
-        IdentityAndAccessSupport support = services.getIdentityAndAccessSupport();
-
-        if( support == null ) {
-            tm.ok("Identity and access management is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
-            return;
-        }
         if( testUserId != null ) {
-            Iterable<CloudPolicy> policies = support.listPoliciesForUser(testUserId);
+            Iterable<CloudPolicy> policies = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             int count = 0;
 
             assertNotNull("The policies listing may not be null regardless of subscription level or requested user", policies);
@@ -517,10 +531,11 @@ public class StatelessIAMTests {
             for( CloudPolicy policy : policies ) {
                 count++;
                 tm.out(testUserId + " User Policy", policy);
+                assertPolicy(policy, CloudPolicyType.INLINE_POLICY);
             }
             tm.out("Total Policy Count in " + testUserId, count);
             if( count < 1 ) {
-                if( !support.isSubscribed() ) {
+                if( !identityAndAccessSupport.isSubscribed() ) {
                     tm.ok("Not subscribed to IAM services, so no policies exist");
                 }
                 else {
@@ -529,7 +544,7 @@ public class StatelessIAMTests {
             }
         }
         else {
-            if( !support.isSubscribed() ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
                 tm.ok("Not subscribed to IAM services");
             }
             else {
