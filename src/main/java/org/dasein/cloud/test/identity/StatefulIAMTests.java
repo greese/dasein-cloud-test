@@ -502,8 +502,6 @@ public class StatefulIAMTests {
 
         if( testUserId != null ) {
             Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
-            boolean found = false;
-
             tm.out("Before", policies);
 
             assertFalse("Test policy exists before the start of the test",
@@ -558,6 +556,8 @@ public class StatefulIAMTests {
             }
         }
     }
+
+
 
     @Test
     public void removeUser() throws CloudException, InternalException {
