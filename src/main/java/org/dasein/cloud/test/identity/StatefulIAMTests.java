@@ -19,24 +19,17 @@
 
 package org.dasein.cloud.test.identity;
 
-import org.dasein.cloud.Cloud;
 import org.dasein.cloud.CloudException;
 import org.dasein.cloud.InternalException;
 import org.dasein.cloud.identity.*;
 import org.dasein.cloud.network.FirewallSupport;
 import org.dasein.cloud.test.DaseinTestManager;
 import org.dasein.util.CalendarWrapper;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.rules.TestName;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
-
 import java.util.Arrays;
 
 import static org.junit.Assert.*;
@@ -373,7 +366,6 @@ public class StatefulIAMTests {
 
         CloudUser user = support.getUser(userId);
         support.enableConsoleAccess(userId, "Passw0rd".getBytes());
-        String console = support.getCapabilities().getConsoleUrl();
         assertNotNull("No user exists in the cloud for the new ID " + userId, user);
         assertEquals("The IDs for the requested user and the created user do not match", userId, user.getProviderUserId());
     }
