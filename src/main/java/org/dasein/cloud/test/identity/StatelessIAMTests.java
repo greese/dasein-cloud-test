@@ -274,6 +274,36 @@ public class StatelessIAMTests {
     }
 
     @Test
+    public void listAccessKeys() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+
+        Iterable<AccessKey> accessKeys = identityAndAccessSupport.listAccessKeys(null);
+        int count = 0;
+
+        assertNotNull("The access keys listing may not be null regardless of subscription level", accessKeys);
+
+        for( AccessKey accessKey : accessKeys ) {
+            count++;
+            tm.out("Access Key", accessKey);
+        }
+        tm.out("Total Access Key Count", count);
+        boolean supportsAccessKeys = identityAndAccessSupport.getCapabilities().supportsApiAccess();
+
+        if( count < 1 ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services, so no policies exist");
+            }
+            else if( supportsAccessKeys ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
+            }
+            else {
+                tm.warn("No policies were returned so this test may be invalid");
+            }
+        }
+    }
+
+    @Test
     public void listPolicies() throws CloudException, InternalException {
         assumeNotNull(identityServices);
         assumeNotNull(identityAndAccessSupport);
