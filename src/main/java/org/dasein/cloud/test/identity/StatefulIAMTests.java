@@ -138,7 +138,7 @@ public class StatefulIAMTests {
             if( testGroupId != null && support != null ) {
                 try {
                     for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)) ) {
-                        try { support.removeGroupPolicy(testGroupId, policy.getProviderPolicyId()); }
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)); }
                         catch( Throwable ignore ) { }
                     }
                 }
@@ -146,11 +146,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    String[] ids = support.modifyGroupPolicy(testGroupId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
-
-                    if( ids.length > 0 ) {
-                        testPolicyId = ids[0];
-                    }
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)).withProviderGroupId(testGroupId));
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -162,7 +158,7 @@ public class StatefulIAMTests {
             if( testUserId != null && support != null ) {
                 try {
                     for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)) ) {
-                        try { support.removeUserPolicy(testUserId, policy.getProviderPolicyId()); }
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)); }
                         catch( Throwable ignore ) { }
                     }
                 }
@@ -170,11 +166,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    String[] ids = support.modifyUserPolicy(testUserId, "DSN" + System.currentTimeMillis(), CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
-
-                    if( ids.length > 0 ) {
-                        testPolicyId = ids[0];
-                    }
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)).withProviderUserId(testUserId));
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -186,7 +178,7 @@ public class StatefulIAMTests {
             if( testGroupId != null && support != null ) {
                 try {
                     for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)) ) {
-                        try { support.removeGroupPolicy(testGroupId, policy.getProviderPolicyId()); }
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId)); }
                         catch( Throwable ignore ) { }
                     }
                 }
@@ -200,7 +192,39 @@ public class StatefulIAMTests {
             if( testUserId != null && support != null ) {
                 try {
                     for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)) ) {
-                        try { support.removeUserPolicy(testUserId, policy.getProviderPolicyId()); }
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId)); }
+                        catch( Throwable ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
+        else if( name.getMethodName().equals("removeManagedPolicy") ) {
+            if( support != null ) {
+                try {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)) ) {
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)); }
+                        catch( Throwable ignore ) { }
+                    }
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+                try {
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN-ManagedPolicy" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)));
+                }
+                catch( Throwable ignore ) {
+                    // ignore
+                }
+            }
+        }
+        else if( name.getMethodName().equals("createManagedPolicy") ) {
+            if( support != null ) {
+                try {
+                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)) ) {
+                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)); }
                         catch( Throwable ignore ) { }
                     }
                 }
@@ -243,15 +267,16 @@ public class StatefulIAMTests {
     }
 
     private boolean findPolicyWithAction(@Nonnull Iterable<CloudPolicy> policies,
-                                         @Nullable String[] matchProviderPolicyIds,
-                                         @Nonnull ServiceAction action) {
+                                         @Nullable String matchProviderPolicyId,
+                                         @Nonnull ServiceAction action) throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) return false;
         for( CloudPolicy policy : policies ) {
-            if( matchProviderPolicyIds == null ||
-                    Arrays.binarySearch(matchProviderPolicyIds, policy.getProviderPolicyId()) >= 0 ) {
-                for (CloudPolicyRule rule : policy.getRules()) {
-                    if (rule.getPermission().equals(CloudPermission.ALLOW)) {
-                        if (Arrays.binarySearch(rule.getActions(), action) >= 0) {
-                            if (rule.getResourceId() == null) {
+            if( matchProviderPolicyId == null || matchProviderPolicyId.equalsIgnoreCase(policy.getProviderPolicyId()) ) {
+                for( CloudPolicyRule rule : support.getPolicyRules(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(policy.getType()).withProviderGroupId(policy.getProviderGroupId()).withProviderUserId(policy.getProviderUserId())) ) {
+                    if( rule.getPermission().equals(CloudPermission.ALLOW) ) {
+                        if( Arrays.binarySearch(rule.getActions(), action) >= 0 ) {
+                            if( rule.getResources().length == 0 ) {
                                 return true;
                             }
                         }
@@ -276,13 +301,13 @@ public class StatefulIAMTests {
 
             String policyName = "DSN" + System.currentTimeMillis();
 
-            String[] ids = support.modifyGroupPolicy(testGroupId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+            String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)).withProviderGroupId(testGroupId));
 
             policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("After", policies);
 
             assertTrue("Unable to find new group permission",
-                    findPolicyWithAction(policies, ids, FirewallSupport.CREATE_FIREWALL));
+                    findPolicyWithAction(policies, id, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -303,15 +328,15 @@ public class StatefulIAMTests {
             Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("Before", policies);
 
-            assertTrue("Unable to find new group permission", findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
+            assertTrue("Unable to find new group permission", findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
 
-            support.removeGroupPolicy(testGroupId, testPolicyId);
+            support.removePolicy(testPolicyId, CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
 
             policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderGroupId(testGroupId));
             tm.out("After", policies);
 
             assertFalse("Test policy exists still exists after being removed",
-                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
+                    findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -501,13 +526,13 @@ public class StatefulIAMTests {
 
             String policyName = "DSN" + System.currentTimeMillis();
 
-            String[] ids = support.modifyUserPolicy(testUserId, policyName, CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL, null);
+            String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)).withProviderUserId(testUserId));
 
             policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             tm.out("After", policies);
 
             assertTrue("Unable to find new user permission",
-                    findPolicyWithAction(policies, ids, FirewallSupport.CREATE_FIREWALL));
+                    findPolicyWithAction(policies, id, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -529,15 +554,15 @@ public class StatefulIAMTests {
             tm.out("Before", policies);
 
             assertTrue("Unable to find user permission before removal",
-                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
+                    findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
 
-            support.removeUserPolicy(testUserId, testPolicyId);
+            support.removePolicy(testPolicyId, CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
 
             policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.INLINE_POLICY).withProviderUserId(testUserId));
             tm.out("After", policies);
 
             assertFalse("Test policy exists even after removal",
-                    findPolicyWithAction(policies, new String[]{testPolicyId}, FirewallSupport.CREATE_FIREWALL));
+                    findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
         }
         else {
             if( !support.isSubscribed() ) {
@@ -548,8 +573,6 @@ public class StatefulIAMTests {
             }
         }
     }
-
-
 
     @Test
     public void removeUser() throws CloudException, InternalException {
@@ -576,6 +599,70 @@ public class StatefulIAMTests {
                 fail("No test user exists for running the test " + name.getMethodName());
             }
         }
+    }
+
+    @Test
+    public void removeManagedPolicy() throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
+
+        if( testPolicyId != null ) {
+            Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+            tm.out("Before", policies);
+
+            assertTrue("Unable to find managed policy before removal",
+                    findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
+
+            support.removePolicy(testPolicyId, CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+
+            policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+            tm.out("After", policies);
+
+            assertFalse("Test policy exists even after removal",
+                    findPolicyWithAction(policies, testPolicyId, FirewallSupport.CREATE_FIREWALL));
+        }
+        else {
+            if( !support.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services");
+            }
+            else if( !supportsPolicyType(CloudPolicyType.ACCOUNT_MANAGED_POLICY) )  {
+                tm.ok("Driver does not support account managed policies");
+            }
+            else {
+                fail("No test policy exists for running the test " + name.getMethodName());
+            }
+        }
+    }
+
+    private boolean supportsPolicyType( CloudPolicyType type ) throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return false; }
+        for( CloudPolicyType t : support.getCapabilities().listSupportedPolicyTypes() ) {
+            if( t.equals(type)) return true;
+        }
+        return false;
+    }
+
+    @Test
+    public void createManagedPolicy() throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        if( support == null ) { return; }
+
+        Iterable<CloudPolicy> policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+        tm.out("Before", policies);
+
+        assertFalse("Test policy exists before the start of the test",
+                findPolicyWithAction(policies, null, FirewallSupport.CREATE_FIREWALL));
+
+        String policyName = "DSN-ManagedPolicy" + System.currentTimeMillis();
+
+        String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, FirewallSupport.CREATE_FIREWALL)));
+
+        policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+        tm.out("After", policies);
+
+        assertTrue("Unable to find new managed policy permission",
+                findPolicyWithAction(policies, id, FirewallSupport.CREATE_FIREWALL));
     }
 
     /**

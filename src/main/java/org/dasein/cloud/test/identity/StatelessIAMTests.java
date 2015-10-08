@@ -386,7 +386,7 @@ public class StatelessIAMTests {
             Iterator<CloudPolicy> policiesIterator = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY)).iterator();
             assertTrue("List of policies must include at least one policy", policiesIterator.hasNext());
             String testPolicyId = policiesIterator.next().getProviderPolicyId();
-            CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId);
+            CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId, null);
             tm.out("Policy", policy);
             assertNotNull("No policy was found under the test policy ID [" + testPolicyId + "]", policy);
             assertPolicy(policy, CloudPolicyType.PROVIDER_MANAGED_POLICY);
@@ -409,11 +409,6 @@ public class StatelessIAMTests {
         assertNotNull("The policy ID may not be null", policy.getProviderPolicyId());
         assertNotNull("The policy name may not be null", policy.getName());
         assertEquals("The policy type is wrong", type, policy.getType());
-        assertNotNull("The policy rules may not be null", policy.getRules());
-        for( CloudPolicyRule rule : policy.getRules() ) {
-            assertNotNull("The policy rule permission may not be null", rule.getPermission());
-            assertNotNull("The policy rule actions may not be null", rule.getActions());
-        }
     }
 
     private void assertUser(@Nonnull CloudUser user) {
