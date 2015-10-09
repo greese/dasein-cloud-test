@@ -45,6 +45,8 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatefulIAMTests {
     static private DaseinTestManager tm;
+    static private final String MANAGED_POLICY_PREFIX = "dsn-mng-";
+    static private final String INLINE_POLICY_PREFIX = "dsn-inl-";
 
     @BeforeClass
     static public void configure() {
@@ -155,7 +157,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderGroupId(testGroupId));
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance(INLINE_POLICY_PREFIX + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderGroupId(testGroupId));
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -175,7 +177,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderUserId(testUserId));
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance(INLINE_POLICY_PREFIX + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderUserId(testUserId));
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -222,7 +224,7 @@ public class StatefulIAMTests {
                     // ignore
                 }
                 try {
-                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance("DSN-ManagedPolicy" + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)));
+                    testPolicyId = support.createPolicy(CloudPolicyOptions.getInstance(MANAGED_POLICY_PREFIX + System.currentTimeMillis(), CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)));
                 }
                 catch( Throwable ignore ) {
                     // ignore
@@ -232,16 +234,33 @@ public class StatefulIAMTests {
         else if( name.getMethodName().equals("createManagedPolicy") ) {
             if( support != null ) {
                 try {
-                    for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)) ) {
-                        try { support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)); }
-                        catch( Throwable ignore ) { }
-                    }
+                    removeAllManagedPolicies();
                 }
                 catch( Throwable ignore ) {
                     // ignore
                 }
             }
         }
+    }
+
+    private void removeAllManagedPolicies() throws CloudException, InternalException {
+        IdentityAndAccessSupport support = getIASupport();
+        for( CloudPolicy policy : support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY)) ) {
+            // only delete dasein test policies
+            if( policy.getName().startsWith(MANAGED_POLICY_PREFIX) ) {
+                try {
+                    for (CloudUser user : support.listUsersForPolicy(policy.getProviderPolicyId())) {
+                        support.detachPolicyFromUser(policy.getProviderPolicyId(), user.getProviderUserId());
+                    }
+                    for (CloudGroup group : support.listGroupsForPolicy(policy.getProviderPolicyId())) {
+                        support.detachPolicyFromUser(policy.getProviderPolicyId(), group.getProviderGroupId());
+                    }
+                    support.removePolicy(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
+                } catch (Throwable ignore) {
+                }
+            }
+        }
+
     }
 
     @After
@@ -361,7 +380,7 @@ public class StatefulIAMTests {
         IdentityAndAccessSupport support = getIASupport();
         if( support == null ) return false;
         for( CloudPolicy policy : policies ) {
-            if( matchProviderPolicyId == null || matchProviderPolicyId.equalsIgnoreCase(policy.getProviderPolicyId()) ) {
+            if( matchProviderPolicyId == null || matchProviderPolicyId.equalsIgnoreCase(policy.getProviderPolicyId()) && policy.getName().startsWith(MANAGED_POLICY_PREFIX) ) {
                 for( CloudPolicyRule rule : support.getPolicyRules(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(policy.getType()).withProviderGroupId(policy.getProviderGroupId()).withProviderUserId(policy.getProviderUserId())) ) {
                     if( rule.getPermission().equals(CloudPermission.ALLOW) ) {
                         if( Arrays.binarySearch(rule.getActions(), action) >= 0 ) {
@@ -388,7 +407,7 @@ public class StatefulIAMTests {
             assertFalse("Test policy exists before the start of the test",
                     findPolicyWithAction(policies, null, testAction));
 
-            String policyName = "DSN" + System.currentTimeMillis();
+            String policyName = INLINE_POLICY_PREFIX + System.currentTimeMillis();
 
             String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderGroupId(testGroupId));
 
@@ -613,7 +632,7 @@ public class StatefulIAMTests {
             assertFalse("Test policy exists before the start of the test",
                     findPolicyWithAction(policies, null, testAction));
 
-            String policyName = "DSN" + System.currentTimeMillis();
+            String policyName = INLINE_POLICY_PREFIX + System.currentTimeMillis();
 
             String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)).withProviderUserId(testUserId));
 
@@ -702,6 +721,13 @@ public class StatefulIAMTests {
             assertTrue("Unable to find managed policy before removal",
                     findPolicyWithAction(policies, testPolicyId, testAction));
 
+            for( CloudUser user : support.listUsersForPolicy(testPolicyId) ) {
+                support.detachPolicyFromUser(testPolicyId, user.getProviderUserId());
+            }
+            for( CloudGroup group : support.listGroupsForPolicy(testPolicyId) ) {
+                support.detachPolicyFromUser(testPolicyId, group.getProviderGroupId());
+            }
+
             support.removePolicy(testPolicyId, CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
 
             policies = support.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.ACCOUNT_MANAGED_POLICY));
@@ -743,7 +769,7 @@ public class StatefulIAMTests {
         assertFalse("Test policy exists before the start of the test",
                 findPolicyWithAction(policies, null, testAction));
 
-        String policyName = "DSN-ManagedPolicy" + System.currentTimeMillis();
+        String policyName = MANAGED_POLICY_PREFIX + System.currentTimeMillis();
 
         String id = support.createPolicy(CloudPolicyOptions.getInstance(policyName, CloudPolicyRule.getInstance(CloudPermission.ALLOW, testAction)));
 
