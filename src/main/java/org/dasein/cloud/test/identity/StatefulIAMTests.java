@@ -45,8 +45,9 @@ import static org.junit.Assume.assumeTrue;
  */
 public class StatefulIAMTests {
     static private DaseinTestManager tm;
-    static private final String MANAGED_POLICY_PREFIX = "dsn-mng-";
-    static private final String INLINE_POLICY_PREFIX = "dsn-inl-";
+    static private final String DSN_PREFIX = "dsn-";
+    static private final String MANAGED_POLICY_PREFIX = DSN_PREFIX + "mng-";
+    static private final String INLINE_POLICY_PREFIX = DSN_PREFIX + "inl-";
 
     @BeforeClass
     static public void configure() {
@@ -380,7 +381,7 @@ public class StatefulIAMTests {
         IdentityAndAccessSupport support = getIASupport();
         if( support == null ) return false;
         for( CloudPolicy policy : policies ) {
-            if( matchProviderPolicyId == null || matchProviderPolicyId.equalsIgnoreCase(policy.getProviderPolicyId()) && policy.getName().startsWith(MANAGED_POLICY_PREFIX) ) {
+            if( matchProviderPolicyId == null || matchProviderPolicyId.equalsIgnoreCase(policy.getProviderPolicyId()) && policy.getName().startsWith(DSN_PREFIX) ) {
                 for( CloudPolicyRule rule : support.getPolicyRules(policy.getProviderPolicyId(), CloudPolicyFilterOptions.getInstance(policy.getType()).withProviderGroupId(policy.getProviderGroupId()).withProviderUserId(policy.getProviderUserId())) ) {
                     if( rule.getPermission().equals(CloudPermission.ALLOW) ) {
                         if( Arrays.binarySearch(rule.getActions(), action) >= 0 ) {
