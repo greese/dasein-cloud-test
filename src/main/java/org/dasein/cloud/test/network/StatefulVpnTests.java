@@ -201,7 +201,7 @@ public class StatefulVpnTests {
 
             int vpnConnectionsCount = 0;
             Iterable<VpnConnection> vpnConnections = vpnSupport.listVpnConnections(vpn1.getName());
-            for (VpnConnection _ : vpnConnections) {
+            for (VpnConnection $ : vpnConnections) {
                 vpnConnectionsCount++;
             }
             assertTrue("listVPNConnections() should return > 0 result", (vpnConnectionsCount >0));

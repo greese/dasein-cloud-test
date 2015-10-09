@@ -274,6 +274,36 @@ public class StatelessIAMTests {
     }
 
     @Test
+    public void listAccessKeys() throws CloudException, InternalException {
+        assumeNotNull(identityServices);
+        assumeNotNull(identityAndAccessSupport);
+
+        Iterable<AccessKey> accessKeys = identityAndAccessSupport.listAccessKeys(null);
+        int count = 0;
+
+        assertNotNull("The access keys listing may not be null regardless of subscription level", accessKeys);
+
+        for( AccessKey accessKey : accessKeys ) {
+            count++;
+            tm.out("Access Key", accessKey);
+        }
+        tm.out("Total Access Key Count", count);
+        boolean supportsAccessKeys = identityAndAccessSupport.getCapabilities().supportsApiAccess();
+
+        if( count < 1 ) {
+            if( !identityAndAccessSupport.isSubscribed() ) {
+                tm.ok("Not subscribed to IAM services, so no policies exist");
+            }
+            else if( supportsAccessKeys ) {
+                fail("Provider " + tm.getProvider().getProviderName() + " declares its support for provider managed policies, however there were no policies returned");
+            }
+            else {
+                tm.warn("No policies were returned so this test may be invalid");
+            }
+        }
+    }
+
+    @Test
     public void listPolicies() throws CloudException, InternalException {
         assumeNotNull(identityServices);
         assumeNotNull(identityAndAccessSupport);
@@ -356,7 +386,7 @@ public class StatelessIAMTests {
             Iterator<CloudPolicy> policiesIterator = identityAndAccessSupport.listPolicies(CloudPolicyFilterOptions.getInstance(CloudPolicyType.PROVIDER_MANAGED_POLICY)).iterator();
             assertTrue("List of policies must include at least one policy", policiesIterator.hasNext());
             String testPolicyId = policiesIterator.next().getProviderPolicyId();
-            CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId);
+            CloudPolicy policy = identityAndAccessSupport.getPolicy(testPolicyId, null);
             tm.out("Policy", policy);
             assertNotNull("No policy was found under the test policy ID [" + testPolicyId + "]", policy);
             assertPolicy(policy, CloudPolicyType.PROVIDER_MANAGED_POLICY);
@@ -379,11 +409,6 @@ public class StatelessIAMTests {
         assertNotNull("The policy ID may not be null", policy.getProviderPolicyId());
         assertNotNull("The policy name may not be null", policy.getName());
         assertEquals("The policy type is wrong", type, policy.getType());
-        assertNotNull("The policy rules may not be null", policy.getRules());
-        for( CloudPolicyRule rule : policy.getRules() ) {
-            assertNotNull("The policy rule permission may not be null", rule.getPermission());
-            assertNotNull("The policy rule actions may not be null", rule.getActions());
-        }
     }
 
     private void assertUser(@Nonnull CloudUser user) {
