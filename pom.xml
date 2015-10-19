@@ -20,7 +20,7 @@
 
     <groupId>org.dasein</groupId>
     <artifactId>dasein-cloud-test</artifactId>
-    <version>2015.09.1-SNAPSHOT</version>
+    <version>2015.10.1-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>dasein-cloud-test</name>
@@ -60,7 +60,7 @@
     <dependency>
         <groupId>org.dasein</groupId>
         <artifactId>dasein-cloud-core</artifactId>
-        <version>2015.09.1-SNAPSHOT</version>
+        <version>2015.10.1</version>
     </dependency>    
     <dependency>
         <groupId>org.dasein</groupId>
@@ -193,7 +193,33 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>       
+      </plugin>
+      <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-gpg-plugin</artifactId>
+          <version>1.6</version>
+          <executions>
+              <execution>
+                  <id>sign-artifacts</id>
+                  <phase>verify</phase>
+                  <goals>
+                      <goal>sign</goal>
+                  </goals>
+              </execution>
+          </executions>
+      </plugin>
+      <plugin>
+          <groupId>org.sonatype.plugins</groupId>
+          <artifactId>nexus-staging-maven-plugin</artifactId>
+          <version>1.6.3</version>
+          <extensions>true</extensions>
+          <configuration>
+              <serverId>sonatype-nexus-staging</serverId>
+              <nexusUrl>https://oss.sonatype.org</nexusUrl>
+              <autoReleaseAfterClose>true</autoReleaseAfterClose>
+              <autoDropAfterRelease>true</autoDropAfterRelease>
+          </configuration>
+      </plugin>
     </plugins>
   </build>  
   
