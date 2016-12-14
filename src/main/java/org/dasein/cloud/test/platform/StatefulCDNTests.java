@@ -117,7 +117,11 @@ public class StatefulCDNTests {
         if( support == null ) {
             tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().canCreateCDN() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support create CDN");
+        	return;
         }
+        
         if( testOrigin != null ) {
             PlatformResources r = DaseinTestManager.getPlatformResources();
 
@@ -154,7 +158,11 @@ public class StatefulCDNTests {
         if( support == null ) {
             tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().canModifyCDN() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support modify CDN");
+        	return;
         }
+        
         if( testDistributionId != null ) {
             Distribution d = support.getDistribution(testDistributionId);
             String newName = "Dasein New " + System.currentTimeMillis();
@@ -208,7 +216,11 @@ public class StatefulCDNTests {
         if( support == null ) {
             tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().canModifyCDN() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support modify CDN");
+        	return;
         }
+        
         if( testDistributionId != null ) {
             Distribution d = support.getDistribution(testDistributionId);
 
@@ -267,7 +279,11 @@ public class StatefulCDNTests {
         if( support == null ) {
             tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().canModifyCDN() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support modify CDN");
+        	return;
         }
+        
         if( testDistributionId != null ) {
             Distribution d = support.getDistribution(testDistributionId);
 
@@ -336,7 +352,11 @@ public class StatefulCDNTests {
         if( support == null ) {
             tm.ok("CDN is not supported in " + tm.getContext().getRegionId() + " of " + tm.getProvider().getCloudName());
             return;
+        } else if ( !support.getCapabilities().canDeleteCDN() ) {
+        	tm.ok(tm.getProvider().getCloudName() + " doesn't support delete CDN");
+        	return;
         }
+        
         if( testDistributionId != null ) {
             Distribution d = support.getDistribution(testDistributionId);
 
